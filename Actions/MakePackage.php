@@ -1,11 +1,12 @@
-<?php
-namespace axenox\PackageManager\Actions;
+<?php namespace axenox\PackageManager\Actions;
+
 use exface\Core\Interfaces\Actions\ActionInterface;
 use exface\Core\Exceptions\ActionRuntimeException;
 use exface\Core\CommonLogic\AbstractApp;
 use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\Model\Object;
 use exface\Core\CommonLogic\NameResolver;
+use exface\Core\CommonLogic\AbstractAction;
 /**
  * This action runs one or more selected test steps
  * 
