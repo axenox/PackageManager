@@ -1,0 +1,19 @@
+{
+	"name" : "axenox/PackageManager",
+	"description" : "Composer-based package manager for the ExFace business web application plattform",
+	"type" : "library",
+	"license" : "GPL-3.0+",
+	"authors" : [{
+			"name" : "Andrej Kabachnik",
+			"email" : "kabachnik@gmail.com",
+			"role" : "Creator"
+		}
+	],
+	"support" : {
+		"issues" : "https://github.com/axenox/PackageManager/issues"
+	},
+	"require" : {
+		"exface/core" : ">=1.0",
+        "composer/composer": "1.*"		
+	}
+}
