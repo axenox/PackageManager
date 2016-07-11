@@ -6,12 +6,12 @@ tmp/
 *.swp
 *~.nib
 local.properties
-.settings/
+#.settings/
 .loadpath
 .recommenders
 
 # Eclipse Core
-.project
+#.project
 
 # External tool builders
 .externalToolBuilders/
@@ -32,7 +32,7 @@ local.properties
 .factorypath
 
 # PDT-specific (PHP Development Tools)
-.buildpath
+#.buildpath
 
 # sbteclipse plugin
 .target

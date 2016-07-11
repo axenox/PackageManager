@@ -13,7 +13,7 @@
 		"issues" : "https://github.com/axenox/PackageManager/issues"
 	},
 	"require" : {
-		"exface/core" : ">=1.0",
-        "composer/composer": "1.*"		
+		"exface/core" : "~0.1",
+		"composer/composer" : "1.*"
 	}
 }
