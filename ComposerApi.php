@@ -134,6 +134,17 @@ class ComposerApi {
 		return $output_formatter;
 	}
 	
+	public function show(OutputInterface $output_formatter = null) {
+		chdir($this->get_path_to_composer_json());
+		if (is_null($output_formatter)){
+			$output_formatter = $this->get_default_output_formatter();
+		}
+		$application = $this->get_composer_application();
+		$code = $application->run(new ArrayInput(array('command' => 'show')), $output_formatter);
+	
+		return $output_formatter;
+	}
+	
 	public function dump_output(OutputInterface $output_formatter){
 		$dump = '';
 		if ($output_formatter instanceof StreamOutput){
