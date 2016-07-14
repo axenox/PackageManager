@@ -3,7 +3,7 @@
 use Composer\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\StreamOutput;
-use Symfony\Component\Console\Formatter\OutputFormatterInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
 class ComposerApi {
 	private $path_to_composer = '';
@@ -80,7 +80,7 @@ class ComposerApi {
 	 * @return \Composer\Console\Application
 	 */
 	public function get_composer_application(){
-		if (!$this->get_composer_application()){
+		if (!$this->composer_application){
 			putenv('COMPOSER_HOME=' . $this->get_path_to_composer());
 			$application = new Application();
 			$application->setAutoExit(false);
@@ -98,10 +98,10 @@ class ComposerApi {
 	
 	/**
 	 * 
-	 * @param OutputFormatterInterface $output_formatter
-	 * @return \Symfony\Component\Console\Formatter\OutputFormatterInterface
+	 * @param OutputInterface $output_formatter
+	 * @return \Symfony\Component\Console\Output\OutputInterface
 	 */
-	public function install(OutputFormatterInterface $output_formatter = null) {
+	public function install(OutputInterface $output_formatter = null) {
 		if (is_null($output_formatter)){
 			$output_formatter = $this->get_default_output_formatter();
 		}
@@ -111,7 +111,7 @@ class ComposerApi {
 		return $output_formatter;
 	}
 	
-	public function update(OutputFormatterInterface $output_formatter = null) {
+	public function update(OutputInterface $output_formatter = null) {
 		if (is_null($output_formatter)){
 			$output_formatter = $this->get_default_output_formatter();
 		}
@@ -121,7 +121,7 @@ class ComposerApi {
 		return $output_formatter;
 	}
 	
-	public function dump_output(OutputFormatterInterface $output_formatter){
+	public function dump_output(OutputInterface $output_formatter){
 		$dump = '';
 		if ($output_formatter instanceof StreamOutput){
 			$stream  = $output_formatter->getStream();
