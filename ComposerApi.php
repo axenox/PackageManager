@@ -14,7 +14,7 @@ class ComposerApi {
 	
 	public function __construct($path_to_composer_json, $path_to_composer_installation){
 		$this->set_path_to_composer_json($path_to_composer_json);
-		$this->set_path_to_composer($path_to_composer_installation);
+		$this->set_path_to_composer_installation($path_to_composer_installation);
 	}
 	
 	public function get_path_to_composer_json() {
