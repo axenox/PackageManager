@@ -18,11 +18,13 @@ class ComposerUpdate extends AbstractAction {
 	}	
 	
 	protected function perform(){
-		$composer = new ComposerApi(
+		$composer_path = 
 				$this->get_workbench()->get_installation_path() 
 				. DIRECTORY_SEPARATOR . 'vendor'
 				. DIRECTORY_SEPARATOR . 'bin'
-				. DIRECTORY_SEPARATOR . 'composer');
+				. DIRECTORY_SEPARATOR . 'composer';
+		var_dump($composer_path);
+		$composer = new ComposerApi($this->get_workbench()->get_installation_path(), $composer_path);
 		
 		$output = $composer->update();
 		$this->set_result_message($composer->dump_output($output));

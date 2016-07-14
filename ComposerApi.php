@@ -6,21 +6,33 @@ use Symfony\Component\Console\Output\StreamOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class ComposerApi {
-	private $path_to_composer = '';
+	private $path_to_composer_installation = '';
+	private $path_to_composer_json = '';
 	private $proxy_http = null;
 	private $proxy_https = null;
 	private $composer_application = null;
 	
-	public function __construct($path_to_composer){
-		$this->set_path_to_composer($path_to_composer);
+	public function __construct($path_to_composer_json, $path_to_composer_installation){
+		$this->set_path_to_composer_json($path_to_composer_json);
+		$this->set_path_to_composer($path_to_composer_installation);
 	}
 	
+	public function get_path_to_composer_json() {
+		return $this->path_to_composer_json;
+	}
+	
+	public function set_path_to_composer_json($value) {
+		$this->path_to_composer_json = $value;
+		return $this;
+	}
+	
+	  
 	/**
 	 * 
 	 * @return string|unknown
 	 */
-	public function get_path_to_composer() {
-		return $this->path_to_composer;
+	public function get_path_to_composer_installation() {
+		return $this->path_to_composer_installation;
 	}
 	
 	/**
@@ -28,8 +40,8 @@ class ComposerApi {
 	 * @param unknown $value
 	 * @return \axenox\PackageManager\ComposerApi
 	 */
-	public function set_path_to_composer($value) {
-		$this->path_to_composer = $value;
+	public function set_path_to_composer_installation($value) {
+		$this->path_to_composer_installation = $value;
 		return $this;
 	}  
 	
