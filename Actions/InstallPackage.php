@@ -11,7 +11,7 @@ use exface\Core\CommonLogic\AbstractAction;
 /**
  * This action runs one or more selected test steps
  * 
- * @author aka
+ * @author Andrej Kabachnik
  *
  */
 class InstallPackage extends AbstractAction {
@@ -105,11 +105,11 @@ class InstallPackage extends AbstractAction {
 		}
 	
 		// Install the model
-		$exface = $this->exface();
+		$exface = $this->get_workbench();
 		$model_source = $source_path . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL;
 		if (is_dir($model_source)){
 			$this->add_result_message("Model...\n");
-			$transaction = $this->exface()->data()->start_transaction();
+			$transaction = $this->get_workbench()->data()->start_transaction();
 			foreach (scandir($model_source) as $file){
 				if ($file == '.' || $file == '..') continue;
 				$data_sheet = DataSheetFactory::create_from_uxon($exface, UxonObject::from_json(file_get_contents($model_source . DIRECTORY_SEPARATOR . $file)));

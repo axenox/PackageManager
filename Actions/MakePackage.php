@@ -10,7 +10,7 @@ use exface\Core\CommonLogic\AbstractAction;
 /**
  * This action runs one or more selected test steps
  * 
- * @author aka
+ * @author Andrej Kabachnik
  *
  */
 class MakePackage extends AbstractAction {
@@ -37,7 +37,7 @@ class MakePackage extends AbstractAction {
 		
 		$exported_counter = 0;
 		foreach ($apps->get_rows() as $row){
-			$this->export_package($this->exface()->get_app($row['ALIAS']));
+			$this->export_package($this->get_workbench()->get_app($row['ALIAS']));
 			$exported_counter++;
 		}
 			
@@ -56,17 +56,17 @@ class MakePackage extends AbstractAction {
 	
 	protected function export_model(AbstractApp $app){
 		$this->get_app()->filemanager()->mkdir($this->get_export_to_path_absolute($app) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL);
-		$this->export_model_file($app, $this->exface()->model()->get_object('ExFace.Core.APP'), 'UID');
-		$this->export_model_file($app, $this->exface()->model()->get_object('ExFace.Core.APP_CONFIG'), 'APP');
-		$this->export_model_file($app, $this->exface()->model()->get_object('ExFace.Core.OBJECT'), 'APP');
-		$this->export_model_file($app, $this->exface()->model()->get_object('ExFace.Core.OBJECT_BEHAVIORS'), 'OBJECT__APP');
-		$this->export_model_file($app, $this->exface()->model()->get_object('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
-		$this->export_model_file($app, $this->exface()->model()->get_object('ExFace.Core.DATASRC'), 'APP');
-		$this->export_model_file($app, $this->exface()->model()->get_object('ExFace.Core.CONNECTION'), 'APP');
+		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.APP'), 'UID');
+		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.APP_CONFIG'), 'APP');
+		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT'), 'APP');
+		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT_BEHAVIORS'), 'OBJECT__APP');
+		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
+		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.DATASRC'), 'APP');
+		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.CONNECTION'), 'APP');
 	}
 	
 	protected function export_model_file(AbstractApp $app, Object $object, $app_filter_attribute_alias){
-		$ds = $this->exface()->data()->create_data_sheet($object);
+		$ds = $this->get_workbench()->data()->create_data_sheet($object);
 		foreach ($object->get_attribute_group('~ALL')->get_attributes() as $attr){
 			$ds->get_columns()->add_from_expression($attr->get_alias());
 		}
@@ -89,7 +89,7 @@ class MakePackage extends AbstractAction {
 	
 	protected function create_composer_json_from_scratch(AbstractApp $app){
 		$json = array(
-				"name" => $this->get_app()->get_vendor() . '/' . str_replace($app->get_vendor() . $this->exface()->get_config_value('namespace_separator') , '', $app->get_alias_with_namespace()),
+				"name" => $this->get_app()->get_vendor() . '/' . str_replace($app->get_vendor() . $this->get_workbench()->get_config_value('namespace_separator') , '', $app->get_alias_with_namespace()),
 				"version" => "0.1",
 				"extra" => array(
 						"app_uid" => $app->get_uid()
@@ -113,7 +113,7 @@ class MakePackage extends AbstractAction {
 		if (is_null($this->export_to_path_relative)){
 			$this->export_to_path_relative = $this->get_app()->get_configuration_value('PATH_TO_AUTHORED_PACKAGES');
 		}
-		return $this->export_to_path_relative . ($app ? DIRECTORY_SEPARATOR . $app->get_vendor() . DIRECTORY_SEPARATOR . str_replace($app->get_vendor() . $this->exface()->get_config_value('namespace_separator'), '', $app->get_alias()) : '');
+		return $this->export_to_path_relative . ($app ? DIRECTORY_SEPARATOR . $app->get_vendor() . DIRECTORY_SEPARATOR . str_replace($app->get_vendor() . $this->get_workbench()->get_config_value('namespace_separator'), '', $app->get_alias()) : '');
 	}
 	
 	public function set_export_to_path_relative($value) {
@@ -122,7 +122,7 @@ class MakePackage extends AbstractAction {
 	}  
 	
 	public function get_export_to_path_absolute(AbstractApp $app = null){
-		return $this->exface()->get_installation_path() . '/' . $this->get_export_to_path_relative($app);
+		return $this->get_workbench()->get_installation_path() . '/' . $this->get_export_to_path_relative($app);
 	}
 	
 	/**
