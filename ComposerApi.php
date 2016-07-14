@@ -93,7 +93,7 @@ class ComposerApi {
 	 */
 	public function get_composer_application(){
 		if (!$this->composer_application){
-			putenv('COMPOSER_HOME=' . $this->get_path_to_composer());
+			putenv('COMPOSER_HOME=' . $this->get_path_to_composer_installation());
 			$application = new Application();
 			$application->setAutoExit(false);
 			$this->composer_application = $application;
@@ -124,6 +124,7 @@ class ComposerApi {
 	}
 	
 	public function update(OutputInterface $output_formatter = null) {
+		chdir($this->get_path_to_composer_json());
 		if (is_null($output_formatter)){
 			$output_formatter = $this->get_default_output_formatter();
 		}
