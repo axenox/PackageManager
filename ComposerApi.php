@@ -91,13 +91,13 @@ class ComposerApi {
 	 * @return \Composer\Console\Application
 	 */
 	public function get_composer_application(){
-		if (!$this->composer_application){
-			//putenv('COMPOSER_HOME=' . $this->get_path_to_composer_home());
-			$application = new Application();
-			$application->setAutoExit(false);
-			$this->composer_application = $application;
+		if ($this->get_path_to_composer_home()){
+			putenv('COMPOSER_HOME=' . $this->get_path_to_composer_home());
 		}
-		return $this->composer_application;
+		$application = new Application();
+		$application->setAutoExit(false);
+		
+		return $application;
 	}
 	
 	protected function get_default_output_formatter(){
@@ -124,6 +124,8 @@ class ComposerApi {
 	
 	public function update(OutputInterface $output_formatter = null) {
 		chdir($this->get_path_to_composer_json());
+		set_time_limit(300);
+		ini_set('memory_limit','1G');
 		if (is_null($output_formatter)){
 			$output_formatter = $this->get_default_output_formatter();
 		}
