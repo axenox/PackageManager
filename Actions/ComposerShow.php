@@ -8,7 +8,7 @@ use axenox\PackageManager\ComposerApi;
  * @author Andrej Kabachnik
  *
  */
-class ComposerUpdate extends AbstractComposerAction {
+class ComposerShow extends AbstractComposerAction {
 	
 	protected function init(){
 		$this->set_icon_name('info');

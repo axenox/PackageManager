@@ -20,6 +20,10 @@ abstract class AbstractComposerAction extends ShowDialog {
 		$this->set_input_rows_max(null);
 	}
 	
+	/**
+	 * 
+	 * @return \axenox\PackageManager\ComposerApi
+	 */
 	protected function get_composer(){
 		$composer = new ComposerApi($this->get_workbench()->get_installation_path());
 		$composer->set_path_to_composer_home($this->get_workbench()->filemanager()->get_path_to_user_data_folder() . DIRECTORY_SEPARATOR . '.composer');
@@ -33,19 +37,19 @@ abstract class AbstractComposerAction extends ShowDialog {
 	
 	protected function perform(){
 		parent::perform();
-		$output = $this->perform_composer_action();
-		$this->set_result_message($this->dump_output($output));
-		return;
-	}
-	
-	protected function create_dialog_widget(AbstractWidget $contained_widget = null){
-		$dialog = parent::create_dialog_widget($contained_widget);
+		$output = $this->perform_composer_action($this->get_composer());
+		$output_text = $this->dump_output($output);
+		$this->set_result_message($output_text);
+		
+		$dialog = $this->get_dialog_widget();
 		$page = $dialog->get_page();
 		/* @var $console_widget \exface\Core\Widgets\InputText */
 		$console_widget = WidgetFactory::create($page, 'InputText', $dialog);
-		$console_widget->set_value($this->get_result_message());
+		$console_widget->set_height(10);
+		$console_widget->set_value($output_text);
 		$dialog->add_widget($console_widget);
-		return $dialog;
+		
+		return;
 	}
 	
 	public function dump_output(OutputInterface $output_formatter){
