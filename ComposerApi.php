@@ -6,15 +6,14 @@ use Symfony\Component\Console\Output\StreamOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class ComposerApi {
-	private $path_to_composer_installation = '';
+	private $path_to_composer_home = '';
 	private $path_to_composer_json = '';
 	private $proxy_http = null;
 	private $proxy_https = null;
 	private $composer_application = null;
 	
-	public function __construct($path_to_composer_json, $path_to_composer_installation){
+	public function __construct($path_to_composer_json){
 		$this->set_path_to_composer_json($path_to_composer_json);
-		$this->set_path_to_composer_installation($path_to_composer_installation);
 	}
 	
 	public function get_path_to_composer_json() {
@@ -31,8 +30,8 @@ class ComposerApi {
 	 * 
 	 * @return string|unknown
 	 */
-	public function get_path_to_composer_installation() {
-		return $this->path_to_composer_installation;
+	public function get_path_to_composer_home() {
+		return $this->path_to_composer_home;
 	}
 	
 	/**
@@ -40,8 +39,8 @@ class ComposerApi {
 	 * @param unknown $value
 	 * @return \axenox\PackageManager\ComposerApi
 	 */
-	public function set_path_to_composer_installation($value) {
-		$this->path_to_composer_installation = $value;
+	public function set_path_to_composer_home($value) {
+		$this->path_to_composer_home = $value;
 		return $this;
 	}  
 	
@@ -93,7 +92,7 @@ class ComposerApi {
 	 */
 	public function get_composer_application(){
 		if (!$this->composer_application){
-			putenv('COMPOSER_HOME=' . $this->get_path_to_composer_installation());
+			//putenv('COMPOSER_HOME=' . $this->get_path_to_composer_home());
 			$application = new Application();
 			$application->setAutoExit(false);
 			$this->composer_application = $application;
@@ -129,7 +128,7 @@ class ComposerApi {
 			$output_formatter = $this->get_default_output_formatter();
 		}
 		$application = $this->get_composer_application();
-		$code = $application->run(new ArrayInput(array('command' => 'install')), $output_formatter);
+		$code = $application->run(new ArrayInput(array('command' => 'update')), $output_formatter);
 	
 		return $output_formatter;
 	}
@@ -144,18 +143,6 @@ class ComposerApi {
 	
 		return $output_formatter;
 	}
-	
-	public function dump_output(OutputInterface $output_formatter){
-		$dump = '';
-		if ($output_formatter instanceof StreamOutput){
-			$stream  = $output_formatter->getStream();
-			// rewind stream to read full contents
-			rewind($stream);
-			$dump = stream_get_contents($stream);
-		} else {
-			throw new \Exception('Cannot dump output of type "' . get_class($output_formatter) . '"!');
-		}
-		return $dump;
-	}
+
 }
 ?>
