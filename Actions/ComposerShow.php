@@ -11,13 +11,12 @@ use axenox\PackageManager\ComposerApi;
 class ComposerUpdate extends AbstractComposerAction {
 	
 	protected function init(){
-		parent::init();
-		$this->set_icon_name('repair');
+		$this->set_icon_name('info');
 	}	
 	
 	protected function perform_composer_action(ComposerApi $composer){
-		return $composer->update();
+		return $composer->show();
 	}
-
+	
 }
 ?>
