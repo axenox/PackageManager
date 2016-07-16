@@ -107,43 +107,51 @@ class ComposerApi {
 		return $output;
 	}
 	
+	protected function call_command($command, array $arguments = null, array $options = null, OutputInterface $output = null){
+		if (is_null($output)){
+			$output = $this->get_default_output_formatter();
+		}
+		
+		// Switch directory to the composer home folder
+		$dir = getcwd();
+		chdir($this->get_path_to_composer_json());
+		// Extend time and memory limits for the script
+		$time_limit = ini_get('max_execution_time');
+		set_time_limit(300);
+		$memory_limit = ini_get('memory_limit');
+		ini_set('memory_limit','1G');
+		$error_reporting_level = error_reporting();
+		
+		
+		// Get composer
+		$application = $this->get_composer_application();
+		// Call command
+		$code = $application->run(new ArrayInput(array('command' => $command)), $output);
+		
+		// Restore environment
+		chdir($dir);
+		set_time_limit($time_limit);
+		ini_set('memory_limit', $memory_limit);
+		error_reporting($error_reporting_level);
+		
+		return $output;
+	}
+	
 	/**
 	 * 
-	 * @param OutputInterface $output_formatter
+	 * @param OutputInterface $output
 	 * @return \Symfony\Component\Console\Output\OutputInterface
 	 */
-	public function install(OutputInterface $output_formatter = null) {
-		if (is_null($output_formatter)){
-			$output_formatter = $this->get_default_output_formatter();
-		}
-		$application = $this->get_composer_application();
-		$code = $application->run(new ArrayInput(array('command' => 'install')), $output_formatter);
-		
-		return $output_formatter;
+	public function install(OutputInterface $output = null) {
+		return $this->call_command('install', null, null, $output);
 	}
 	
-	public function update(OutputInterface $output_formatter = null) {
-		chdir($this->get_path_to_composer_json());
-		set_time_limit(300);
-		ini_set('memory_limit','1G');
-		if (is_null($output_formatter)){
-			$output_formatter = $this->get_default_output_formatter();
-		}
-		$application = $this->get_composer_application();
-		$code = $application->run(new ArrayInput(array('command' => 'update')), $output_formatter);
-	
-		return $output_formatter;
+	public function update(OutputInterface $output = null) {
+		return $this->call_command('update', null, null, $output);
 	}
 	
-	public function show(OutputInterface $output_formatter = null) {
-		chdir($this->get_path_to_composer_json());
-		if (is_null($output_formatter)){
-			$output_formatter = $this->get_default_output_formatter();
-		}
-		$application = $this->get_composer_application();
-		$code = $application->run(new ArrayInput(array('command' => 'show')), $output_formatter);
-	
-		return $output_formatter;
+	public function show(OutputInterface $output = null) {
+		return $this->call_command('show', null, null, $output);
 	}
 
 }
