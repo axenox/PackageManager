@@ -14,6 +14,6 @@
 	},
 	"require" : {
 		"exface/core" : "~0.1",
-		"kabachello/composerapi" : "1.*"
+		"kabachello/composerapi" : "~0.1"
 	}
 }
