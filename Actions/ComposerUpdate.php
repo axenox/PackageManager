@@ -1,6 +1,6 @@
 <?php namespace axenox\PackageManager\Actions;
 
-use axenox\PackageManager\ComposerApi;
+use kabachello\ComposerAPI\ComposerAPI;
 
 /**
  * This action runs one or more selected test steps
@@ -15,7 +15,7 @@ class ComposerUpdate extends AbstractComposerAction {
 		$this->set_icon_name('repair');
 	}	
 	
-	protected function perform_composer_action(ComposerApi $composer){
+	protected function perform_composer_action(ComposerAPI $composer){
 		return $composer->update();
 	}
 

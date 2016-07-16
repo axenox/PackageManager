@@ -1,10 +1,10 @@
 <?php namespace axenox\PackageManager\Actions;
 
-use kabachello\ComposerAPI\ComposerAPI;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Output\StreamOutput;
 use exface\Core\Actions\ShowDialog;
 use exface\Core\Factories\WidgetFactory;
+use kabachello\ComposerAPI\ComposerAPI;
 
 /**
  * This action runs one or more selected test steps
