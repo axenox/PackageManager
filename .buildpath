@@ -5,4 +5,5 @@
 	<buildpathentry external="true" kind="lib" path="C:/xampp/htdocs/exface/exface/vendor/exface/Core"/>
 	<buildpathentry external="true" kind="lib" path="C:/xampp/htdocs/exface/exface/vendor/composer/composer/src/Composer"/>
 	<buildpathentry external="true" kind="lib" path="C:/xampp/htdocs/exface/exface/vendor/symfony/console"/>
+	<buildpathentry external="true" kind="lib" path="C:/xampp/htdocs/exface/exface/vendor/kabachello/ComposerAPI"/>
 </buildpath>

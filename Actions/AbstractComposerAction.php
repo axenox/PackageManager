@@ -1,10 +1,9 @@
 <?php namespace axenox\PackageManager\Actions;
 
-use axenox\PackageManager\ComposerApi;
+use kabachello\ComposerAPI\ComposerAPI;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Output\StreamOutput;
 use exface\Core\Actions\ShowDialog;
-use exface\Core\Widgets\AbstractWidget;
 use exface\Core\Factories\WidgetFactory;
 
 /**
@@ -22,10 +21,10 @@ abstract class AbstractComposerAction extends ShowDialog {
 	
 	/**
 	 * 
-	 * @return \axenox\PackageManager\ComposerApi
+	 * @return \axenox\PackageManager\ComposerAPI
 	 */
 	protected function get_composer(){
-		$composer = new ComposerApi($this->get_workbench()->get_installation_path());
+		$composer = new ComposerAPI($this->get_workbench()->get_installation_path());
 		$composer->set_path_to_composer_home($this->get_workbench()->filemanager()->get_path_to_user_data_folder() . DIRECTORY_SEPARATOR . '.composer');
 		return $composer;
 	}
@@ -33,7 +32,7 @@ abstract class AbstractComposerAction extends ShowDialog {
 	/**
 	 * @return OutputInterface
 	 */
-	protected abstract function perform_composer_action(ComposerApi $composer);
+	protected abstract function perform_composer_action(ComposerAPI $composer);
 	
 	protected function perform(){
 		parent::perform();
