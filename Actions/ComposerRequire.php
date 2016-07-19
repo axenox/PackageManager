@@ -2,6 +2,7 @@
 
 use kabachello\ComposerAPI\ComposerAPI;
 use exface\Core\Exceptions\ActionRuntimeException;
+use exface\Core\Interfaces\Actions\iModifyData;
 
 /**
  * This action runs one or more selected test steps
@@ -9,9 +10,10 @@ use exface\Core\Exceptions\ActionRuntimeException;
  * @author Andrej Kabachnik
  *
  */
-class ComposerRequire extends AbstractComposerAction {
+class ComposerRequire extends AbstractComposerAction implements iModifyData {
 	
 	protected function init(){
+		parent::init();
 		$this->set_icon_name('install');
 	}	
 	

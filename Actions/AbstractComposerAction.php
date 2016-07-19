@@ -17,6 +17,7 @@ abstract class AbstractComposerAction extends ShowDialog {
 	protected function init(){
 		$this->set_input_rows_min(0);
 		$this->set_input_rows_max(null);
+		$this->set_prefill_with_filter_context(false);
 	}
 	
 	/**
