@@ -34,7 +34,10 @@ class ComposerRequire extends AbstractComposerAction implements iModifyData {
 				throw new ActionRuntimeException('Missing package name in row ' . $nr . ' of input data for action "' . $this->get_alias_with_namespace() . '"!');
 			}
 			$packages[] = $row['name'] . ($row['version'] ? ':' . $row['version'] : '');
-			$repositories[$row['name']] = array($row['repository_type'], $row['repository_url']);
+			
+			if ($row['repository_type'] && $row['repository_url']){
+				$composer->config('repositories.'.$row['name'], array($row['repository_type'], $row['repository_url']));
+			}
 		}
 		
 		return $composer->require($packages, $repositories);
