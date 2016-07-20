@@ -14,7 +14,7 @@ use exface\Core\CommonLogic\AbstractAction;
  * @author Andrej Kabachnik
  *
  */
-class InstallPackage extends AbstractAction {
+class ImportAppModel extends AbstractAction {
 	
 	private $source_path = null;
 	private $target_app_aliases = array();
