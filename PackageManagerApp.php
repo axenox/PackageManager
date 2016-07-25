@@ -4,6 +4,8 @@ namespace axenox\PackageManager;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
+use exface\Core\Factories\DataSheetFactory;
+use exface\Core\CommonLogic\NameResolver;
 
 class PackageManagerApp extends \exface\Core\CommonLogic\AbstractApp {
 	
@@ -87,6 +89,19 @@ PHP;
 	
 	public function get_path_to_app_absolute(AppInterface $app = null, $base_path = ''){
 		return $this->get_workbench()->get_installation_path() . DIRECTORY_SEPARATOR  . $this->get_path_to_app_relative($app, $base_path);
+	}
+	
+	public function get_installed_version($app_alias){
+		$package_object = $this->get_workbench()->model()->get_object('axenox.PackageManager.PACKAGE_INSTALLED');
+		$data_sheet = DataSheetFactory::create_from_object($package_object);
+		$data_sheet->get_columns()->add_from_expression('version');
+		$data_sheet->add_filter_from_string('name', $this->get_package_name_from_app_alias($app_alias));
+		$data_sheet->data_read();
+		return $data_sheet->get_cell_value('version', 0);
+	}
+	
+	public function get_package_name_from_app_alias($app_alias){
+		return str_replace(NameResolver::NAMESPACE_SEPARATOR, '/', $app_alias);
 	}
 }
 ?>

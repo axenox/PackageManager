@@ -37,11 +37,11 @@
             "attribute_alias": "UID"
         },
         {
-            "expression": "REPOSITORY_URL",
-            "name": "REPOSITORY_URL",
+            "expression": "PACKAGE",
+            "name": "PACKAGE",
             "hidden": false,
-            "data_type": "Url",
-            "attribute_alias": "REPOSITORY_URL"
+            "data_type": "Relation",
+            "attribute_alias": "PACKAGE"
         },
         {
             "expression": "ALIAS",
@@ -72,7 +72,7 @@
             "CREATED_BY_USER": "",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x31380000000000000000000000000000",
-            "REPOSITORY_URL": null,
+            "PACKAGE": "axenox\/PackageManager",
             "ALIAS": "axenox.PackageManager",
             "NAME": "axenox Package Manager",
             "LABEL": "axenox Package Manager"

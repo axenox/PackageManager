@@ -21,7 +21,7 @@ class ExportAppModel extends AbstractAction {
 	private $export_to_path_relative = null;
 	
 	protected function init(){
-		$this->set_icon_name('export');
+		$this->set_icon_name('export-data');
 		$this->set_input_rows_min(0);
 		$this->set_input_rows_max(null);
 	}	
@@ -103,7 +103,7 @@ class ExportAppModel extends AbstractAction {
 	public function set_export_to_path_relative($value) {
 		$this->export_to_path_relative = $value;
 		return $this;
-	}   
+	} 
 	
 	/**
 	 * @return PackageManagerApp
@@ -112,5 +112,6 @@ class ExportAppModel extends AbstractAction {
 	public function get_app(){
 		return parent::get_app();
 	}
+
 }
 ?>

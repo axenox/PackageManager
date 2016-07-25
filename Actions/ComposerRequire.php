@@ -28,7 +28,6 @@ class ComposerRequire extends AbstractComposerAction implements iModifyData {
 		}
 				
 		$packages = array();
-		$repositories = array();
 		foreach ($this->get_input_data_sheet()->get_rows() as $nr => $row){
 			if (!isset($row['name']) || !$row['name']){
 				throw new ActionRuntimeException('Missing package name in row ' . $nr . ' of input data for action "' . $this->get_alias_with_namespace() . '"!');
@@ -40,7 +39,7 @@ class ComposerRequire extends AbstractComposerAction implements iModifyData {
 			}
 		}
 		
-		return $composer->require($packages, $repositories);
+		return $composer->require($packages);
 	}
 	
 }
