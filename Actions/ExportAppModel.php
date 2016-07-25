@@ -91,6 +91,7 @@ class ExportAppModel extends AbstractAction {
 			$ds->get_columns()->add_from_expression($attr->get_alias());
 		}
 		$ds->add_filter_from_string($app_filter_attribute_alias, $app->get_uid());
+		$ds->get_sorters()->add_from_string('CREATED_ON', 'ASC');
 		$ds->get_sorters()->add_from_string($object->get_uid_alias(), 'ASC');
 		$ds->data_read();
 		$this->get_app()->filemanager()->dumpFile($this->get_app()->get_path_to_app_absolute($app, $this->get_export_to_path_relative()) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL . DIRECTORY_SEPARATOR . $object->get_alias() . '.json', $ds->to_uxon());

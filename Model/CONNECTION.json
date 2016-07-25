@@ -103,6 +103,10 @@
     "row_offset": 0,
     "sorters": [
         {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
             "attribute_alias": "UID",
             "direction": "ASC"
         }

@@ -115,7 +115,9 @@ class ImportAppModel extends AbstractAction {
 			foreach (scandir($model_source) as $file){
 				if ($file == '.' || $file == '..') continue;
 				$data_sheet = DataSheetFactory::create_from_uxon($exface, UxonObject::from_json(file_get_contents($model_source . DIRECTORY_SEPARATOR . $file)));
-				
+				if ($mod_col = $data_sheet->get_columns()->get_by_expression('MODIFIED_ON')){
+					$mod_col->set_ignore_fixed_values(true);
+				}
 				// Disable timestamping behavior because it will prevent multiple installations of the same
 				// model since the first install will set the update timestamp to something later than the
 				// timestamp saved in the model files

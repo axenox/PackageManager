@@ -103,7 +103,7 @@
             "CODE": "HTTP_PROXY",
             "NAME": "Proxy address for HTTP requests",
             "VALUE": "10.193.3.254:3128",
-            "DESCRIPTION": null,
+            "DESCRIPTION": "",
             "LABEL": "Proxy address for HTTP requests"
         },
         {
@@ -116,7 +116,7 @@
             "CODE": "HTTPS_PROXY",
             "NAME": "Proxy address for secure HTTPS requests",
             "VALUE": "10.193.3.254:3128",
-            "DESCRIPTION": null,
+            "DESCRIPTION": "",
             "LABEL": "Proxy address for secure HTTPS requests"
         }
     ],
@@ -136,6 +136,10 @@
     "rows_on_page": null,
     "row_offset": 0,
     "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
         {
             "attribute_alias": "UID",
             "direction": "ASC"
