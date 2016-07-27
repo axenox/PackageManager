@@ -78,8 +78,8 @@ PHP;
 	public function get_path_to_app_relative(AppInterface $app = null, $base_path = '') {
 		$path = '';
 		if (!$base_path){
-			if ($this->get_configuration_value('PATH_TO_AUTHORED_PACKAGES')){
-				$path = $this->get_app()->get_configuration_value('PATH_TO_AUTHORED_PACKAGES') . DIRECTORY_SEPARATOR;
+			if ($this->get_config_value('PATH_TO_AUTHORED_PACKAGES')){
+				$path = $this->get_app()->get_config_value('PATH_TO_AUTHORED_PACKAGES') . DIRECTORY_SEPARATOR;
 			} else {
 				$path = 'vendor' . DIRECTORY_SEPARATOR;
 			}

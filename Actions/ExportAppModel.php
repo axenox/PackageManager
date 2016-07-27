@@ -76,7 +76,6 @@ class ExportAppModel extends AbstractAction {
 	protected function export_model(AbstractApp $app){
 		$this->get_app()->filemanager()->mkdir($this->get_app()->get_path_to_app_absolute($app, $this->get_export_to_path_relative()) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL);
 		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.APP'), 'UID');
-		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.APP_CONFIG'), 'APP');
 		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT'), 'APP');
 		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT_BEHAVIORS'), 'OBJECT__APP');
 		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
