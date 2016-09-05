@@ -2,12 +2,12 @@
 
 use exface\Core\Interfaces\Actions\ActionInterface;
 use exface\Core\Exceptions\AppNotFoundError;
-use exface\Core\CommonLogic\AbstractApp;
 use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\Model\Object;
 use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\CommonLogic\NameResolver;
 use exface\Core\Exceptions\ActionRuntimeException;
+use exface\Core\Interfaces\AppInterface;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current 
@@ -73,7 +73,7 @@ class ExportAppModel extends AbstractAction {
 		return $apps;
 	}
 	
-	protected function export_model(AbstractApp $app){
+	protected function export_model(AppInterface $app){
 		$this->get_app()->filemanager()->mkdir($this->get_app()->get_path_to_app_absolute($app, $this->get_export_to_path_relative()) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL);
 		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.APP'), 'UID');
 		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT'), 'APP');
@@ -83,7 +83,7 @@ class ExportAppModel extends AbstractAction {
 		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.CONNECTION'), 'APP');
 	}
 	
-	protected function export_model_file(AbstractApp $app, Object $object, $app_filter_attribute_alias){
+	protected function export_model_file(AppInterface $app, Object $object, $app_filter_attribute_alias){
 		/** @var $ds \exface\Core\CommonLogic\DataSheets\DataSheet */
 		$ds = $this->get_workbench()->data()->create_data_sheet($object);
 		foreach ($object->get_attribute_group('~ALL')->get_attributes() as $attr){

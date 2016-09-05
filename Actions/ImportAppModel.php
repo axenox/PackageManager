@@ -100,8 +100,8 @@ class ImportAppModel extends AbstractAction {
 	 * @throws ActionRuntimeException
 	 * @return void
 	 */
-	public function install(NameResolverInterface $name_resolver){
-		$app_path = $this->get_app()->filemanager()->get_path_to_vendor_folder() . $name_resolver->get_class_directory();
+	public function install(NameResolverInterface $app_name_resolver){
+		$app_path = $this->get_app()->filemanager()->get_path_to_vendor_folder() . $app_name_resolver->get_class_directory();
 		if (!file_exists($app_path) || !is_dir($app_path)){
 			throw new ActionRuntimeException('"' . $app_path . '" does not point to an installable app!');
 		}
@@ -125,7 +125,7 @@ class ImportAppModel extends AbstractAction {
 					$behavior->disable();
 				}
 				
-				$counter = $data_sheet->data_replace_matching_filters(true);
+				$counter = $data_sheet->data_replace_by_filters(true);
 				$this->add_result_message($data_sheet->get_meta_object()->get_name() . " - " .  $counter . "\n");
 			}
 			
