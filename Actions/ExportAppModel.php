@@ -8,6 +8,8 @@ use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\CommonLogic\NameResolver;
 use exface\Core\Exceptions\ActionRuntimeException;
 use exface\Core\Interfaces\AppInterface;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\Factories\DataSheetFactory;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current 
@@ -75,17 +77,59 @@ class ExportAppModel extends AbstractAction {
 	
 	protected function export_model(AppInterface $app){
 		$this->get_app()->filemanager()->mkdir($this->get_app()->get_path_to_app_absolute($app, $this->get_export_to_path_relative()) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL);
-		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.APP'), 'UID');
-		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT'), 'APP');
-		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT_BEHAVIORS'), 'OBJECT__APP');
-		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
-		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.DATASRC'), 'APP');
-		$this->export_model_file($app, $this->get_workbench()->model()->get_object('ExFace.Core.CONNECTION'), 'APP');
+		// Fetch all model data in form of data sheets
+		$sheets = $this->get_model_data_sheets($app);
+		
+		// Save each data sheet as a file and additionally compute the modification date of the last modified model instance and
+		// the MD5-hash of the entire model definition (concatennated contents of all files). This data will be stored in the composer.json
+		// and used in the installation process of the package
+		$last_modification_time = '0000-00-00 00:00:00';
+		$model_string = '';
+		foreach ($sheets as $ds){
+			$model_string .= $this->export_model_file($app, $ds);
+			$time = $ds->get_columns()->get_by_attribute($ds->get_meta_object()->get_attribute('MODIFIED_ON'))->aggregate(EXF_AGGREGATOR_MAX);
+			$last_modification_time = $time > $last_modification_time ? $time : $last_modification_time;
+		}
+		
+		// Save some information about the package in the extras of composer.json
+		$package_props = array(
+			'app_uid' 			=> $app->get_uid(),
+			'app_alias' 		=> $app->get_alias_with_namespace(),
+			'model_md5' 		=> md5($model_string),
+			'model_timestamp' 	=> $last_modification_time
+		);
+		$composer_json = $this->get_app()->get_composer_json($app);
+		$composer_json['extra']['app'] = $package_props;
+		$this->get_app()->set_composer_json($app, $composer_json);
+		
+		return $this;
 	}
 	
-	protected function export_model_file(AppInterface $app, Object $object, $app_filter_attribute_alias){
-		/** @var $ds \exface\Core\CommonLogic\DataSheets\DataSheet */
-		$ds = $this->get_workbench()->data()->create_data_sheet($object);
+	/**
+	 * 
+	 * @param AppInterface $app
+	 * @return DataSheetInterface[]
+	 */
+	public function get_model_data_sheets(AppInterface $app){
+		$sheets = array();
+		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.APP'), 'UID');
+		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT'), 'APP');
+		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT_BEHAVIORS'), 'OBJECT__APP');
+		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
+		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.DATASRC'), 'APP');
+		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.CONNECTION'), 'APP');
+		return $sheets;
+	}
+	
+	/**
+	 * 
+	 * @param AppInterface $app
+	 * @param Object $object
+	 * @param string $app_filter_attribute_alias
+	 * @return DataSheetInterface
+	 */
+	protected function get_object_data_sheet(AppInterface $app, Object $object, $app_filter_attribute_alias){
+		$ds = DataSheetFactory::create_from_object($object);
 		foreach ($object->get_attribute_group('~ALL')->get_attributes() as $attr){
 			$ds->get_columns()->add_from_expression($attr->get_alias());
 		}
@@ -93,7 +137,24 @@ class ExportAppModel extends AbstractAction {
 		$ds->get_sorters()->add_from_string('CREATED_ON', 'ASC');
 		$ds->get_sorters()->add_from_string($object->get_uid_alias(), 'ASC');
 		$ds->data_read();
-		$this->get_app()->filemanager()->dumpFile($this->get_app()->get_path_to_app_absolute($app, $this->get_export_to_path_relative()) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL . DIRECTORY_SEPARATOR . $object->get_alias() . '.json', $ds->to_uxon());
+		return $ds;
+	}
+	
+	/**
+	 * Writes the UXON representation of a data sheet, that contains all instances of the given object to a file and
+	 * returns the file contents.
+	 * The $app_filter_attribute_alias is used to create a filter for the data sheet that makes sure only those instances
+	 * assotiated with the given app are exported.
+	 * 
+	 * @param AppInterface $app
+	 * @param Object $object
+	 * @param string $app_filter_attribute_alias
+	 * @return string
+	 */
+	protected function export_model_file(AppInterface $app, DataSheetInterface $data_sheet){
+		$contents = $data_sheet->to_uxon();
+		$this->get_app()->filemanager()->dumpFile($this->get_app()->get_path_to_app_absolute($app, $this->get_export_to_path_relative()) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL . DIRECTORY_SEPARATOR . $data_sheet->get_meta_object()->get_alias() . '.json', $contents);
+		return $contents;
 	}
 	
 	public function get_export_to_path_relative() {

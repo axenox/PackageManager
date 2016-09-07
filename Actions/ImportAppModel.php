@@ -129,24 +129,6 @@ class ImportAppModel extends AbstractAction {
 				$this->add_result_message($data_sheet->get_meta_object()->get_name() . " - " .  $counter . "\n");
 			}
 			
-			// Save version number
-			/* TODO Saving the version number properly seems non trivial:
-			 * 
-			 * If we save it inside the app table, it will be saved to the model files too. Since saving occurs
-			 * always before publishing a new version, the old version number will always be saved and published
-			 * with the model - this is ugly.
-			 * 
-			 * If we save it in a separate table, we will need to look for entries in this table and either 
-			 * create an entry or update one. Autocreate on update  des not work without UID-columns yet though.
-			 * 
-			 * At the moment, there is no real nessecity for a version number in the app model. So currently it
-			 * seems not worth the hassle. 
-			*/
-			/*
-			$version_ds = DataSheetFactory::create_from_object_id_or_alias($exface, 'exface.Core.APP_VERSION');
-			$version_ds->add_row(array('app' => $app_uid, 'version' => $this->get_app()->get_installed_version($name_resolver->get_alias_with_namespace())));
-			$version_ds->data_update(true, $transaction);*/
-			
 			// Commit the transaction
 			$transaction->commit();
 		}

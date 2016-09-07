@@ -53,21 +53,52 @@ PHP;
 		$this->filemanager()->dumpFile($file_path, $file_contents);
 	}
 	
+	/**
+	 * 
+	 * @param AppInterface $app
+	 * @return array
+	 */
 	protected function create_composer_json(AppInterface $app){
-		$file_path = $this->get_path_to_app_absolute($app) . DIRECTORY_SEPARATOR . 'composer.json';
-		if (!file_exists($file_path)){
-			$json = array(
-					"name" 		=> $app->get_vendor() . '/' . str_replace($app->get_vendor() . $this->get_workbench()->get_config_value('namespace_separator') , '', $app->get_alias_with_namespace()),
-					"require" 	=> array(
-							"exface/core" => "~0.1"
-					),
-					"extra" 	=> array(
-							"app_uid" => $app->get_uid()
-					)
-			);
-			$this->filemanager()->dumpFile($file_path, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+		$json = array(
+			"name" 		=> $app->get_vendor() . '/' . str_replace($app->get_vendor() . $this->get_workbench()->get_config_value('namespace_separator') , '', $app->get_alias_with_namespace()),
+			"require" 	=> array(
+				"exface/core" => '~0.1'
+			)
+		);
+		
+		return $json;
+	}
+	
+	/**
+	 * 
+	 * @param AppInterface $app
+	 * @return array
+	 */
+	public function get_composer_json(AppInterface $app){
+		$file_path = $this->get_path_to_composer_json($app);
+		if (file_exists($file_path)){
+			$json = json_decode(file_get_contents($file_path), true);
+		} else {
+			$json = $this->create_composer_json($app);
+			$this->set_composer_json($app, $json);
 		}
+		return $json;
+	}
+	
+	/**
+	 * 
+	 * @param AppInterface $app
+	 * @param array $json_object
+	 * @return \axenox\PackageManager\PackageManagerApp
+	 */
+	public function set_composer_json(AppInterface $app, array $json_object){
+		$file_path = $this->get_path_to_composer_json($app);
+		$this->filemanager()->dumpFile($file_path, json_encode($json_object, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 		return $this;
+	}
+	
+	public function get_path_to_composer_json(AppInterface $app){
+		return $this->get_path_to_app_absolute($app) . DIRECTORY_SEPARATOR . 'composer.json';
 	}
 	
 	/**
@@ -100,8 +131,21 @@ PHP;
 		return $data_sheet->get_cell_value('version', 0);
 	}
 	
-	public function get_package_name_from_app_alias($app_alias){
+	public static function get_package_name_from_app_alias($app_alias){
 		return str_replace(NameResolver::NAMESPACE_SEPARATOR, '/', $app_alias);
+	}
+	
+	public static function get_app_alias_from_package_name($package_name){
+		return str_replace('/', NameResolver::NAMESPACE_SEPARATOR, $package_name);
+	}
+	
+	public function get_current_app_version($app_alias){
+		$exface = $this->get_workbench();
+		$ds = DataSheetFactory::create_from_object_id_or_alias($exface, 'Axenox.PackageManager.PACKAGE_INSTALLED');
+		$ds->get_filters()->add_conditions_from_string($ds->get_meta_object(), 'name', $this->get_package_name_from_app_alias($app_alias));
+		$ds->get_columns()->add_from_expression('version');
+		$ds->data_read();
+		return $ds->get_cell_value('version', 0);
 	}
 }
 ?>
