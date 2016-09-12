@@ -116,13 +116,13 @@ class InstallApp extends AbstractAction {
 		
 		// Install the model
 		$result .= "\nModel changes: ";
-		$result .= $this->install_model($app_name_resolver) . '.';
+		$result .= $this->install_model($app_name_resolver);
 		
 		// Finalize installation running the custom installer of the app
 		$app = AppFactory::create($app_name_resolver);
 		$custom_installer_result = $app->install();
 		if ($custom_installer_result){
-			$result .= "\nFinalizing installation: " . $custom_installer_result;
+			$result .= ".\nFinalizing installation: " . $custom_installer_result;
 		}
 			
 		// Save the result
