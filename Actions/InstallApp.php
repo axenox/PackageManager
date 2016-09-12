@@ -8,6 +8,7 @@ use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\Interfaces\NameResolverInterface;
+use exface\Core\Factories\AppFactory;
 
 /**
  * This action runs one or more selected test steps
@@ -30,7 +31,7 @@ class InstallApp extends AbstractAction {
 		$exface = $this->get_workbench();
 		$installed_counter = 0;
 		foreach ($this->get_target_app_aliases() as $app_alias){
-			$this->add_result_message("Installing " . $app_alias . ":\n");
+			$this->add_result_message("Installing " . $app_alias . "...\n");
 			$app_name_resolver = NameResolver::create_from_string($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
 			try {
 				$installed_counter++;
@@ -40,7 +41,7 @@ class InstallApp extends AbstractAction {
 				// FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
 				throw $e;
 			}
-			$this->add_result_message("Installed " . $app_alias . "\n");
+			$this->add_result_message($app_alias . " successfully installed.\n");
 		}
 			
 		// Save the result and output a message for the user
@@ -106,8 +107,7 @@ class InstallApp extends AbstractAction {
 	
 	/**
 	 * 
-	 * @param string $vendor_folder_path
-	 * @param string $target_path
+	 * @param NameResolverInterface $app_name_resolver
 	 * @throws ActionRuntimeException
 	 * @return void
 	 */
@@ -115,8 +115,15 @@ class InstallApp extends AbstractAction {
 		$result = '';
 		
 		// Install the model
-		$result .= "\nModel: ";
-		$result .= $this->install_model($app_name_resolver);
+		$result .= "\nModel changes: ";
+		$result .= $this->install_model($app_name_resolver) . '.';
+		
+		// Finalize installation running the custom installer of the app
+		$app = AppFactory::create($app_name_resolver);
+		$custom_installer_result = $app->install();
+		if ($custom_installer_result){
+			$result .= "\nFinalizing installation: " . $custom_installer_result;
+		}
 			
 		// Save the result
 		$this->add_result_message($result);
@@ -124,6 +131,7 @@ class InstallApp extends AbstractAction {
 	}
 	
 	public function install_model(NameResolverInterface $app_name_resolver){
+		$result = '';
 		$exface = $this->get_workbench();
 		$model_source = $this->get_app_absolute_path($app_name_resolver) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL;
 		
@@ -144,14 +152,14 @@ class InstallApp extends AbstractAction {
 		
 				$counter = $data_sheet->data_replace_by_filters(true);
 				if ($counter > 0){
-					$result .= $data_sheet->get_meta_object()->get_name() . " - " .  $counter . "\n";
+					$result .= ($result ? "; " : "") . $data_sheet->get_meta_object()->get_name() . " - " .  $counter;
 				}
 			}
 			// Commit the transaction
 			$transaction->commit();
 			
 			if (!$result){
-				$result = 'No changes in the model';
+				$result = 'No changes found';
 			}
 			
 		} else {

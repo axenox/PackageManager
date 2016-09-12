@@ -6,8 +6,9 @@ use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\NameResolver;
+use exface\Core\CommonLogic\AbstractApp;
 
-class PackageManagerApp extends \exface\Core\CommonLogic\AbstractApp {
+class PackageManagerApp extends AbstractApp {
 	
 	const FOLDER_NAME_MODEL = 'Model';
 	
@@ -146,6 +147,42 @@ PHP;
 		$ds->get_columns()->add_from_expression('version');
 		$ds->data_read();
 		return $ds->get_cell_value('version', 0);
+	}
+	
+	public function install(){
+		$root_composer_json_path = $this->get_workbench()->filemanager()->get_path_to_base_folder() . DIRECTORY_SEPARATOR . 'composer.json';
+		if (!file_exists($root_composer_json_path)){
+			return 'Root composer.json not found under "' . $root_composer_json_path . '" - automatic installation of apps will not work! See the package manager docs for solutions.';
+		}
+		
+		$root_composer_json = json_decode(file_get_contents($root_composer_json_path), true);
+		if (!is_array($root_composer_json)){
+			return 'Cannot parse root composer.json under "' . $root_composer_json_path . '" - automatic installation of apps will not work! See the package manager docs for solutions.';
+		}
+		
+		$result = '';
+		$changes = 0;
+		
+		if (!isset($root_composer_json['autoload']['psr-0']["axenox\\PackageManager"])){
+			$root_composer_json['autoload']['psr-0']["axenox\\PackageManager"] = "vendor/";
+			$changes++;
+		}
+		if (!in_array("axenox\\PackageManager\\AppInstaller::composer_finish_install", $root_composer_json['scripts']['post-package-install'])){
+			$root_composer_json['scripts']['post-package-install'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_install";
+			$changes++;
+		}
+		if (!in_array("axenox\\PackageManager\\AppInstaller::composer_finish_update", $root_composer_json['scripts']['post-package-update'])){
+			$root_composer_json['scripts']['post-package-update'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_update";
+			$changes++;
+		}
+		
+		if ($changes > 0){
+			$result .= 'Configured root composer.json for automatic app installation';
+		} else {
+			$result .= 'Checked root composer.json';
+		}
+		
+		return $result;
 	}
 }
 ?>
