@@ -149,6 +149,11 @@ PHP;
 		return $ds->get_cell_value('version', 0);
 	}
 	
+	/**
+	 * 
+	 * {@inheritDoc}
+	 * @see \exface\Core\CommonLogic\AbstractApp::install()
+	 */
 	public function install(){
 		$root_composer_json_path = $this->get_workbench()->filemanager()->get_path_to_base_folder() . DIRECTORY_SEPARATOR . 'composer.json';
 		if (!file_exists($root_composer_json_path)){
@@ -177,6 +182,7 @@ PHP;
 		}
 		
 		if ($changes > 0){
+			$this->filemanager()->dumpFile($root_composer_json_path, json_encode($root_composer_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 			$result .= 'Configured root composer.json for automatic app installation';
 		} else {
 			$result .= 'Checked root composer.json';
