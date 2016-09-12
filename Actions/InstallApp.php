@@ -143,6 +143,9 @@ class InstallApp extends AbstractAction {
 				if ($mod_col = $data_sheet->get_columns()->get_by_expression('MODIFIED_ON')){
 					$mod_col->set_ignore_fixed_values(true);
 				}
+				if ($user_col = $data_sheet->get_columns()->get_by_expression('MODIFIED_BY_USER')){
+					$user_col->set_ignore_fixed_values(true);
+				}
 				// Disable timestamping behavior because it will prevent multiple installations of the same
 				// model since the first install will set the update timestamp to something later than the
 				// timestamp saved in the model files
