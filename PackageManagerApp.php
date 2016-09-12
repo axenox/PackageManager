@@ -167,11 +167,11 @@ PHP;
 			$root_composer_json['autoload']['psr-0']["axenox\\PackageManager"] = "vendor/";
 			$changes++;
 		}
-		if (!in_array("axenox\\PackageManager\\AppInstaller::composer_finish_install", $root_composer_json['scripts']['post-package-install'])){
+		if (!is_array($root_composer_json['scripts']['post-package-install']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_install", $root_composer_json['scripts']['post-package-install'])){
 			$root_composer_json['scripts']['post-package-install'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_install";
 			$changes++;
 		}
-		if (!in_array("axenox\\PackageManager\\AppInstaller::composer_finish_update", $root_composer_json['scripts']['post-package-update'])){
+		if (!is_array($root_composer_json['scripts']['post-package-update']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_update", $root_composer_json['scripts']['post-package-update'])){
 			$root_composer_json['scripts']['post-package-update'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_update";
 			$changes++;
 		}
