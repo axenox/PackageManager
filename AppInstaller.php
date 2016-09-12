@@ -25,31 +25,56 @@ class AppInstaller {
 	private $workbench = null;
 	
 	public static function composer_finish_install(PackageEvent $composer_event){
-		return self::install($composer_event->getOperation()->getPackage()->getName());
+		$app_alias = self::composer_get_app_alias_from_extras($composer_event->getOperation()->getPackage()->getExtra());
+		if ($app_alias){
+			$result = self::install($app_alias);
+			fwrite(STDOUT,  'Installing app "' . $app_alias . '" from ' . $composer_event->getOperation()->getPackage()->getName() . ': ' . ($result ? $result : 'Nothing to do') . ".\n");
+			return $result;
+		} else {
+			return false;
+		}
 	}
 	
 	public static function composer_finish_update(PackageEvent $composer_event){
-		return self::install($composer_event->getOperation()->getTargetPackage()->getName());
+		$app_alias = self::composer_get_app_alias_from_extras($composer_event->getOperation()->getTargetPackage()->getExtra());
+		if ($app_alias){
+			$result = self::install($app_alias);
+			fwrite(STDOUT,  'Updating app "' . $app_alias . '" from ' . $composer_event->getOperation()->getTargetPackage()->getName() . ': ' . ($result ? $result : 'Nothing to do') . ".\n");
+			return $result;
+		} else {
+			fwrite(STDOUT, 'No app to install in package "' . $composer_event->getOperation()->getTargetPackage()->getName() . '".'  . "\n");
+			return false;
+		}
 	}
 	
 	public static function composer_prepare_uninstall(PackageEvent $composer_event){
 		return self::uninstall($composer_event->getOperation()->getPackage()->getName());
 	}
 	
-	public static function install($package_name){
-		$exface = Workbench::start_new_instance();
+	protected static function composer_get_app_alias_from_extras($extras_array){
+		if (is_array($extras_array) && array_key_exists('app', $extras_array) && is_array($extras_array['app']) && array_key_exists('app_alias', $extras_array['app'])){
+			return $extras_array['app']['app_alias'];
+		}
+		return false;
+	}
+	
+	public static function install($app_alias){
+		error_reporting(E_ALL ^  E_NOTICE);
+		$result = '';
 		try {
-			$app_name_resolver = NameResolver::create_from_string(PackageManagerApp::get_app_alias_from_package_name($package_name), NameResolver::OBJECT_TYPE_APP, $exface);
-			$exface->get_app('Axenox.PackageManager')->get_action('ImportAppModel')->install($app_name_resolver);
+			$exface = Workbench::start_new_instance();
+			$app_name_resolver = NameResolver::create_from_string($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
+			$result = $exface->get_app('Axenox.PackageManager')->get_action('InstallApp')->install($app_name_resolver);
 			$exface->stop();
 		} catch (\Exception $e){
-			return $e->getMessage();	
+			$result = $e->getMessage();	
 		}
-		return true;
+		return $result;
 	}
 	
 	public static function uninstall($package_name){
-		throw new exfError('AppInstaller::uninstall() is not implemented yet!');
+		error_reporting(E_ALL ^  E_NOTICE);
+		//throw new exfError('AppInstaller::uninstall() is not implemented yet!');
 	}
 	
 }
