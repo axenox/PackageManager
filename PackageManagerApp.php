@@ -61,7 +61,7 @@ PHP;
 	 */
 	protected function create_composer_json(AppInterface $app){
 		$json = array(
-			"name" 		=> $app->get_vendor() . '/' . str_replace($app->get_vendor() . $this->get_workbench()->get_config_value('namespace_separator') , '', $app->get_alias_with_namespace()),
+			"name" 		=> $app->get_vendor() . '/' . str_replace($app->get_vendor() . NameResolver::NAMESPACE_SEPARATOR , '', $app->get_alias_with_namespace()),
 			"require" 	=> array(
 				"exface/core" => '~0.1'
 			)
@@ -110,13 +110,13 @@ PHP;
 	public function get_path_to_app_relative(AppInterface $app = null, $base_path = '') {
 		$path = '';
 		if (!$base_path){
-			if ($this->get_config_value('PATH_TO_AUTHORED_PACKAGES')){
-				$path = $this->get_app()->get_config_value('PATH_TO_AUTHORED_PACKAGES') . DIRECTORY_SEPARATOR;
+			if ($this->get_config()->get_option('PATH_TO_AUTHORED_PACKAGES')){
+				$path = $this->get_config()->get_option('PATH_TO_AUTHORED_PACKAGES') . DIRECTORY_SEPARATOR;
 			} else {
 				$path = 'vendor' . DIRECTORY_SEPARATOR;
 			}
 		}
-		return $path . ($app ? $app->get_vendor() . DIRECTORY_SEPARATOR . str_replace($app->get_vendor() . $this->get_workbench()->get_config_value('namespace_separator'), '', $app->get_alias()) : '');
+		return $path . ($app ? $app->get_vendor() . DIRECTORY_SEPARATOR . str_replace($app->get_vendor() . NameResolver::NAMESPACE_SEPARATOR, '', $app->get_alias()) : '');
 	}
 	
 	public function get_path_to_app_absolute(AppInterface $app = null, $base_path = ''){
