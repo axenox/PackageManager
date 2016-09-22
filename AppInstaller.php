@@ -3,7 +3,6 @@
 use Composer\Installer\PackageEvent;
 use exface\Core\CommonLogic\Workbench;
 use exface\Core\CommonLogic\NameResolver;
-use exface\Core\Exceptions\exfError;
 
 require_once dirname(__FILE__) . 
 	DIRECTORY_SEPARATOR . '..' . 

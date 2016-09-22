@@ -108,15 +108,10 @@ PHP;
 	 * @return string
 	 */
 	public function get_path_to_app_relative(AppInterface $app = null, $base_path = '') {
-		$path = '';
 		if (!$base_path){
-			if ($this->get_config()->get_option('PATH_TO_AUTHORED_PACKAGES')){
-				$path = $this->get_config()->get_option('PATH_TO_AUTHORED_PACKAGES') . DIRECTORY_SEPARATOR;
-			} else {
-				$path = 'vendor' . DIRECTORY_SEPARATOR;
-			}
+			$base_path = 'vendor' . DIRECTORY_SEPARATOR;
 		}
-		return $path . ($app ? $app->get_vendor() . DIRECTORY_SEPARATOR . str_replace($app->get_vendor() . NameResolver::NAMESPACE_SEPARATOR, '', $app->get_alias()) : '');
+		return $base_path . ($app ? $app->get_vendor() . DIRECTORY_SEPARATOR . str_replace($app->get_vendor() . NameResolver::NAMESPACE_SEPARATOR, '', $app->get_alias()) : '');
 	}
 	
 	public function get_path_to_app_absolute(AppInterface $app = null, $base_path = ''){
