@@ -42,12 +42,9 @@ class AppInstaller {
 	public static function composer_finish_package_update(PackageEvent $composer_event){
 		$app_alias = self::composer_get_app_alias_from_extras($composer_event->getOperation()->getTargetPackage()->getExtra());
 		if ($app_alias){
-			$result = self::install($app_alias);
-			fwrite(STDOUT,  'Updating app "' . $app_alias . '" from ' . $composer_event->getOperation()->getTargetPackage()->getName() . ': ' . ($result ? $result : 'Nothing to do') . ".\n");
-			return $result;
+			self::add_app_to_temp_file('update', $app_alias);
 		} else {
 			fwrite(STDOUT, 'No app to install in package "' . $composer_event->getOperation()->getTargetPackage()->getName() . '".'  . "\n");
-			return false;
 		}
 	}
 	
@@ -56,9 +53,9 @@ class AppInstaller {
 	}
 	
 	public static function composer_finish_update(InstallerEvent $composer_event){
-		/* @var $operation \Composer\DependencyResolver\Operation\UpdateOperation */
-		foreach ($composer_event->getOperations() as $operation){
-			var_dump($operation->getTargetPackage()->getName(), self::composer_get_app_alias_from_extras($operation->getTargetPackage()->getExtra()));
+		foreach (self::get_temp_file() as $app_alias){
+			$result = self::install($app_alias);
+			fwrite(STDOUT,  'Updating app "' . $app_alias . '" from ' . $composer_event->getOperation()->getTargetPackage()->getName() . ': ' . ($result ? $result : 'Nothing to do') . ".\n");
 		}
 	}
 	
@@ -108,6 +105,9 @@ class AppInstaller {
 		return $result;
 	}
 	
+	/**
+	 * @return Workbench
+	 */
 	protected function get_workbench(){
 		if (is_null($this->workbench)){
 			error_reporting(E_ALL ^  E_NOTICE);
@@ -116,8 +116,42 @@ class AppInstaller {
 		return $this->workbench;
 	}
 	
-	protected function get_temp_file(){
-		return self::PACKAGE_MANAGER_APP_ALIAS . '.temp.json';
+	protected static function get_temp_file_path_absolute(){
+		$workbench = new Workbench();
+		return $workbench->filemanager()->get_path_to_cache_folder() . DIRECTORY_SEPARATOR . self::PACKAGE_MANAGER_APP_ALIAS . '.temp.json';
+	}
+	
+	/**
+	 * 
+	 * @return array
+	 */
+	protected static function get_temp_file(){
+		$json_array = array();
+		$filename = self::get_temp_file_path_absolute();
+		if (file_exists($filename)){
+			$json_array = json_decode(file_get_contents($filename), true);
+		}
+		return $json_array;
+	}
+	
+	/**
+	 * 
+	 * @param array $json_array
+	 */
+	protected static function set_temp_file(array $json_array){
+		if (count($json_array) > 0){
+			$workbench = new Workbench();
+			return $workbench->filemanager()->dumpFile(self::get_temp_file_path_absolute(), json_encode($json_array, JSON_PRETTY_PRINT));
+		} else {
+			return $workbench->filemanager()->remove(self::get_temp_file_path_absolute());
+		}
+	}
+	
+	protected static function add_app_to_temp_file($operation, $app_alias){
+		$temp_file = self::get_temp_file();
+		$temp_file[$operation][] = $app_alias;
+		self::set_temp_file($temp_file);
+		return $temp_file;
 	}
 		
 }

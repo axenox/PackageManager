@@ -178,7 +178,11 @@ PHP;
 		}
 		// Overall install/update scripts
 		if (!is_array($root_composer_json['scripts']['post-update-cmd']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_update", $root_composer_json['scripts']['post-update-cmd'])){
-			$root_composer_json['scripts']['post-package-update'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_update";
+			$root_composer_json['scripts']['post-update-cmd'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_update";
+			$changes++;
+		}
+		if (!is_array($root_composer_json['scripts']['post-install-cmd']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_install", $root_composer_json['scripts']['post-install-cmd'])){
+			$root_composer_json['scripts']['post-install-cmd'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_update";
 			$changes++;
 		}
 		
