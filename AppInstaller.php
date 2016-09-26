@@ -57,6 +57,7 @@ class AppInstaller {
 			$result = self::install($app_alias);
 			fwrite(STDOUT,  'Updating app "' . $app_alias . '" from ' . $composer_event->getOperation()->getTargetPackage()->getName() . ': ' . ($result ? $result : 'Nothing to do') . ".\n");
 		}
+		unlink(self::get_temp_file_path_absolute());
 	}
 	
 	public static function composer_prepare_uninstall(PackageEvent $composer_event){
