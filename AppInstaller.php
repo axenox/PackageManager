@@ -53,7 +53,7 @@ class AppInstaller {
 	}
 	
 	public static function composer_finish_update(Event $composer_event){
-		foreach (self::get_temp_file() as $app_alias){
+		foreach (self::get_temp_file()['update'] as $app_alias){
 			$result = self::install($app_alias);
 			fwrite(STDOUT,  'Updating app "' . $app_alias . '" : ' . ($result ? $result : 'Nothing to do') . ".\n");
 		}
