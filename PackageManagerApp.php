@@ -173,8 +173,8 @@ PHP;
 			$root_composer_json['scripts']['post-package-install'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_package_install";
 			$changes++;
 		}
-		if (!is_array($root_composer_json['scripts']['post-package-update']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_pacakge_update", $root_composer_json['scripts']['post-package-update'])){
-			$root_composer_json['scripts']['post-package-update'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_pacakge_update";
+		if (!is_array($root_composer_json['scripts']['post-package-update']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_package_update", $root_composer_json['scripts']['post-package-update'])){
+			$root_composer_json['scripts']['post-package-update'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_package_update";
 			$changes++;
 		}
 		
