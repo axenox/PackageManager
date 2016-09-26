@@ -3,7 +3,7 @@
 use Composer\Installer\PackageEvent;
 use exface\Core\CommonLogic\Workbench;
 use exface\Core\CommonLogic\NameResolver;
-use Composer\Installer\InstallerEvent;
+use Composer\Script\Event;
 
 require_once dirname(__FILE__) . 
 	DIRECTORY_SEPARATOR . '..' . 
@@ -48,11 +48,11 @@ class AppInstaller {
 		}
 	}
 	
-	public static function composer_finish_install(InstallerEvent $composer_event){
+	public static function composer_finish_install(Event $composer_event){
 		
 	}
 	
-	public static function composer_finish_update(InstallerEvent $composer_event){
+	public static function composer_finish_update(Event $composer_event){
 		foreach (self::get_temp_file() as $app_alias){
 			$result = self::install($app_alias);
 			fwrite(STDOUT,  'Updating app "' . $app_alias . '" from ' . $composer_event->getOperation()->getTargetPackage()->getName() . ': ' . ($result ? $result : 'Nothing to do') . ".\n");
