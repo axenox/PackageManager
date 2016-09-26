@@ -167,11 +167,17 @@ PHP;
 			$root_composer_json['autoload']['psr-0']["axenox\\PackageManager"] = "vendor/";
 			$changes++;
 		}
-		if (!is_array($root_composer_json['scripts']['post-package-install']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_install", $root_composer_json['scripts']['post-package-install'])){
-			$root_composer_json['scripts']['post-package-install'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_install";
+		// Package install/update scripts
+		if (!is_array($root_composer_json['scripts']['post-package-install']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_package_install", $root_composer_json['scripts']['post-package-install'])){
+			$root_composer_json['scripts']['post-package-install'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_package_install";
 			$changes++;
 		}
-		if (!is_array($root_composer_json['scripts']['post-package-update']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_update", $root_composer_json['scripts']['post-package-update'])){
+		if (!is_array($root_composer_json['scripts']['post-package-update']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_package_update", $root_composer_json['scripts']['post-package-update'])){
+			$root_composer_json['scripts']['post-package-update'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_pacakge_update";
+			$changes++;
+		}
+		// Overall install/update scripts
+		if (!is_array($root_composer_json['scripts']['post-update-cmd']) || !in_array("axenox\\PackageManager\\AppInstaller::composer_finish_update", $root_composer_json['scripts']['post-update-cmd'])){
 			$root_composer_json['scripts']['post-package-update'][] = "axenox\\PackageManager\\AppInstaller::composer_finish_update";
 			$changes++;
 		}
