@@ -31,11 +31,7 @@ class AppInstaller {
 	public static function composer_finish_package_install(PackageEvent $composer_event){
 		$app_alias = self::composer_get_app_alias_from_extras($composer_event->getOperation()->getPackage()->getExtra());
 		if ($app_alias){
-			$result = self::install($app_alias);
-			fwrite(STDOUT,  'Installing app "' . $app_alias . '" from ' . $composer_event->getOperation()->getPackage()->getName() . ': ' . ($result ? $result : 'Nothing to do') . ".\n");
-			return $result;
-		} else {
-			return false;
+			self::add_app_to_temp_file('install', $app_alias);
 		}
 	}
 	
@@ -43,19 +39,21 @@ class AppInstaller {
 		$app_alias = self::composer_get_app_alias_from_extras($composer_event->getOperation()->getTargetPackage()->getExtra());
 		if ($app_alias){
 			self::add_app_to_temp_file('update', $app_alias);
-		} else {
-			fwrite(STDOUT, 'No app to install in package "' . $composer_event->getOperation()->getTargetPackage()->getName() . '".'  . "\n");
 		}
 	}
 	
 	public static function composer_finish_install(Event $composer_event){
-		
+		foreach (self::get_temp_file()['install'] as $app_alias){
+			$result = self::install($app_alias);
+			fwrite(STDOUT,  '-> Installing app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
+		}
+		unlink(self::get_temp_file_path_absolute());
 	}
 	
 	public static function composer_finish_update(Event $composer_event){
 		foreach (self::get_temp_file()['update'] as $app_alias){
 			$result = self::install($app_alias);
-			fwrite(STDOUT,  'Updating app "' . $app_alias . '" : ' . ($result ? $result : 'Nothing to do') . ".\n");
+			fwrite(STDOUT,  '-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
 		}
 		unlink(self::get_temp_file_path_absolute());
 	}
