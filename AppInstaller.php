@@ -43,17 +43,23 @@ class AppInstaller {
 	}
 	
 	public static function composer_finish_install(Event $composer_event){
-		foreach (self::get_temp_file()['install'] as $app_alias){
-			$result = self::install($app_alias);
-			fwrite(STDOUT,  '-> Installing app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
+		$temp = self::get_temp_file();
+		if (array_key_exists('install', $temp)){
+			foreach ($temp['install'] as $app_alias){
+				$result = self::install($app_alias);
+				fwrite(STDOUT,  '-> Installing app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
+			}
 		}
 		unlink(self::get_temp_file_path_absolute());
 	}
 	
 	public static function composer_finish_update(Event $composer_event){
-		foreach (self::get_temp_file()['update'] as $app_alias){
-			$result = self::install($app_alias);
-			fwrite(STDOUT,  '-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
+		$temp = self::get_temp_file();
+		if (array_key_exists('update', $temp)){
+			foreach ($temp['update'] as $app_alias){
+				$result = self::install($app_alias);
+				fwrite(STDOUT,  '-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
+			}	
 		}
 		unlink(self::get_temp_file_path_absolute());
 	}
