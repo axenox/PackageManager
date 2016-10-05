@@ -11,7 +11,7 @@ use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 
 /**
- * This action runs one or more selected test steps
+ * This action installs one or more apps including their meta model, custom installer, etc.
  * 
  * @author Andrej Kabachnik
  *
