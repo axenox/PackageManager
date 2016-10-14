@@ -76,7 +76,9 @@ class ExportAppModel extends AbstractAction {
 	}
 	
 	protected function export_model(AppInterface $app){
-		$this->get_app()->filemanager()->mkdir($this->get_app()->get_path_to_app_absolute($app, $this->get_export_to_path_relative()) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL);
+		$this->get_app()->filemanager()->mkdir($this->get_model_folder_path_absolute($app));
+		$this->get_app()->filemanager()->emptyDir($this->get_model_folder_path_absolute($app));
+		
 		// Fetch all model data in form of data sheets
 		$sheets = $this->get_model_data_sheets($app);
 		
@@ -85,8 +87,8 @@ class ExportAppModel extends AbstractAction {
 		// and used in the installation process of the package
 		$last_modification_time = '0000-00-00 00:00:00';
 		$model_string = '';
-		foreach ($sheets as $ds){
-			$model_string .= $this->export_model_file($app, $ds);
+		foreach ($sheets as $nr => $ds){
+			$model_string .= $this->export_model_file($app, $ds, $nr.'_');
 			$time = $ds->get_columns()->get_by_attribute($ds->get_meta_object()->get_attribute('MODIFIED_ON'))->aggregate(EXF_AGGREGATOR_MAX);
 			$last_modification_time = $time > $last_modification_time ? $time : $last_modification_time;
 		}
@@ -151,10 +153,14 @@ class ExportAppModel extends AbstractAction {
 	 * @param string $app_filter_attribute_alias
 	 * @return string
 	 */
-	protected function export_model_file(AppInterface $app, DataSheetInterface $data_sheet){
+	protected function export_model_file(AppInterface $app, DataSheetInterface $data_sheet, $filename_prefix = null){
 		$contents = $data_sheet->to_uxon();
-		$this->get_app()->filemanager()->dumpFile($this->get_app()->get_path_to_app_absolute($app, $this->get_export_to_path_relative()) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL . DIRECTORY_SEPARATOR . $data_sheet->get_meta_object()->get_alias() . '.json', $contents);
+		$this->get_app()->filemanager()->dumpFile($this->get_model_folder_path_absolute($app) . DIRECTORY_SEPARATOR . $filename_prefix . $data_sheet->get_meta_object()->get_alias() . '.json', $contents);
 		return $contents;
+	}
+	
+	protected function get_model_folder_path_absolute(AppInterface $app){
+		return $this->get_app()->get_path_to_app_absolute($app, $this->get_export_to_path_relative()) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL;
 	}
 	
 	public function get_export_to_path_relative() {
