@@ -64,7 +64,7 @@ class StaticInstaller {
 			foreach ($temp['install'] as $app_alias){
 				$result = self::install($app_alias);
 				$text .= '-> Installing app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
-				fwrite(STDOUT,  $text);
+				self::print_to_stdout($text);
 			}
 			unset($temp['install']);
 			self::set_temp_file($temp);
@@ -84,7 +84,7 @@ class StaticInstaller {
 			foreach ($temp['update'] as $app_alias){
 				$result = self::install($app_alias);
 				$text .= '-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
-				fwrite(STDOUT,  $text);
+				self::print_to_stdout($text);
 			}
 			unset($temp['update']);
 			self::set_temp_file($temp);
@@ -189,6 +189,14 @@ class StaticInstaller {
 		$temp_file[$operation][] = $app_alias;
 		self::set_temp_file($temp_file);
 		return $temp_file;
+	}
+	
+	protected static function print_to_stdout($text){
+		if (is_resource(STDOUT)){
+			fwrite(STDOUT,  $text);
+			return true;
+		} 
+		return false;
 	}
 		
 }
