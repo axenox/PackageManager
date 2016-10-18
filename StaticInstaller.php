@@ -69,7 +69,7 @@ class StaticInstaller {
 			unset($temp['install']);
 			self::set_temp_file($temp);
 		}
-		return $text ? $text : 'No apps to install';
+		return $text ? $text : 'No apps to install' . ".\n";
 	}
 	
 	/**
@@ -89,7 +89,7 @@ class StaticInstaller {
 			unset($temp['update']);
 			self::set_temp_file($temp);
 		}
-		return $text ? $text : 'No apps to update';
+		return $text ? $text : 'No apps to update' . ".\n";
 	}
 	
 	public static function composer_prepare_uninstall(PackageEvent $composer_event){
