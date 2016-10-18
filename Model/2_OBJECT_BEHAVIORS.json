@@ -61,7 +61,14 @@
     "totals_rows": [],
     "filters": {
         "operator": "AND",
-        "conditions": [],
+        "conditions": [
+            {
+                "expression": "OBJECT__APP",
+                "comparator": "=",
+                "value": "0x31380000000000000000000000000000",
+                "object_alias": "exface.Core.OBJECT_BEHAVIORS"
+            }
+        ],
         "nested_groups": []
     },
     "rows_on_page": null,

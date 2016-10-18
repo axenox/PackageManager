@@ -86,10 +86,33 @@
             "attribute_alias": "QUERYBUILDER"
         }
     ],
+    "rows": [
+        {
+            "CREATED_ON": "2016-07-18 21:48:43",
+            "MODIFIED_ON": "2016-10-05 15:48:28",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11e64d20a1fcb3079409c0f8dae36b4f",
+            "APP": "0x31380000000000000000000000000000",
+            "CONNECTION": "0x11e64d20396ae3349409c0f8dae36b4f",
+            "BASE_OBJECT": "",
+            "READONLY": "0",
+            "LABEL": "Filesystem",
+            "ALIAS": "FILESYSTEM",
+            "QUERYBUILDER": "exface\\UrlDataConnector\\QueryBuilders\\JsonUrlBuilder.php"
+        }
+    ],
     "totals_rows": [],
     "filters": {
         "operator": "AND",
-        "conditions": [],
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x31380000000000000000000000000000",
+                "object_alias": "exface.Core.DATASRC"
+            }
+        ],
         "nested_groups": []
     },
     "rows_on_page": null,
