@@ -139,13 +139,6 @@ class ExportAppModel extends AbstractAction {
 		$ds->get_sorters()->add_from_string('CREATED_ON', 'ASC');
 		$ds->get_sorters()->add_from_string($object->get_uid_alias(), 'ASC');
 		$ds->data_read();
-		
-		// After reading data we need to remove all filters, as we now have UIDs for each row - this is enough to do the updates when installing
-		// Removing filters is important, because there might also be some filters from contexts, etc. that have nothing to do with the app
-		// itself. Even leaving the app filter might cause problems when transferring part of the model from one app to another: in the new
-		// app we would get duplicate key errors as DataSheet::data_replace_by_filters() would only look for duplicates within the app.
-		$ds->get_filters()->remove_all();
-		
 		return $ds;
 	}
 	
