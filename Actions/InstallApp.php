@@ -153,7 +153,7 @@ class InstallApp extends AbstractAction {
 					$behavior->disable();
 				}
 		
-				$counter = $data_sheet->data_replace_by_filters(true);
+				$counter = $data_sheet->data_replace_by_filters($transaction);
 				if ($counter > 0){
 					$result .= ($result ? "; " : "") . $data_sheet->get_meta_object()->get_name() . " - " .  $counter;
 				}
