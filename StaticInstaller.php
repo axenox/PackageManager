@@ -59,9 +59,15 @@ class StaticInstaller {
 	 */
 	public static function composer_finish_install(Event $composer_event = null){
 		$text = '';
+		$processed_aliases = array();
 		$temp = self::get_temp_file();
 		if (array_key_exists('install', $temp)){
-			foreach (array_unique($temp['install']) as $app_alias){
+			foreach ($temp['install'] as $app_alias){
+				if (!in_array($app_alias, $processed_aliases)){
+					$processed_aliases[] = $app_alias;
+				} else {
+					continue;
+				}
 				$result = self::install($app_alias);
 				$text .= '-> Installing app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
 				self::print_to_stdout($text);
@@ -79,9 +85,15 @@ class StaticInstaller {
 	 */
 	public static function composer_finish_update(Event $composer_event = null){
 		$text = '';
+		$processed_aliases = array();
 		$temp = self::get_temp_file();
 		if (array_key_exists('update', $temp)){
-			foreach (array_unique($temp['update']) as $app_alias){
+			foreach ($temp['update'] as $app_alias){
+				if (!in_array($app_alias, $processed_aliases)){
+					$processed_aliases[] = $app_alias;
+				} else {
+					continue;
+				}
 				$result = self::install($app_alias);
 				$text .= '-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
 				self::print_to_stdout($text);
