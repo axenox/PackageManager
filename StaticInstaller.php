@@ -61,7 +61,7 @@ class StaticInstaller {
 		$text = '';
 		$temp = self::get_temp_file();
 		if (array_key_exists('install', $temp)){
-			foreach ($temp['install'] as $app_alias){
+			foreach (array_unique($temp['install']) as $app_alias){
 				$result = self::install($app_alias);
 				$text .= '-> Installing app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
 				self::print_to_stdout($text);
@@ -81,7 +81,7 @@ class StaticInstaller {
 		$text = '';
 		$temp = self::get_temp_file();
 		if (array_key_exists('update', $temp)){
-			foreach ($temp['update'] as $app_alias){
+			foreach (array_unique($temp['update']) as $app_alias){
 				$result = self::install($app_alias);
 				$text .= '-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
 				self::print_to_stdout($text);
