@@ -86,22 +86,6 @@
             "attribute_alias": "FILTER_CONTEXT"
         }
     ],
-    "rows": [
-        {
-            "CREATED_ON": "2016-07-18 21:45:47",
-            "MODIFIED_ON": "2016-10-05 15:49:43",
-            "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
-            "UID": "0x11e64d20396ae3349409c0f8dae36b4f",
-            "APP": "0x31380000000000000000000000000000",
-            "LABEL": "Local filesystem",
-            "CONNECTOR": "exface\\UrlDataConnector\\DataConnectors\\FileUriConnector.php",
-            "CONFIG": "{}",
-            "READONLY": "0",
-            "ALIAS": "LOCAL_FS",
-            "FILTER_CONTEXT": ""
-        }
-    ],
     "totals_rows": [],
     "filters": {
         "operator": "AND",
