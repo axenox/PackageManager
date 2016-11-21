@@ -54,7 +54,7 @@
             "expression": "CONNECTOR",
             "name": "CONNECTOR",
             "hidden": false,
-            "data_type": "String",
+            "data_type": "Relation",
             "attribute_alias": "CONNECTOR"
         },
         {

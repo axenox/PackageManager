@@ -40,7 +40,7 @@
             "expression": "BEHAVIOR",
             "name": "BEHAVIOR",
             "hidden": false,
-            "data_type": "String",
+            "data_type": "Relation",
             "attribute_alias": "BEHAVIOR"
         },
         {

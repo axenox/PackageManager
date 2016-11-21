@@ -82,7 +82,7 @@
             "expression": "QUERYBUILDER",
             "name": "QUERYBUILDER",
             "hidden": false,
-            "data_type": "String",
+            "data_type": "Relation",
             "attribute_alias": "QUERYBUILDER"
         }
     ],
