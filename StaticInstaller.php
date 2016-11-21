@@ -101,6 +101,13 @@ class StaticInstaller {
 			unset($temp['update']);
 			self::set_temp_file($temp);
 		}
+		
+		// If composer is performing an update operation, it will install new packages, but will not trigger the post-install-cmd
+		// As a workaround, we just trigger finish_install() here by hand
+		if (array_key_exists('install', $temp)){
+			$text .= self::composer_finish_install();
+		}
+		
 		return $text ? $text : 'No apps to update' . ".\n";
 	}
 	
