@@ -85,7 +85,7 @@ class InstallApp extends AbstractAction {
 	public function get_target_app_aliases() {
 		if ( count($this->target_app_aliases) < 1
 		&& $this->get_input_data_sheet()
-		&& $this->get_input_data_sheet()->get_meta_object()->is('exface.Core.APP')
+		&& $this->get_input_data_sheet()->get_meta_object()->is_exactly('exface.Core.APP')
 		&& !$this->get_input_data_sheet()->is_empty()){
 			$this->get_input_data_sheet()->get_columns()->add_from_expression('ALIAS');
 			if (!$this->get_input_data_sheet()->is_up_to_date()){

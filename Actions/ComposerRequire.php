@@ -23,7 +23,7 @@ class ComposerRequire extends AbstractComposerAction implements iModifyData {
 	 * @see \axenox\PackageManager\Actions\AbstractComposerAction::perform_composer_action()
 	 */
 	protected function perform_composer_action(ComposerAPI $composer){
-		if (!$this->get_input_data_sheet()->get_meta_object()->is('axenox.PackageManager.PACKAGE_INSTALLED')){
+		if (!$this->get_input_data_sheet()->get_meta_object()->is_exactly('axenox.PackageManager.PACKAGE_INSTALLED')){
 			throw new ActionRuntimeException('Wrong input object for action "' . $this->get_alias_with_namespace() . '" - "' . $this->get_input_data_sheet()->get_meta_object()->get_alias_with_namespace() . '"! This action requires input data based based on "axenox.PackageManager.PACKAGE_INSTALLED"!');
 		}
 				

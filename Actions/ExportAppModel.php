@@ -60,7 +60,7 @@ class ExportAppModel extends AbstractAction {
 	protected function get_input_apps_data_sheet(){
 		if ($this->get_input_data_sheet()
 				&& !$this->get_input_data_sheet()->is_empty()
-				&& !$this->get_input_data_sheet()->get_meta_object()->is('exface.Core.APP')){
+				&& !$this->get_input_data_sheet()->get_meta_object()->is_exactly('exface.Core.APP')){
 					throw new ActionRuntimeException('Action "' . $this->get_alias() . '" exprects an exface.Core.APP as input, "' . $this->get_input_data_sheet()->get_meta_object()->get_alias_with_namespace() . '" given instead!');
 		}
 		
