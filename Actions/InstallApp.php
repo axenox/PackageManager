@@ -9,6 +9,7 @@ use exface\Core\CommonLogic\UxonObject;
 use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
+use exface\Core\Exceptions\MetaModelAttributeNotFoundException;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -140,6 +141,16 @@ class InstallApp extends AbstractAction {
 			foreach (scandir($model_source) as $file){
 				if ($file == '.' || $file == '..') continue;
 				$data_sheet = DataSheetFactory::create_from_uxon($exface, UxonObject::from_json(file_get_contents($model_source . DIRECTORY_SEPARATOR . $file)));
+				
+				// Remove columns, that are not attributes. This is important to be able to import changes on the meta model itself.
+				// The trouble is, that after new properties of objects or attributes are added, the export will already contain them
+				// as columns, which would lead to an error because the model entities for these columns are not there yet.
+				foreach ($data_sheet->get_columns() as $column){
+					if (!$column->get_attribute()){
+						$data_sheet->get_columns()->remove($column);
+					}
+				}
+				
 				if ($mod_col = $data_sheet->get_columns()->get_by_expression('MODIFIED_ON')){
 					$mod_col->set_ignore_fixed_values(true);
 				}
@@ -152,7 +163,7 @@ class InstallApp extends AbstractAction {
 				if ($behavior = $data_sheet->get_meta_object()->get_behaviors()->get_by_alias('exface.Core.Behaviors.TimeStampingBehavior')){
 					$behavior->disable();
 				}
-		
+				
 				$counter = $data_sheet->data_replace_by_filters($transaction);
 				if ($counter > 0){
 					$result .= ($result ? "; " : "") . $data_sheet->get_meta_object()->get_name() . " - " .  $counter;
