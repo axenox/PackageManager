@@ -88,6 +88,18 @@ class StaticInstaller {
 		$processed_aliases = array();
 		$temp = self::get_temp_file();
 		if (array_key_exists('update', $temp)){
+			// First of all check, if the core needs to be updated. If so, do that before updating other apps
+			if (in_array(self::get_core_app_alias(), $temp['update'])){
+				if (!in_array(self::get_core_app_alias(), $processed_aliases)){
+					$processed_aliases[] = self::get_core_app_alias();
+				} else {
+					continue;
+				}
+				$result = self::install(self::get_core_app_alias());
+				$text .= '-> Updating app "' . self::get_core_app_alias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
+				self::print_to_stdout($text);
+			}
+			// Now that the core is up to date, we can update the others
 			foreach ($temp['update'] as $app_alias){
 				if (!in_array($app_alias, $processed_aliases)){
 					$processed_aliases[] = $app_alias;
@@ -217,6 +229,9 @@ class StaticInstaller {
 		} 
 		return false;
 	}
-		
+	
+	public static function get_core_app_alias(){
+		return 'exface.Core';
+	}
 }
 ?>
