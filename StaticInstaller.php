@@ -92,12 +92,10 @@ class StaticInstaller {
 			if (in_array(self::get_core_app_alias(), $temp['update'])){
 				if (!in_array(self::get_core_app_alias(), $processed_aliases)){
 					$processed_aliases[] = self::get_core_app_alias();
-				} else {
-					continue;
-				}
-				$result = self::install(self::get_core_app_alias());
-				$text .= '-> Updating app "' . self::get_core_app_alias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
-				self::print_to_stdout($text);
+					$result = self::install(self::get_core_app_alias());
+					$text .= '-> Updating app "' . self::get_core_app_alias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
+					self::print_to_stdout($text);
+				} 
 			}
 			// Now that the core is up to date, we can update the others
 			foreach ($temp['update'] as $app_alias){
