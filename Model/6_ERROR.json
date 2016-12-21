@@ -37,6 +37,13 @@
             "attribute_alias": "UID"
         },
         {
+            "expression": "FULL_ERROR_CODE",
+            "name": "FULL_ERROR_CODE",
+            "hidden": false,
+            "data_type": "String",
+            "attribute_alias": "FULL_ERROR_CODE"
+        },
+        {
             "expression": "APP",
             "name": "APP",
             "hidden": false,
@@ -56,13 +63,6 @@
             "hidden": false,
             "data_type": "String",
             "attribute_alias": "ERROR_TEXT"
-        },
-        {
-            "expression": "FULL_ERROR_CODE",
-            "name": "FULL_ERROR_CODE",
-            "hidden": false,
-            "data_type": "String",
-            "attribute_alias": "FULL_ERROR_CODE"
         },
         {
             "expression": "LABEL",
