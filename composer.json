@@ -21,8 +21,8 @@
         "app": {
             "app_uid": "0x31380000000000000000000000000000",
             "app_alias": "axenox.PackageManager",
-            "model_md5": "3b463f86cb04eb71eb2ca9c1d98f1a07",
-            "model_timestamp": "2016-09-26 10:08:53"
+            "model_md5": "e3da2178deeca3d5d07caa87ceb52d58",
+            "model_timestamp": "2016-12-22 09:46:58"
         }
     }
 }

@@ -72,6 +72,56 @@
             "attribute_alias": "LABEL"
         }
     ],
+    "rows": [
+        {
+            "CREATED_ON": "2016-12-22 09:46:16",
+            "MODIFIED_ON": "2016-12-22 09:44:29",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11e6c82b7a05cf1f93cce4b318306b9a",
+            "FULL_ERROR_CODE": "axenox.PackageManager.6T5TRFE",
+            "APP": "0x31380000000000000000000000000000",
+            "ERROR_CODE": "6T5TRFE",
+            "ERROR_TEXT": "Wrong input object for package manager action",
+            "LABEL": "axenox.PackageManager.6T5TRFE"
+        },
+        {
+            "CREATED_ON": "2016-12-22 09:46:58",
+            "MODIFIED_ON": "2016-12-22 09:46:58",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11e6c82b9302352e93cce4b318306b9a",
+            "FULL_ERROR_CODE": "axenox.PackageManager.6T5TRR1",
+            "APP": "0x31380000000000000000000000000000",
+            "ERROR_CODE": "6T5TRR1",
+            "ERROR_TEXT": "Missing package name in input data",
+            "LABEL": "axenox.PackageManager.6T5TRR1"
+        },
+        {
+            "CREATED_ON": "2016-12-22 09:53:27",
+            "MODIFIED_ON": "2016-12-22 09:46:58",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11e6c82c7b0898e093cce4b318306b9a",
+            "FULL_ERROR_CODE": "axenox.PackageManager.6T5TUR1",
+            "APP": "0x31380000000000000000000000000000",
+            "ERROR_CODE": "6T5TUR1",
+            "ERROR_TEXT": "Install\/Export actions can be performed on meta object exface.Core.OBJECT only",
+            "LABEL": "axenox.PackageManager.6T5TUR1"
+        },
+        {
+            "CREATED_ON": "2016-12-22 10:04:01",
+            "MODIFIED_ON": "2016-12-22 09:46:58",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11e6c82df50166c593cce4b318306b9a",
+            "FULL_ERROR_CODE": "axenox.PackageManager.6T5TZN5",
+            "APP": "0x31380000000000000000000000000000",
+            "ERROR_CODE": "6T5TZN5",
+            "ERROR_TEXT": "No installable app found in path",
+            "LABEL": "axenox.PackageManager.6T5TZN5"
+        }
+    ],
     "totals_rows": [],
     "filters": {
         "operator": "AND",
