@@ -3,13 +3,12 @@
 use exface\Core\Interfaces\Actions\ActionInterface;
 use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\NameResolver;
-use exface\Core\Exceptions\ActionRuntimeException;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
-use exface\Core\Exceptions\MetaModelAttributeNotFoundException;
+use exface\Core\Exceptions\DirectoryNotFoundError;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -113,7 +112,6 @@ class InstallApp extends AbstractAction {
 	/**
 	 * 
 	 * @param NameResolverInterface $app_name_resolver
-	 * @throws ActionRuntimeException
 	 * @return void
 	 */
 	public function install(NameResolverInterface $app_name_resolver){
@@ -186,10 +184,16 @@ class InstallApp extends AbstractAction {
 		return $result;
 	}
 	
+	/**
+	 * 
+	 * @param NameResolverInterface $app_name_resolver
+	 * @throws DirectoryNotFoundError
+	 * @return string
+	 */
 	public function get_app_absolute_path(NameResolverInterface $app_name_resolver){
 		$app_path = $this->get_app()->filemanager()->get_path_to_vendor_folder() . $app_name_resolver->get_class_directory();
 		if (!file_exists($app_path) || !is_dir($app_path)){
-			throw new ActionRuntimeException('"' . $app_path . '" does not point to an installable app!');
+			throw new DirectoryNotFoundError('"' . $app_path . '" does not point to an installable app!', '6T5TZN5');
 		}
 		return $app_path;
 	}

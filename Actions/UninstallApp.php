@@ -1,7 +1,6 @@
 <?php namespace axenox\PackageManager\Actions;
 
 use exface\Core\CommonLogic\NameResolver;
-use exface\Core\Exceptions\ActionRuntimeException;
 use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Interfaces\AppInterface;
@@ -45,7 +44,6 @@ class UninstallApp extends InstallApp {
 	/**
 	 * 
 	 * @param NameResolverInterface $app_name_resolver
-	 * @throws ActionRuntimeException
 	 * @return void
 	 */
 	public function uninstall(NameResolverInterface $app_name_resolver){

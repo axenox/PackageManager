@@ -6,10 +6,10 @@ use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\Model\Object;
 use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\CommonLogic\NameResolver;
-use exface\Core\Exceptions\ActionRuntimeException;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Factories\DataSheetFactory;
+use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current 
@@ -54,14 +54,14 @@ class ExportAppModel extends AbstractAction {
 	
 	/**
 	 * 
-	 * @throws ActionRuntimeException
+	 * @throws ActionInputInvalidObjectError
 	 * @return \exface\Core\Interfaces\DataSheets\DataSheetInterface
 	 */
 	protected function get_input_apps_data_sheet(){
 		if ($this->get_input_data_sheet()
 				&& !$this->get_input_data_sheet()->is_empty()
 				&& !$this->get_input_data_sheet()->get_meta_object()->is_exactly('exface.Core.APP')){
-					throw new ActionRuntimeException('Action "' . $this->get_alias() . '" exprects an exface.Core.APP as input, "' . $this->get_input_data_sheet()->get_meta_object()->get_alias_with_namespace() . '" given instead!');
+					throw new ActionInputInvalidObjectError($this, 'Action "' . $this->get_alias() . '" exprects an exface.Core.APP as input, "' . $this->get_input_data_sheet()->get_meta_object()->get_alias_with_namespace() . '" given instead!', '6T5TUR1');
 		}
 		
 		$apps = $this->get_input_data_sheet()->copy();
