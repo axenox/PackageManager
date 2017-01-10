@@ -66,7 +66,7 @@ class ExportAppModel extends AbstractAction {
 		
 		$apps = $this->get_input_data_sheet()->copy();
 		$apps->get_columns()->add_from_expression('ALIAS');
-		if (!$apps->is_up_to_date()){
+		if (!$apps->is_fresh()){
 			if (!$apps->is_empty()){
 				$apps->add_filter_from_column_values($apps->get_uid_column()->get_values(false));
 			}

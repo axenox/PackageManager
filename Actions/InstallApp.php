@@ -88,7 +88,7 @@ class InstallApp extends AbstractAction {
 		&& $this->get_input_data_sheet()->get_meta_object()->is_exactly('exface.Core.APP')){
 			$this->get_input_data_sheet()->get_columns()->add_from_expression('ALIAS');
 			if (!$this->get_input_data_sheet()->is_empty()){
-				if (!$this->get_input_data_sheet()->is_up_to_date()){
+				if (!$this->get_input_data_sheet()->is_fresh()){
 					$this->get_input_data_sheet()->data_read();
 				}
 			} elseif (!$this->get_input_data_sheet()->get_filters()->is_empty()){
