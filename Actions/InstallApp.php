@@ -1,24 +1,23 @@
 <?php namespace axenox\PackageManager\Actions;
 
-use exface\Core\Interfaces\Actions\ActionInterface;
 use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\NameResolver;
-use exface\Core\Factories\DataSheetFactory;
-use exface\Core\CommonLogic\UxonObject;
 use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
+use axenox\PackageManager\MetaModelInstaller;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
+ * 
+ * @method PackageManagerApp get_app()
  * 
  * @author Andrej Kabachnik
  *
  */
 class InstallApp extends AbstractAction {
 	
-	private $vendor_folder_path = null;
 	private $target_app_aliases = array();
 	
 	protected function init(){
@@ -50,38 +49,6 @@ class InstallApp extends AbstractAction {
 		return;
 	}
 	
-	public function get_app_by_alias($alias){
-		try {
-			$app = $this->get_workbench()->get_app($alias);
-		} catch (AppNotFoundError $e){
-			$workbench = $this->get_workbench();
-			$name_resolver = NameResolver::create_from_string($alias, NameResolver::OBJECT_TYPE_APP, $workbench);
-			$this->get_app()->create_app_folder($name_resolver);
-			$app = $this->get_workbench()->get_app($alias);
-		}
-		return $app;
-	}
-	
-	public function get_vendor_folder_path() {
-		if (is_null($this->vendor_folder_path)){
-			$this->vendor_folder_path = $this->get_app()->filemanager()->get_path_to_vendor_folder();
-		}
-		return $this->vendor_folder_path;
-	}
-	
-	public function set_vendor_folder_path($value) {
-		$this->vendor_folder_path = $value;
-		return $this;
-	}  
-	
-	/**
-	 * @return PackageManagerApp
-	 * @see \exface\Core\Interfaces\Actions\ActionInterface::get_app()
-	 */
-	public function get_app(){
-		return parent::get_app();
-	}
-	
 	public function get_target_app_aliases() {
 		if ( count($this->target_app_aliases) < 1
 		&& $this->get_input_data_sheet()
@@ -105,82 +72,20 @@ class InstallApp extends AbstractAction {
 		return $this;
 	}  
 	
-	protected static function get_path_from_alias($string){
-		return str_replace(NameResolver::NAMESPACE_SEPARATOR, DIRECTORY_SEPARATOR, $string);
-	}
-	
 	/**
 	 * 
 	 * @param NameResolverInterface $app_name_resolver
-	 * @return void
+	 * @return string
 	 */
 	public function install(NameResolverInterface $app_name_resolver){
 		$result = '';
 		
-		// Install the model
-		$result .= "\nModel changes: ";
-		$result .= $this->install_model($app_name_resolver);
-		
-		// Finalize installation running the custom installer of the app
 		$app = AppFactory::create($app_name_resolver);
-		$custom_installer_result = $app->install();
-		if ($custom_installer_result){
-			$result .= ".\nFinalizing installation: " . $custom_installer_result;
-		}
+		$installer = $app->get_installer(new MetaModelInstaller($app_name_resolver));
+		$result .= $installer->install($this->get_app_absolute_path($app_name_resolver));
 			
 		// Save the result
 		$this->add_result_message($result);
-		return $result;
-	}
-	
-	public function install_model(NameResolverInterface $app_name_resolver){
-		$result = '';
-		$exface = $this->get_workbench();
-		$model_source = $this->get_app_absolute_path($app_name_resolver) . DIRECTORY_SEPARATOR . PackageManagerApp::FOLDER_NAME_MODEL;
-		
-		if (is_dir($model_source)){
-			$transaction = $this->get_workbench()->data()->start_transaction();
-			foreach (scandir($model_source) as $file){
-				if ($file == '.' || $file == '..') continue;
-				$data_sheet = DataSheetFactory::create_from_uxon($exface, UxonObject::from_json(file_get_contents($model_source . DIRECTORY_SEPARATOR . $file)));
-				
-				// Remove columns, that are not attributes. This is important to be able to import changes on the meta model itself.
-				// The trouble is, that after new properties of objects or attributes are added, the export will already contain them
-				// as columns, which would lead to an error because the model entities for these columns are not there yet.
-				foreach ($data_sheet->get_columns() as $column){
-					if (!$column->get_attribute()){
-						$data_sheet->get_columns()->remove($column);
-					}
-				}
-				
-				if ($mod_col = $data_sheet->get_columns()->get_by_expression('MODIFIED_ON')){
-					$mod_col->set_ignore_fixed_values(true);
-				}
-				if ($user_col = $data_sheet->get_columns()->get_by_expression('MODIFIED_BY_USER')){
-					$user_col->set_ignore_fixed_values(true);
-				}
-				// Disable timestamping behavior because it will prevent multiple installations of the same
-				// model since the first install will set the update timestamp to something later than the
-				// timestamp saved in the model files
-				if ($behavior = $data_sheet->get_meta_object()->get_behaviors()->get_by_alias('exface.Core.Behaviors.TimeStampingBehavior')){
-					$behavior->disable();
-				}
-				
-				$counter = $data_sheet->data_replace_by_filters($transaction);
-				if ($counter > 0){
-					$result .= ($result ? "; " : "") . $data_sheet->get_meta_object()->get_name() . " - " .  $counter;
-				}
-			}
-			// Commit the transaction
-			$transaction->commit();
-			
-			if (!$result){
-				$result = 'No changes found';
-			}
-			
-		} else {
-			$result = 'No model files to install';
-		}
 		return $result;
 	}
 	

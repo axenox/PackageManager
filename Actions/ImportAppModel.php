@@ -1,6 +1,7 @@
 <?php namespace axenox\PackageManager\Actions;
 
 use exface\Core\CommonLogic\NameResolver;
+use axenox\PackageManager\MetaModelInstaller;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current 
@@ -25,7 +26,8 @@ class ImportAppModel extends InstallApp {
 			$app_name_resolver = NameResolver::create_from_string($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
 			try {
 				$installed_counter++;
-				$result = $this->install_model($app_name_resolver);
+				$installer = new MetaModelInstaller($app_name_resolver);
+				$result .= $installer->install($this->get_app_absolute_path($app_name_resolver));
 			} catch (\Exception $e){
 				$installed_counter--;
 				// FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
