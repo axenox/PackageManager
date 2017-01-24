@@ -121,6 +121,7 @@ class ExportAppModel extends AbstractAction {
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.DATASRC'), 'APP');
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.CONNECTION'), 'APP');
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.ERROR'), 'APP');
+		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT_ACTION'), 'APP');
 		return $sheets;
 	}
 	
@@ -156,8 +157,11 @@ class ExportAppModel extends AbstractAction {
 	 */
 	protected function export_model_file(AppInterface $app, DataSheetInterface $data_sheet, $filename_prefix = null){
 		$contents = $data_sheet->to_uxon();
-		$this->get_app()->filemanager()->dumpFile($this->get_model_folder_path_absolute($app) . DIRECTORY_SEPARATOR . $filename_prefix . $data_sheet->get_meta_object()->get_alias() . '.json', $contents);
-		return $contents;
+		if (!$data_sheet->is_empty()){
+			$this->get_app()->filemanager()->dumpFile($this->get_model_folder_path_absolute($app) . DIRECTORY_SEPARATOR . $filename_prefix . $data_sheet->get_meta_object()->get_alias() . '.json', $contents);
+			return $contents;
+		}
+		return '';
 	}
 	
 	protected function get_model_folder_path_absolute(AppInterface $app){
