@@ -57,7 +57,7 @@ class MetaModelInstaller extends AbstractAppInstaller {
 				// The trouble is, that after new properties of objects or attributes are added, the export will already contain them
 				// as columns, which would lead to an error because the model entities for these columns are not there yet.
 				foreach ($data_sheet->get_columns() as $column){
-					if (!$column->get_attribute()){
+					if (!$column->get_meta_object()->has_attribute($column->get_attribute_alias()) || !$column->get_attribute()){
 						$data_sheet->get_columns()->remove($column);
 					}
 				}
