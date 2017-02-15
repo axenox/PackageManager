@@ -147,7 +147,6 @@ class StaticInstaller {
 			$exface = $this->get_workbench();
 			$app_name_resolver = NameResolver::create_from_string($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
 			$result = $exface->get_app(self::PACKAGE_MANAGER_APP_ALIAS)->get_action(self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS)->install($app_name_resolver);
-			$exface->stop();
 		} catch (\Exception $e){
 			$result = $e->getMessage();
 		}
@@ -160,7 +159,6 @@ class StaticInstaller {
 			$exface = $this->get_workbench();
 			$app_name_resolver = NameResolver::create_from_string($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
 			$result = $exface->get_app(self::PACKAGE_MANAGER_APP_ALIAS)->get_action(self::PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS)->uninstall($app_name_resolver);
-			$exface->stop();
 		} catch (\Exception $e){
 			$result = $e->getMessage();
 		}
