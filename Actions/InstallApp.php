@@ -7,6 +7,7 @@ use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
 use axenox\PackageManager\MetaModelInstaller;
+use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -42,8 +43,14 @@ class InstallApp extends AbstractAction {
 			}
 			$this->add_result_message($app_alias . " successfully installed.\n");
 		}
+		
+		if (count($this->get_target_app_aliases() == 0)){
+			$this->add_result_message('No installable apps had been selected!');
+		} elseif ($installed_counter == 0) {
+			$this->add_result_message('No apps have been installed');
+		}
 			
-		// Save the result and output a message for the user
+		// Save the result
 		$this->set_result('');
 		
 		return;
@@ -51,17 +58,31 @@ class InstallApp extends AbstractAction {
 	
 	public function get_target_app_aliases() {
 		if ( count($this->target_app_aliases) < 1
-		&& $this->get_input_data_sheet()
-		&& $this->get_input_data_sheet()->get_meta_object()->is_exactly('exface.Core.APP')){
-			$this->get_input_data_sheet()->get_columns()->add_from_expression('ALIAS');
-			if (!$this->get_input_data_sheet()->is_empty()){
-				if (!$this->get_input_data_sheet()->is_fresh()){
+		&& $this->get_input_data_sheet()){
+			
+			if ($this->get_input_data_sheet()->get_meta_object()->is_exactly('exface.Core.APP')){
+				$this->get_input_data_sheet()->get_columns()->add_from_expression('ALIAS');
+				if (!$this->get_input_data_sheet()->is_empty()){
+					if (!$this->get_input_data_sheet()->is_fresh()){
+						$this->get_input_data_sheet()->data_read();
+					}
+				} elseif (!$this->get_input_data_sheet()->get_filters()->is_empty()){
 					$this->get_input_data_sheet()->data_read();
 				}
-			} elseif (!$this->get_input_data_sheet()->get_filters()->is_empty()){
-				$this->get_input_data_sheet()->data_read();
+				$this->target_app_aliases = array_unique($this->get_input_data_sheet()->get_column_values('ALIAS', false));
+			} elseif ($this->get_input_data_sheet()->get_meta_object()->is_exactly('axenox.PackageManager.PACKAGE_INSTALLED')){
+				$this->get_input_data_sheet()->get_columns()->add_from_expression('app_alias');
+				if (!$this->get_input_data_sheet()->is_empty()){
+					if (!$this->get_input_data_sheet()->is_fresh()){
+						$this->get_input_data_sheet()->data_read();
+					}
+				} elseif (!$this->get_input_data_sheet()->get_filters()->is_empty()){
+					$this->get_input_data_sheet()->data_read();
+				}
+				$this->target_app_aliases = array_filter(array_unique($this->get_input_data_sheet()->get_column_values('app_alias', false)));
+			} else {
+				throw new ActionInputInvalidObjectError($this, 'The action "' . $this->get_alias_with_namespace() . '" can only be called on the meta objects "exface.Core.App" or "axenox.PackageManager.PACKAGE_INSTALLED" - "' . $this->get_input_data_sheet()->get_meta_object()->get_alias_with_namespace() . '" given instead!');
 			}
-			$this->target_app_aliases = $this->get_input_data_sheet()->get_column_values('ALIAS', false);
 		}
 		
 		return $this->target_app_aliases;

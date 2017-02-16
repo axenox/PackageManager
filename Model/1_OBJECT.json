@@ -144,7 +144,7 @@
         },
         {
             "CREATED_ON": "2016-07-18 21:49:49",
-            "MODIFIED_ON": "2016-07-19 09:33:35",
+            "MODIFIED_ON": "2017-02-16 22:46:52",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e64d20c9789d1a9409c0f8dae36b4f",
@@ -155,7 +155,7 @@
             "PARENT_OBJECT": "",
             "DATA_ADDRESS_PROPS": "{\"response_data_path\":\"packages\"}",
             "DEFAULT_EDITOR_UXON": "{}",
-            "LABEL": "composer.lock",
+            "LABEL": "Package in composer.lock",
             "ALIAS": "PACKAGE_INSTALLED",
             "DATA_ADDRESS": "composer.lock"
         }
