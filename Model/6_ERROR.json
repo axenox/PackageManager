@@ -65,6 +65,13 @@
             "attribute_alias": "ERROR_TEXT"
         },
         {
+            "expression": "DESCRIPTION",
+            "name": "DESCRIPTION",
+            "hidden": false,
+            "data_type": "Text",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
             "expression": "LABEL",
             "name": "LABEL",
             "hidden": false,
@@ -83,6 +90,7 @@
             "APP": "0x31380000000000000000000000000000",
             "ERROR_CODE": "6T5TRFE",
             "ERROR_TEXT": "Wrong input object for package manager action",
+            "DESCRIPTION": null,
             "LABEL": "axenox.PackageManager.6T5TRFE"
         },
         {
@@ -95,6 +103,7 @@
             "APP": "0x31380000000000000000000000000000",
             "ERROR_CODE": "6T5TRR1",
             "ERROR_TEXT": "Missing package name in input data",
+            "DESCRIPTION": null,
             "LABEL": "axenox.PackageManager.6T5TRR1"
         },
         {
@@ -107,6 +116,7 @@
             "APP": "0x31380000000000000000000000000000",
             "ERROR_CODE": "6T5TUR1",
             "ERROR_TEXT": "Install\/Export actions can be performed on meta object exface.Core.OBJECT only",
+            "DESCRIPTION": null,
             "LABEL": "axenox.PackageManager.6T5TUR1"
         },
         {
@@ -119,6 +129,7 @@
             "APP": "0x31380000000000000000000000000000",
             "ERROR_CODE": "6T5TZN5",
             "ERROR_TEXT": "No installable app found in path",
+            "DESCRIPTION": null,
             "LABEL": "axenox.PackageManager.6T5TZN5"
         }
     ],

@@ -772,7 +772,7 @@
             "DATATYPE": "0x33000000000000000000000000000000",
             "DATA_ADDRESS": "time",
             "OBJECT": "0x11e64d20c9789d1a9409c0f8dae36b4f",
-            "FORMATTER": "=datetime(time)",
+            "FORMATTER": "=DateTime(time)",
             "DISPLAYORDER": null,
             "LABELFLAG": "0",
             "UIDFLAG": "0",
