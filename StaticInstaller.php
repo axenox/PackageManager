@@ -88,15 +88,9 @@ class StaticInstaller {
 		$processed_aliases = array();
 		$temp = self::get_temp_file();
 		if (array_key_exists('update', $temp)){
-			// First of all check, if the core needs to be updated. If so, do that before updating other apps
-			if (in_array(self::get_core_app_alias(), $temp['update'])){
-				if (!in_array(self::get_core_app_alias(), $processed_aliases)){
-					$processed_aliases[] = self::get_core_app_alias();
-					$result = self::install(self::get_core_app_alias());
-					$text .= '-> Updating app "' . self::get_core_app_alias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
-					self::print_to_stdout($text);
-				} 
-			}
+
+            self::updateCoreApps($temp, $processed_aliases, $text);
+
 			// Now that the core is up to date, we can update the others
 			foreach ($temp['update'] as $app_alias){
 				if (!in_array($app_alias, $processed_aliases)){
@@ -152,8 +146,32 @@ class StaticInstaller {
 		}
 		return $result;
 	}
-	
-	public function uninstall_app($app_alias){
+
+    /**
+     * update core apps (sql updates always before model updates)
+     */
+    protected static function updateCoreApps($temp, &$processed_aliases, &$text)
+    {
+        if (in_array(self::get_sqldataconnector_app_alias(), $temp['update'])) {
+            self::updateApp($processed_aliases, $text, self::get_sqldataconnector_app_alias());
+        }
+
+        if (in_array(self::get_core_app_alias(), $temp['update'])) {
+            self::updateApp($processed_aliases, $text, self::get_core_app_alias());
+        }
+    }
+
+    protected static function updateApp(&$processed_aliases, &$text, $appAlias)
+    {
+        if (!in_array($appAlias, $processed_aliases)) {
+            $processed_aliases[] = $appAlias;
+            $result = self::install($appAlias);
+            $text .= '-> Updating app "' . $appAlias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
+            self::print_to_stdout($text);
+        }
+    }
+
+    public function uninstall_app($app_alias){
 		$result = '';
 		try {
 			$exface = $this->get_workbench();
@@ -229,5 +247,9 @@ class StaticInstaller {
 	public static function get_core_app_alias(){
 		return 'exface.Core';
 	}
+
+    public static function get_sqldataconnector_app_alias(){
+        return 'exface.SqlDataConnector';
+    }
 }
 ?>
