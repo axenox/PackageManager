@@ -15,7 +15,7 @@ require_once dirname(__FILE__) .
 
 /**
  * The app installer is a simplified wrapper for the package manager actions, which simplifies installing apps from outside of
- * ExFace - in particular AppInstaller::finish_composer_update() can be used as a script in composer to perform the app specific
+ * ExFace - in particular StaticInstaller::finish_composer_update() can be used as a script in composer to perform the app specific
  * installatiom automatically once composer is done installing or updating all the files. 
  * 
  * @author Andrej Kabachnik
