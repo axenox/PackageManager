@@ -41,10 +41,10 @@ class InstallApp extends AbstractAction {
 				// FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
 				throw $e;
 			}
-			$this->add_result_message($app_alias . " successfully installed.\n");
+			$this->add_result_message("\n" . $app_alias . " successfully installed.\n");
 		}
 		
-		if (count($this->get_target_app_aliases() == 0)){
+		if (count($this->get_target_app_aliases()) == 0){
 			$this->add_result_message('No installable apps had been selected!');
 		} elseif ($installed_counter == 0) {
 			$this->add_result_message('No apps have been installed');
@@ -103,7 +103,8 @@ class InstallApp extends AbstractAction {
 		
 		$app = AppFactory::create($app_name_resolver);
 		$installer = $app->get_installer(new MetaModelInstaller($app_name_resolver));
-		$result .= $installer->install($this->get_app_absolute_path($app_name_resolver));
+		$installer_result = $installer->install($this->get_app_absolute_path($app_name_resolver));
+		$result .= $installer_result . (substr($installer_result, -1) != '.' ? '.' : '');
 			
 		// Save the result
 		$this->add_result_message($result);

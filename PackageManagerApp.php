@@ -7,6 +7,7 @@ use exface\Core\Factories\AppFactory;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\NameResolver;
 use exface\Core\CommonLogic\AbstractApp;
+use exface\Core\Interfaces\InstallerInterface;
 
 class PackageManagerApp extends AbstractApp {
 	
@@ -142,6 +143,19 @@ PHP;
 		$ds->get_columns()->add_from_expression('version');
 		$ds->data_read();
 		return $ds->get_cell_value('version', 0);
+	}
+	
+	/**
+	 * The installer of the package manager app will perform some additional actions like setting up composer.json to run the
+	 * required postprocessing, etc.
+	 * 
+	 * {@inheritDoc}
+	 * @see \exface\Core\CommonLogic\AbstractApp::get_installer($injected_installer)
+	 */
+	public function get_installer(InstallerInterface $injected_installer = null){
+		$installer = parent::get_installer($injected_installer);
+		$installer->add_installer(new PackageManagerInstaller($this->get_name_resolver()));
+		return $installer;
 	}
 	
 }

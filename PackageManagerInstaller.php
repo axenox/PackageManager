@@ -3,6 +3,7 @@ namespace axenox\PackageManager;
 
 use exface\Core\CommonLogic\AbstractApp;
 use exface\Core\CommonLogic\AbstractAppInstaller;
+use exface\Core\Exceptions\UnexpectedValueException;
 
 class PackageManagerInstaller extends AbstractAppInstaller {
 	
@@ -14,12 +15,13 @@ class PackageManagerInstaller extends AbstractAppInstaller {
 	public function install($source_absolute_path){
 		$root_composer_json_path = $this->get_workbench()->filemanager()->get_path_to_base_folder() . DIRECTORY_SEPARATOR . 'composer.json';
 		if (!file_exists($root_composer_json_path)){
-			return 'Root composer.json not found under "' . $root_composer_json_path . '" - automatic installation of apps will not work! See the package manager docs for solutions.';
+			return "\n" . 'Root composer.json not found under "' . $root_composer_json_path . '" - automatic installation of apps will not work! See the package manager docs for solutions.';
 		}
 		
-		$root_composer_json = json_decode(file_get_contents($root_composer_json_path), true);
-		if (!is_array($root_composer_json)){
-			return 'Cannot parse root composer.json under "' . $root_composer_json_path . '" - automatic installation of apps will not work! See the package manager docs for solutions.';
+		try {
+			$root_composer_json = $this->parse_composer_json($root_composer_json_path);
+		} catch (\Throwable $e){
+			return "\n" . $e->getMessage() . ' - automatic installation of apps will not work! See the package manager docs for solutions.';
 		}
 		
 		$result = '';
@@ -51,7 +53,7 @@ class PackageManagerInstaller extends AbstractAppInstaller {
 		}
 		
 		if ($changes > 0){
-			$this->filemanager()->dumpFile($root_composer_json_path, json_encode($root_composer_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+			$this->get_workbench()->filemanager()->dumpFile($root_composer_json_path, json_encode($root_composer_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 			$result .= "\n Configured root composer.json for automatic app installation";
 		} else {
 			$result .= "\n Checked root composer.json";
@@ -65,11 +67,42 @@ class PackageManagerInstaller extends AbstractAppInstaller {
 	}
 	
 	public function uninstall(){
-		return 'Uninstall not implemented for' . $this->get_app_name_resolver()->get_alias_with_namespace() . '!'; 
+		return 'Uninstall not implemented for' . $this->get_name_resolver()->get_alias_with_namespace() . '!'; 
 	}
 	
 	public function backup($destination_absolute_path){
-		return 'Backup not implemented for' . $this->get_app_name_resolver()->get_alias_with_namespace() . '!';
+		return 'Backup not implemented for' . $this->get_na()->get_alias_with_namespace() . '!';
+	}
+	
+	protected function parse_composer_json($root_composer_json_path){
+		$root_composer_json = json_decode(file_get_contents($root_composer_json_path), true);
+		if (!is_array($root_composer_json)){
+			switch (json_last_error()) {
+				case JSON_ERROR_NONE:
+					$error = 'No errors';
+					break;
+				case JSON_ERROR_DEPTH:
+					$error = 'Maximum stack depth exceeded';
+					break;
+				case JSON_ERROR_STATE_MISMATCH:
+					$error = 'Underflow or the modes mismatch';
+					break;
+				case JSON_ERROR_CTRL_CHAR:
+					$error = 'Unexpected control character found';
+					break;
+				case JSON_ERROR_SYNTAX:
+					$error = 'Syntax error, malformed JSON';
+					break;
+				case JSON_ERROR_UTF8:
+					$error = 'Malformed UTF-8 characters, possibly incorrectly encoded';
+					break;
+				default:
+					$error = 'Unknown error';
+					break;
+			}
+			throw new UnexpectedValueException('Cannot parse root composer.json under "' . $root_composer_json_path . '": ' . $error);
+		}
+		return $root_composer_json;
 	}
 }
 ?>
