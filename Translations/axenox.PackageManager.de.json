@@ -1,0 +1,7 @@
+{
+	"ACTION.COMPOSERCLEANUPPREVIOUSACTIONS.NAME": "Composer-Cleanup",
+	"ACTION.EXPORTAPPMODEL.NAME": "Modell exportieren",
+	"ACTION.INSTALLAPP.NAME": "Installieren",
+	"ACTION.IMPORTAPPMODEL.NAME": "Modell reparieren",
+	"ACTION.UNINSTALLAPP.NAME": "Deinstallieren"
+}
