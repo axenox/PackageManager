@@ -118,7 +118,7 @@ class ExportAppModel extends AbstractAction {
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT'), 'APP');
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT_BEHAVIORS'), 'OBJECT__APP');
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
-		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.DATASRC'), 'APP');
+		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.DATASRC'), 'APP', array('CUSTOM_CONNECTION'));
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.CONNECTION'), 'APP');
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.ERROR'), 'APP');
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT_ACTION'), 'APP');
@@ -132,10 +132,11 @@ class ExportAppModel extends AbstractAction {
 	 * @param string $app_filter_attribute_alias
 	 * @return DataSheetInterface
 	 */
-	protected function get_object_data_sheet(AppInterface $app, Object $object, $app_filter_attribute_alias){
+	protected function get_object_data_sheet(AppInterface $app, Object $object, $app_filter_attribute_alias, array $exclude_attribute_aliases = array()){
 		$ds = DataSheetFactory::create_from_object($object);
 		foreach ($object->get_attribute_group('~ALL')->get_attributes() as $attr){
-			$ds->get_columns()->add_from_expression($attr->get_alias());
+			if (in_array($attr->get_alias(), $exclude_attribute_aliases)) continue;
+			$ds->get_columns()->add_from_attribute($attr);
 		}
 		$ds->add_filter_from_string($app_filter_attribute_alias, $app->get_uid());
 		$ds->get_sorters()->add_from_string('CREATED_ON', 'ASC');
