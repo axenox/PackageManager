@@ -118,7 +118,7 @@ class ExportAppModel extends AbstractAction {
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT'), 'APP');
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT_BEHAVIORS'), 'OBJECT__APP');
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
-		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.DATASRC'), 'APP', array('CUSTOM_CONNECTION'));
+		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.DATASRC'), 'APP', array('CONNECTION','CUSTOM_CONNECTION'));
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.CONNECTION'), 'APP');
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.ERROR'), 'APP');
 		$sheets[] = $this->get_object_data_sheet($app, $this->get_workbench()->model()->get_object('ExFace.Core.OBJECT_ACTION'), 'APP');
