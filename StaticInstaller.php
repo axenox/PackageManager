@@ -148,7 +148,7 @@ class StaticInstaller {
 			$app_name_resolver = NameResolver::create_from_string($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
 			$result = $exface->get_app(self::PACKAGE_MANAGER_APP_ALIAS)->get_action(self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS)->install($app_name_resolver);
 		} catch (\Exception $e){
-			$result = $e->getMessage();
+			$result = $e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine();
 		}
 		return $result;
 	}
