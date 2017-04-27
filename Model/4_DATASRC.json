@@ -51,6 +51,13 @@
             "attribute_alias": "DEFAULT_CONNECTION"
         },
         {
+            "expression": "DEFAULT_QUERY_BUILDER",
+            "name": "DEFAULT_QUERY_BUILDER",
+            "hidden": false,
+            "data_type": "Relation",
+            "attribute_alias": "DEFAULT_QUERY_BUILDER"
+        },
+        {
             "expression": "BASE_OBJECT",
             "name": "BASE_OBJECT",
             "hidden": false,
@@ -77,13 +84,6 @@
             "hidden": false,
             "data_type": "String",
             "attribute_alias": "ALIAS"
-        },
-        {
-            "expression": "QUERYBUILDER",
-            "name": "QUERYBUILDER",
-            "hidden": false,
-            "data_type": "Relation",
-            "attribute_alias": "QUERYBUILDER"
         }
     ],
     "rows": [
@@ -95,11 +95,11 @@
             "UID": "0x32370000000000000000000000000000",
             "APP": "0x31380000000000000000000000000000",
             "DEFAULT_CONNECTION": "0x31390000000000000000000000000000",
+            "DEFAULT_QUERY_BUILDER": "exface\/UrlDataConnector\/QueryBuilders\/JsonUrlBuilder.php",
             "BASE_OBJECT": "",
             "READONLY": "1",
             "LABEL": "GitHub",
-            "ALIAS": "github",
-            "QUERYBUILDER": "exface\/UrlDataConnector\/QueryBuilders\/JsonUrlBuilder.php"
+            "ALIAS": "github"
         }
     ],
     "totals_rows": [],
