@@ -69,7 +69,7 @@ class StaticInstaller {
 					continue;
 				}
 				$result = self::install($app_alias);
-				$text .= '-> Installing app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
+				$text .= '-> Installing app "' . $app_alias . '": ' . ($result ? trim($result, ".") : 'Nothing to do') . ".\n";
 				self::print_to_stdout($text);
 			}
 			unset($temp['install']);
