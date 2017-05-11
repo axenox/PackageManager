@@ -18,8 +18,7 @@ class ZipFile extends AbstractAction {
 		$this->set_icon_name('repair');
 		$this->set_input_rows_min(0);
 		$this->set_input_rows_max(null);
-	}
-
+  }
 	protected function perform(){
 		$exface = $this->get_workbench();
 		$result='';

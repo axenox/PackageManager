@@ -11,9 +11,11 @@ use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
+
  *
  * @method PackageManagerApp get_app()
  *
+
  * @author Andrej Kabachnik
  *
  */
@@ -26,7 +28,7 @@ class BackupApp extends AbstractAction {
 		$this->set_icon_name('repair');
 		$this->set_input_rows_min(0);
 		$this->set_input_rows_max(null);
-	}
+	}	
 
 	protected function perform(){
 		$exface = $this->get_workbench();
@@ -64,8 +66,8 @@ class BackupApp extends AbstractAction {
 	 * @throws ActionInputInvalidObjectError
 	 */
 	public function get_target_app_aliases() {
-		if ( count($this->target_app_aliases) < 1
-			&& $this->get_input_data_sheet()){
+		if ( count($this->target_app_aliases) < 1 && $this->get_input_data_sheet()){
+
 
 			if ($this->get_input_data_sheet()->get_meta_object()->is_exactly('exface.Core.APP')){
 				$this->get_input_data_sheet()->get_columns()->add_from_expression('ALIAS');
@@ -101,7 +103,9 @@ class BackupApp extends AbstractAction {
 	}
 
 	/**
+
 	 *
+
 	 * @param NameResolverInterface $app_name_resolver
 	 * @return string
 	 */
@@ -131,8 +135,9 @@ class BackupApp extends AbstractAction {
 		return $result;
 	}
 
+	
 	/**
-	 *
+	 * 
 	 * @param NameResolverInterface $app_name_resolver
 	 * @throws DirectoryNotFoundError
 	 * @return string
@@ -153,7 +158,7 @@ class BackupApp extends AbstractAction {
 	 */
 	public function set_backup_path($value){
 
-		$this->backup_path = $value;
+			$this->backup_path = $value;
 
 	}
 
