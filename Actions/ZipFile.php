@@ -18,8 +18,8 @@ class ZipFile extends AbstractAction {
 		$this->set_icon_name('repair');
 		$this->set_input_rows_min(0);
 		$this->set_input_rows_max(null);
-	}	
-	
+	}
+
 	protected function perform(){
 		$exface = $this->get_workbench();
 		$result='';
@@ -49,16 +49,38 @@ class ZipFile extends AbstractAction {
 		$zipManager->archive_close();
 		// Save the result and output a message for the user
 		$this->set_result('');
-	
+
 		return;
 	}
 
-	/**
-	 * Get all affected apps
-	 * @return array
-	 * @throws ActionInputInvalidObjectError
-	 */
 	public function get_target_app_aliases() {
+		if ( count($this->target_app_aliases) < 1
+			&& $this->get_input_data_sheet()){
+
+			if ($this->get_input_data_sheet()->get_meta_object()->is_exactly('exface.Core.APP')){
+				$this->get_input_data_sheet()->get_columns()->add_from_expression('ALIAS');
+				if (!$this->get_input_data_sheet()->is_empty()){
+					if (!$this->get_input_data_sheet()->is_fresh()){
+						$this->get_input_data_sheet()->data_read();
+					}
+				} elseif (!$this->get_input_data_sheet()->get_filters()->is_empty()){
+					$this->get_input_data_sheet()->data_read();
+				}
+				$this->target_app_aliases = array_unique($this->get_input_data_sheet()->get_column_values('ALIAS', false));
+			} elseif ($this->get_input_data_sheet()->get_meta_object()->is_exactly('axenox.PackageManager.PACKAGE_INSTALLED')){
+				$this->get_input_data_sheet()->get_columns()->add_from_expression('app_alias');
+				if (!$this->get_input_data_sheet()->is_empty()){
+					if (!$this->get_input_data_sheet()->is_fresh()){
+						$this->get_input_data_sheet()->data_read();
+					}
+				} elseif (!$this->get_input_data_sheet()->get_filters()->is_empty()){
+					$this->get_input_data_sheet()->data_read();
+				}
+				$this->target_app_aliases = array_filter(array_unique($this->get_input_data_sheet()->get_column_values('app_alias', false)));
+			} else {
+				throw new ActionInputInvalidObjectError($this, 'The action "' . $this->get_alias_with_namespace() . '" can only be called on the meta objects "exface.Core.App" or "axenox.PackageManager.PACKAGE_INSTALLED" - "' . $this->get_input_data_sheet()->get_meta_object()->get_alias_with_namespace() . '" given instead!');
+			}
+		}
 
 		return $this->target_app_aliases;
 	}

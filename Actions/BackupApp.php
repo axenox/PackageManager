@@ -11,14 +11,14 @@ use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
- * 
+ *
  * @method PackageManagerApp get_app()
- * 
+ *
  * @author Andrej Kabachnik
  *
  */
 class BackupApp extends AbstractAction {
-	
+
 	private $target_app_aliases = array();
 	private $backup_path = '';
 
@@ -26,8 +26,8 @@ class BackupApp extends AbstractAction {
 		$this->set_icon_name('repair');
 		$this->set_input_rows_min(0);
 		$this->set_input_rows_max(null);
-	}	
-	
+	}
+
 	protected function perform(){
 		$exface = $this->get_workbench();
 		$backup_counter = 0;
@@ -44,16 +44,16 @@ class BackupApp extends AbstractAction {
 			}
 			$this->add_result_message("\n Sucessfully created backup for " . $app_alias . " .\n");
 		}
-		
+
 		if (count($this->get_target_app_aliases()) == 0){
 			$this->add_result_message('No apps had been selected for backup!');
 		} elseif ($backup_counter == 0) {
 			$this->add_result_message('No backups have been created');
 		}
-			
+
 		// Save the result
 		$this->set_result('');
-		
+
 		return;
 	}
 
@@ -65,7 +65,7 @@ class BackupApp extends AbstractAction {
 	 */
 	public function get_target_app_aliases() {
 		if ( count($this->target_app_aliases) < 1
-		&& $this->get_input_data_sheet()){
+			&& $this->get_input_data_sheet()){
 
 			if ($this->get_input_data_sheet()->get_meta_object()->is_exactly('exface.Core.APP')){
 				$this->get_input_data_sheet()->get_columns()->add_from_expression('ALIAS');
@@ -94,14 +94,14 @@ class BackupApp extends AbstractAction {
 
 		return $this->target_app_aliases;
 	}
-	
+
 	public function set_target_app_aliases(array $values) {
 		$this->target_app_aliases = $values;
 		return $this;
 	}
 
 	/**
-	 * 
+	 *
 	 * @param NameResolverInterface $app_name_resolver
 	 * @return string
 	 */
@@ -125,14 +125,14 @@ class BackupApp extends AbstractAction {
 
 		$installer_result = $installer->backup($backupDir);
 		$result .= $installer_result . (substr($installer_result, -1) != '.' ? '.' : '');
-			
+
 		// Save the result
 		$this->add_result_message($result);
 		return $result;
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * @param NameResolverInterface $app_name_resolver
 	 * @throws DirectoryNotFoundError
 	 * @return string
@@ -153,7 +153,7 @@ class BackupApp extends AbstractAction {
 	 */
 	public function set_backup_path($value){
 
-			$this->backup_path = $value;
+		$this->backup_path = $value;
 
 	}
 
