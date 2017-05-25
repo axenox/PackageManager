@@ -35,6 +35,29 @@ class PackageManagerInstaller extends AbstractAppInstaller
             $changes ++;
         }
         
+        // BOF remove legacy scripts - remove these lines in 07.2017
+        $key = array_search("axenox\\PackageManager\\StaticInstaller::composer_finish_package_install", $root_composer_json['scripts']['post-package-install']);
+        if ($key !== false) {
+            unset ($root_composer_json['scripts']['post-package-install'][$key]);
+            $changes ++;
+        }
+        $key = array_search("axenox\\PackageManager\\StaticInstaller::composer_finish_package_update", $root_composer_json['scripts']['post-package-update']);
+        if ($key !== false) {
+            unset ($root_composer_json['scripts']['post-package-update'][$key]);
+            $changes ++;
+        }
+        $key = array_search("axenox\\PackageManager\\StaticInstaller::composer_finish_update", $root_composer_json['scripts']['post-update-cmd']);
+        if ($key !== false) {
+            unset ($root_composer_json['scripts']['post-update-cmd'][$key]);
+            $changes ++;
+        }
+        $key = array_search("axenox\\PackageManager\\StaticInstaller::composer_finish_install", $root_composer_json['scripts']['post-install-cmd']);
+        if ($key !== false) {
+            unset ($root_composer_json['scripts']['post-install-cmd'][$key]);
+            $changes ++;
+        }
+        // EOF remove legacy scripts - remove these lines in 07.2017
+        
         // Package install/update scripts
         if (! is_array($root_composer_json['scripts']['post-package-install']) || ! in_array("axenox\\PackageManager\\StaticInstaller::composerFinishPackageInstall", $root_composer_json['scripts']['post-package-install'])) {
             $root_composer_json['scripts']['post-package-install'][] = "axenox\\PackageManager\\StaticInstaller::composerFinishPackageInstall";

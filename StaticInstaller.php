@@ -25,6 +25,45 @@ class StaticInstaller
     const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'UninstallApp';
 
     private $workbench = null;
+    
+    /**
+     * @deprecated use for backwards compatibility only
+     * @param PackageEvent $composer_event
+     */
+    public static function composer_finish_package_install(PackageEvent $composer_event)
+    {
+       return static::composerFinishPackageInstall($composer_event);
+    }
+    
+    /**
+     * @deprecated use for backwards compatibility only
+     * @param PackageEvent $composer_event
+     * @return void
+     */
+    public static function composer_finish_package_update(PackageEvent $composer_event)
+    {
+        return static::composerFinishPackageUpdate($composer_event);
+    }
+    
+    /**
+     * @deprecated use for backwards compatibility only
+     * @param Event $composer_event
+     * @return string
+     */
+    public static function composer_finish_install(Event $composer_event = null)
+    {
+        return static::composerFinishInstall($composer_event);
+    }
+    
+    /**
+     * @deprecated use for backwards compatibility only
+     * @param Event $composer_event
+     * @return string
+     */
+    public static function composer_finish_update(Event $composer_event = null)
+    {
+       return static::composerFinishUpdate($composer_event); 
+    }
 
     /**
      *
