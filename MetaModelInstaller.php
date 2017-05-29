@@ -86,12 +86,13 @@ class MetaModelInstaller extends AbstractAppInstaller
             'model_md5' => md5($model_string),
             'model_timestamp' => $last_modification_time
         );
-        $composer_app = $this->getWorkbench()->getApp("axenox.PackageManager");
-        $composer_json = $composer_app->getComposerJson($composer_app);
-        $composer_json['extra']['app'] = $package_props;
-        $composer_app->setComposerJson($app, $composer_json);
         
-        return '\n Created meta model backup for ' . $app->getAliasWithNamespace() . '.';
+        $packageManager = $this->getWorkbench()->getApp("axenox.PackageManager");
+        $composer_json = $packageManager->getComposerJson($app);
+        $composer_json['extra']['app'] = $package_props;
+        $packageManager->setComposerJson($app, $composer_json);
+        
+        return "\n Created meta model backup for " . $app->getAliasWithNamespace() . ".";
     }
 
     /**
@@ -123,12 +124,18 @@ class MetaModelInstaller extends AbstractAppInstaller
     public function getModelDataSheets()
     {
         $sheets = array();
-        $app = $this->getApp();
+        $app = $this->getApp();        
+        $sheets = array();
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.APP'), 'UID');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT_BEHAVIORS'), 'OBJECT__APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
-        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.DATASRC'), 'APP');
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.DATASRC'), 'APP', array(
+            'CONNECTION',
+            'CUSTOM_CONNECTION',
+            'QUERYBUILDER',
+            'CUSTOM_QUERY_BUILDER'
+        ));
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.CONNECTION'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.ERROR'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT_ACTION'), 'APP');
@@ -139,13 +146,17 @@ class MetaModelInstaller extends AbstractAppInstaller
      *
      * @param AppInterface $app            
      * @param Object $object            
-     * @param string $app_filter_attribute_alias            
+     * @param string $app_filter_attribute_alias   
+     * @param array $exclude_attribute_aliases         
      * @return DataSheetInterface
      */
-    protected function getObjectDataSheet($app, Object $object, $app_filter_attribute_alias)
+    protected function getObjectDataSheet($app, Object $object, $app_filter_attribute_alias, array $exclude_attribute_aliases = array())
     {
         $ds = DataSheetFactory::createFromObject($object);
         foreach ($object->getAttributeGroup('~ALL')->getAttributes() as $attr) {
+            if (in_array($attr->getAlias(), $exclude_attribute_aliases)){
+               continue;
+            }
             $ds->getColumns()->addFromExpression($attr->getAlias());
         }
         $ds->addFilterFromString($app_filter_attribute_alias, $app->getUid());

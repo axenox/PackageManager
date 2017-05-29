@@ -64,6 +64,34 @@ class ZipFile extends AbstractAction
      */
     public function getTargetAppAliases()
     {
+        if ( count($this->target_app_aliases) < 1
+            && $input_data = $this->getInputDataSheet()){
+                
+                if ($input_data->getMetaObject()->isExactly('exface.Core.APP')){
+                    $input_data->getColumns()->addFromExpression('ALIAS');
+                    if (!$input_data->isEmpty()){
+                        if (!$input_data->isFresh()){
+                            $input_data->dataRead();
+                        }
+                    } elseif (!$input_data->getFilters()->isEmpty()){
+                        $input_data->dataRead();
+                    }
+                    $this->target_app_aliases = array_unique($input_data->getColumnValues('ALIAS', false));
+                } elseif ($input_data->getMetaObject()->isExactly('axenox.PackageManager.PACKAGE_INSTALLED')){
+                    $input_data->getColumns()->addFromExpression('app_alias');
+                    if (!$input_data->isEmpty()){
+                        if (!$input_data->isFresh()){
+                            $input_data->dataRead();
+                        }
+                    } elseif (!$input_data->getFilters()->isEmpty()){
+                        $input_data->dataRead();
+                    }
+                    $this->target_app_aliases = array_filter(array_unique($input_data->getColumnValues('app_alias', false)));
+                } else {
+                    throw new ActionInputInvalidObjectError($this, 'The action "' . $this->getAliasWithNamespace() . '" can only be called on the meta objects "exface.Core.App" or "axenox.PackageManager.PACKAGE_INSTALLED" - "' . $input_data->getMetaObject()->getAliasWithNamespace() . '" given instead!');
+                }
+        }
+        
         return $this->target_app_aliases;
     }
 

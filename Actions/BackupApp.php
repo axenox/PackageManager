@@ -13,7 +13,7 @@ use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
  *
- * @method PackageManagerApp get_app()
+ * @method PackageManagerApp getApp()
  *        
  * @author Andrej Kabachnik
  *        
