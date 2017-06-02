@@ -41,6 +41,7 @@ class ComposerCleanupPreviousActions extends AbstractAction implements iModifyDa
         $result .= $installer::composerFinishInstall();
         $result .= $installer::composerFinishUpdate();
         $this->setResultMessage($result);
+        $this->setResult('');
     }
 }
 ?>
