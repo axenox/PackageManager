@@ -40,6 +40,8 @@ class ImportAppModel extends InstallApp
             $this->addResultMessage("Importing meta model for " . $app_alias . ": " . $result);
         }
         
+        $this->getWorkbench()->clearCache();
+        
         // Save the result and output a message for the user
         $this->setResult('');
         

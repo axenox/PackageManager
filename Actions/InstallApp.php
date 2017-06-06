@@ -54,6 +54,8 @@ class InstallApp extends AbstractAction
             $this->addResultMessage('No apps have been installed');
         }
         
+        $this->getWorkbench()->clearCache();
+        
         // Save the result
         $this->setResult('');
         
