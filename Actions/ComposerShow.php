@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Actions;
 
 use kabachello\ComposerAPI\ComposerAPI;
+use exface\Core\CommonLogic\Constants\Icons;
 
 /**
  * This action runs one or more selected test steps
@@ -17,7 +18,7 @@ class ComposerShow extends AbstractComposerAction
     protected function init()
     {
         parent::init();
-        $this->setIconName('info');
+        $this->setIconName(Icons::INFO);
     }
 
     protected function performComposerAction(ComposerAPI $composer)

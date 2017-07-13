@@ -5,6 +5,7 @@ use exface\Core\CommonLogic\NameResolver;
 use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Interfaces\AppInterface;
+use exface\Core\CommonLogic\Constants\Icons;
 
 /**
  * This action uninstalls one or more apps
@@ -18,7 +19,7 @@ class UninstallApp extends InstallApp
     protected function init()
     {
         parent::init();
-        $this->setIconName('uninstall');
+        $this->setIconName(Icons::UNINSTALL);
     }
 
     protected function perform()

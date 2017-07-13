@@ -9,6 +9,7 @@ use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
 use axenox\PackageManager\MetaModelInstaller;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
+use exface\Core\CommonLogic\Constants\Icons;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -25,7 +26,7 @@ class InstallApp extends AbstractAction
 
     protected function init()
     {
-        $this->setIconName('repair');
+        $this->setIconName(Icons::WRENCH);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }

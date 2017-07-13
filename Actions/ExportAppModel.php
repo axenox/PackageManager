@@ -10,6 +10,7 @@ use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use axenox\PackageManager\MetaModelInstaller;
+use exface\Core\CommonLogic\Constants\Icons;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
@@ -25,7 +26,7 @@ class ExportAppModel extends AbstractAction
 
     protected function init()
     {
-        $this->setIconName('export-data');
+        $this->setIconName(Icons::DOWNLOAD);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }

@@ -6,6 +6,7 @@ use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\ArchiveManager;
 use exface\Core\Factories\AppFactory;
+use exface\Core\CommonLogic\Constants\Icons;
 
 /**
  * This Action adds all files of a designated folder into a ZIP Archive
@@ -19,7 +20,7 @@ class ZipFile extends AbstractAction
 
     protected function init()
     {
-        $this->setIconName('repair');
+        $this->setIconName(Icons::FILE_ARCHIVE_O);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }

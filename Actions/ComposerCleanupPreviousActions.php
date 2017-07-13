@@ -4,6 +4,7 @@ namespace axenox\PackageManager\Actions;
 use exface\Core\Interfaces\Actions\iModifyData;
 use exface\Core\CommonLogic\AbstractAction;
 use axenox\PackageManager\StaticInstaller;
+use exface\Core\CommonLogic\Constants\Icons;
 
 /**
  * This action cleans up all remains of previous composer actions if something went wrong.
@@ -25,7 +26,7 @@ class ComposerCleanupPreviousActions extends AbstractAction implements iModifyDa
     protected function init()
     {
         parent::init();
-        $this->setIconName('repair');
+        $this->setIconName(Icons::WRENCH);
     }
 
     /**

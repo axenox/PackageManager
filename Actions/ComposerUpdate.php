@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Actions;
 
 use kabachello\ComposerAPI\ComposerAPI;
+use exface\Core\CommonLogic\Constants\Icons;
 
 /**
  * This action runs one or more selected test steps
@@ -15,7 +16,7 @@ class ComposerUpdate extends AbstractComposerAction
     protected function init()
     {
         parent::init();
-        $this->setIconName('repair');
+        $this->setIconName(Icons::WRENCH);
     }
 
     protected function performComposerAction(ComposerAPI $composer)

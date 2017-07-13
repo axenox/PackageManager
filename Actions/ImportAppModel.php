@@ -3,6 +3,7 @@ namespace axenox\PackageManager\Actions;
 
 use exface\Core\CommonLogic\NameResolver;
 use axenox\PackageManager\MetaModelInstaller;
+use exface\Core\CommonLogic\Constants\Icons;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
@@ -16,7 +17,7 @@ class ImportAppModel extends InstallApp
 
     protected function init()
     {
-        $this->setIconName('repair');
+        $this->setIconName(Icons::WRENCH);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }

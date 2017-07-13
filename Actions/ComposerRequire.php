@@ -5,6 +5,7 @@ use kabachello\ComposerAPI\ComposerAPI;
 use exface\Core\Interfaces\Actions\iModifyData;
 use exface\Core\Exceptions\Actions\ActionInputMissingError;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
+use exface\Core\CommonLogic\Constants\Icons;
 
 /**
  * This action runs one or more selected test steps
@@ -18,7 +19,7 @@ class ComposerRequire extends AbstractComposerAction implements iModifyData
     protected function init()
     {
         parent::init();
-        $this->setIconName('install');
+        $this->setIconName(Icons::INSTALL);
     }
 
     /**
