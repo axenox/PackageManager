@@ -24,5 +24,13 @@
             "model_md5": "09870d7d3a7ce4d78d31d11f0bb8e1a2",
             "model_timestamp": "2017-04-19 10:54:26"
         }
+    },
+    "autoload": {
+        "psr-4": { "axenox\\PackageManager\\": "" },
+        "exclude-from-classmap": [
+            "/Config/",
+            "/Translations/",
+            "/Model/"
+        ]
     }
 }
