@@ -70,7 +70,17 @@ PHP;
             "name" => $app->getVendor() . '/' . str_replace($app->getVendor() . NameResolver::NAMESPACE_SEPARATOR, '', $app->getAliasWithNamespace()),
             "require" => array(
                 "exface/core" => '~0.1'
-            )
+            ),
+            "autoload" => [
+                "psr-4" => [
+                    "\\" . str_replace(NameResolver::NAMESPACE_SEPARATOR, "\\", $app->getAliasWithNamespace()) => ""
+                ],
+                "exclude-from-classmap" => [
+                    "/Config/",
+                    "/Translations/",
+                    "/Model/"
+                ]
+            ]
         );
         
         return $json;
