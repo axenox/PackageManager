@@ -9,7 +9,7 @@ require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATO
 
 /**
  * The app installer is a simplified wrapper for the package manager actions, which simplifies installing apps from outside of
- * ExFace - in particular StaticInstaller::finish_composer_update() can be used as a script in composer to perform the app specific
+ * ExFace - in particular StaticInstaller::composerFinishUpdate() can be used as a script in composer to perform the app specific
  * installatiom automatically once composer is done installing or updating all the files.
  *
  * @author Andrej Kabachnik
@@ -25,45 +25,6 @@ class StaticInstaller
     const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'UninstallApp';
 
     private $workbench = null;
-    
-    /**
-     * @deprecated use for backwards compatibility only
-     * @param PackageEvent $composer_event
-     */
-    public static function composer_finish_package_install(PackageEvent $composer_event)
-    {
-       return static::composerFinishPackageInstall($composer_event);
-    }
-    
-    /**
-     * @deprecated use for backwards compatibility only
-     * @param PackageEvent $composer_event
-     * @return void
-     */
-    public static function composer_finish_package_update(PackageEvent $composer_event)
-    {
-        return static::composerFinishPackageUpdate($composer_event);
-    }
-    
-    /**
-     * @deprecated use for backwards compatibility only
-     * @param Event $composer_event
-     * @return string
-     */
-    public static function composer_finish_install(Event $composer_event = null)
-    {
-        return static::composerFinishInstall($composer_event);
-    }
-    
-    /**
-     * @deprecated use for backwards compatibility only
-     * @param Event $composer_event
-     * @return string
-     */
-    public static function composer_finish_update(Event $composer_event = null)
-    {
-       return static::composerFinishUpdate($composer_event); 
-    }
 
     /**
      *
@@ -261,7 +222,7 @@ class StaticInstaller
      *
      * @param string $operation            
      * @param string $app_alias            
-     * @return unknown
+     * @return array
      */
     protected static function addAppToTempFile($operation, $app_alias)
     {

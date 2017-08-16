@@ -6,10 +6,10 @@ use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\NameResolver;
-use exface\Core\CommonLogic\AbstractApp;
 use exface\Core\Interfaces\InstallerInterface;
+use exface\Core\CommonLogic\Model\App;
 
-class PackageManagerApp extends AbstractApp
+class PackageManagerApp extends App
 {
 
     const FOLDER_NAME_MODEL = 'Model';
@@ -34,29 +34,9 @@ class PackageManagerApp extends AbstractApp
             mkdir($app_folder);
         }
         
-        // Make sure, the app class exists
-        if (! class_exists($name_resolver->getClassNameWithNamespace())) {
-            $this->createAppClass($name_resolver);
-        }
         $app = AppFactory::create($name_resolver);
         
         $this->createComposerJson($app);
-    }
-
-    protected function createAppClass(NameResolverInterface $name_resolver)
-    {
-        $class_name = $name_resolver->getAlias() . 'App';
-        $class_namespace = substr($name_resolver->getClassNamespace(), 1);
-        $file_path = $this->filemanager()->getPathToVendorFolder() . $name_resolver->getClassDirectory() . DIRECTORY_SEPARATOR . $class_name . '.php';
-        $file_contents = <<<PHP
-<?php namespace {$class_namespace};
-				
-class {$class_name} extends \\exface\\Core\\CommonLogic\\AbstractApp {
-	
-}	
-PHP;
-        
-        $this->filemanager()->dumpFile($file_path, $file_contents);
     }
 
     /**
@@ -124,7 +104,7 @@ PHP;
     /**
      * Returns the path to the
      *
-     * @param AbstractApp $app            
+     * @param AppInterface $app            
      * @return string
      */
     public function getPathToAppRelative(AppInterface $app = null, $base_path = '')
@@ -176,7 +156,7 @@ PHP;
      *
      * {@inheritdoc}
      *
-     * @see \exface\Core\CommonLogic\AbstractApp::getInstaller($injected_installer)
+     * @see App::getInstaller($injected_installer)
      */
     public function getInstaller(InstallerInterface $injected_installer = null)
     {

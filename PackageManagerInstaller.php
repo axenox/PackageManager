@@ -1,7 +1,6 @@
 <?php
 namespace axenox\PackageManager;
 
-use exface\Core\CommonLogic\AbstractApp;
 use exface\Core\CommonLogic\AbstractAppInstaller;
 use exface\Core\Exceptions\UnexpectedValueException;
 
@@ -9,10 +8,9 @@ class PackageManagerInstaller extends AbstractAppInstaller
 {
 
     /**
-     *
-     * {@inheritdoc}
-     *
-     * @see \exface\Core\CommonLogic\AbstractApp::install()
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\InstallerInterface::install()
      */
     public function install($source_absolute_path)
     {
