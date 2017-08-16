@@ -5,7 +5,7 @@ use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\CommonLogic\Model\Object;
-use exface\Core\CommonLogic\AbstractAppInstaller;
+use exface\Core\CommonLogic\AppInstallers\AbstractAppInstaller;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {

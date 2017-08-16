@@ -1,7 +1,7 @@
 <?php
 namespace axenox\PackageManager;
 
-use exface\Core\CommonLogic\AbstractAppInstaller;
+use exface\Core\CommonLogic\AppInstallers\AbstractAppInstaller;
 use exface\Core\Exceptions\UnexpectedValueException;
 
 class PackageManagerInstaller extends AbstractAppInstaller
