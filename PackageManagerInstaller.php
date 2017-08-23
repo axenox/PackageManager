@@ -98,7 +98,7 @@ class PackageManagerInstaller extends AbstractAppInstaller
 
     public function backup($destination_absolute_path)
     {
-        return 'Backup not implemented for' . $this->get_na()->getAliasWithNamespace() . '!';
+        return 'Backup not implemented for installer "' . $this->get_na()->getAliasWithNamespace() . '"!';
     }
 
     protected function parseComposerJson($root_composer_json_path)

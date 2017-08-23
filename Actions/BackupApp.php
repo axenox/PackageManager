@@ -28,7 +28,7 @@ class BackupApp extends AbstractAction
 
     protected function init()
     {
-        $this->setIconName(Icons::WRENCH);
+        $this->setIconName(Icons::HDD_O);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }
@@ -119,11 +119,10 @@ class BackupApp extends AbstractAction
         $app = AppFactory::create($app_name_resolver);
         
         $installer = $app->getInstaller(new MetaModelInstaller($app_name_resolver));
-        $appAlias = $app_name_resolver->getAlias();
         $directory = $app_name_resolver->getClassDirectory();
         if ($this->getBackupPath() == '') {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
-            $sDirName = $appAlias . "_backup_" . date('Y_m_d_H');
+            $sDirName = date('Y_m_d_Hmi');
             $backupDir .= $directory . DIRECTORY_SEPARATOR . $sDirName;
         } else {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBaseFolder();
@@ -159,12 +158,20 @@ class BackupApp extends AbstractAction
      *
      * @uxon-property backup_path
      * @uxon-type string
+     * 
+     * @param $value
+     * @return BackupApp
      */
     public function setBackupPath($value)
     {
         $this->backup_path = $value;
+        return $this;
     }
-
+    
+    /**
+     * 
+     * @return string
+     */
     public function getBackupPath()
     {
         return $this->backup_path;
