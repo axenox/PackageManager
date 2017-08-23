@@ -96,9 +96,14 @@ class PackageManagerInstaller extends AbstractAppInstaller
         return 'Uninstall not implemented for' . $this->getNameResolver()->getAliasWithNamespace() . '!';
     }
 
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\InstallerInterface::backup()
+     */
     public function backup($destination_absolute_path)
     {
-        return 'Backup not implemented for installer "' . $this->get_na()->getAliasWithNamespace() . '"!';
+        return '';
     }
 
     protected function parseComposerJson($root_composer_json_path)
