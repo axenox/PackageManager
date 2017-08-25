@@ -14,7 +14,7 @@ use exface\Core\CommonLogic\Constants\Icons;
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
  *
- * @method PackageManagerApp get_app()
+ * @method PackageManagerApp getApp()
  *        
  * @author Andrej Kabachnik
  *        
