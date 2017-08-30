@@ -8,6 +8,7 @@ use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\NameResolver;
 use exface\Core\Interfaces\InstallerInterface;
 use exface\Core\CommonLogic\Model\App;
+use exface\Core\CommonLogic\Filemanager;
 
 class PackageManagerApp extends App
 {
@@ -110,7 +111,7 @@ class PackageManagerApp extends App
     public function getPathToAppRelative(AppInterface $app = null, $base_path = '')
     {
         if (! $base_path) {
-            $base_path = 'vendor' . DIRECTORY_SEPARATOR;
+            $base_path = Filemanager::FOLDER_NAME_VENDOR . DIRECTORY_SEPARATOR;
         }
         return $base_path . ($app ? $app->getVendor() . DIRECTORY_SEPARATOR . str_replace($app->getVendor() . NameResolver::NAMESPACE_SEPARATOR, '', $app->getAlias()) : '');
     }

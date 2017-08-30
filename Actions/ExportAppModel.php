@@ -72,11 +72,11 @@ class ExportAppModel extends AbstractAction
             throw new ActionInputInvalidObjectError($this, 'Action "' . $this->getAlias() . '" exprects an exface.Core.APP as input, "' . $this->getInputDataSheet()->getMetaObject()->getAliasWithNamespace() . '" given instead!', '6T5TUR1');
         }
         
-        $apps = $this->getInputDataSheet()->copy();
+        $apps = $this->getInputDataSheet();
         $apps->getColumns()->addFromExpression('ALIAS');
         if (! $apps->isFresh()) {
             if (! $apps->isEmpty()) {
-                $apps->addFilterFromColumnValues($apps->getUidColumn()->getValues(false));
+                $apps->addFilterFromColumnValues($apps->getUidColumn());
             }
             $apps->dataRead();
         }
