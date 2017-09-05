@@ -4,7 +4,7 @@ namespace axenox\PackageManager;
 use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\UxonObject;
-use exface\Core\CommonLogic\Model\Object;
+use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\CommonLogic\AppInstallers\AbstractAppInstaller;
 
 class MetaModelInstaller extends AbstractAppInstaller
@@ -145,12 +145,12 @@ class MetaModelInstaller extends AbstractAppInstaller
     /**
      *
      * @param AppInterface $app            
-     * @param Object $object            
+     * @param MetaObjectInterface $object            
      * @param string $app_filter_attribute_alias   
      * @param array $exclude_attribute_aliases         
      * @return DataSheetInterface
      */
-    protected function getObjectDataSheet($app, Object $object, $app_filter_attribute_alias, array $exclude_attribute_aliases = array())
+    protected function getObjectDataSheet($app, MetaObjectInterface $object, $app_filter_attribute_alias, array $exclude_attribute_aliases = array())
     {
         $ds = DataSheetFactory::createFromObject($object);
         foreach ($object->getAttributeGroup('~ALL')->getAttributes() as $attr) {
@@ -161,7 +161,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         }
         $ds->addFilterFromString($app_filter_attribute_alias, $app->getUid());
         $ds->getSorters()->addFromString('CREATED_ON', 'ASC');
-        $ds->getSorters()->addFromString($object->getUidAlias(), 'ASC');
+        $ds->getSorters()->addFromString($object->getUidAttributeAlias(), 'ASC');
         $ds->dataRead();
         return $ds;
     }
