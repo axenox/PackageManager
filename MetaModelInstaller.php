@@ -50,7 +50,31 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @return string
      */
     public function uninstall()
-    {}
+    {
+        $result = '';
+        $sheets = $this->getModelDataSheets();
+        if (! empty($sheets)){
+            array_reverse($sheets);
+            
+            $transaction = $this->getWorkbench()->data()->startTransaction();
+            
+            foreach ($sheets as $ds){
+                $counter = $ds->dataDelete($transaction);
+                if ($counter > 0) {
+                    $result .= ($result ? "; " : "") . $ds->getMetaObject()->getName() . " - " . $counter;
+                }
+            }
+            
+            $transaction->commit();
+            
+            if (! $result) {
+                $result .= 'Nothing to uninstall';
+            }
+        } else {
+            $result .= 'Nothing to uninstall';
+        }
+        return "\nModel changes: " . $result;
+    }
 
     /**
      * Analyzes model data sheet and writes json files to the model folder
