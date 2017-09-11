@@ -6,6 +6,8 @@ use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\CommonLogic\AppInstallers\AbstractAppInstaller;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\Interfaces\AppInterface;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -14,8 +16,7 @@ class MetaModelInstaller extends AbstractAppInstaller
 
     /**
      *
-     * @param
-     *            $source_absolute_path
+     * @param string $source_absolute_path
      * @return string
      */
     public function install($source_absolute_path)
@@ -25,8 +26,7 @@ class MetaModelInstaller extends AbstractAppInstaller
 
     /**
      *
-     * @param
-     *            $source_absolute_path
+     * @param string $source_absolute_path
      * @return string
      */
     public function update($source_absolute_path)
@@ -55,18 +55,23 @@ class MetaModelInstaller extends AbstractAppInstaller
     /**
      * Analyzes model data sheet and writes json files to the model folder
      *
-     * @param
-     *            $destinationAbsolutePath
+     * @param string $destinationAbsolutePath
      * @return string
      */
     protected function backupModel($destinationAbsolutePath)
     {
         $app = $this->getApp();
         $dir = $destinationAbsolutePath . DIRECTORY_SEPARATOR . self::FOLDER_NAME_MODEL;
-        $app->getWorkbench()->filemanager()->pathConstruct($dir);
         
         // Fetch all model data in form of data sheets
         $sheets = $this->getModelDataSheets();
+        
+        // Make sure, the destination folder is there and empty (to remove 
+        // files, that are not neccessary anymore)
+        $app->getWorkbench()->filemanager()->pathConstruct($dir);
+        // Remove any old files AFTER the data sheets were read successfully
+        // in order to keep old data on errors.
+        $app->getWorkbench()->filemanager()->emptyDir($dir);
         
         // Save each data sheet as a file and additionally compute the modification date of the last modified model instance and
         // the MD5-hash of the entire model definition (concatennated contents of all files). This data will be stored in the composer.json
@@ -74,7 +79,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         $last_modification_time = '0000-00-00 00:00:00';
         $model_string = '';
         foreach ($sheets as $nr => $ds) {
-            $model_string .= $this->exportModelFile($dir, $ds, $nr . '_');
+            $model_string .= $this->exportModelFile($dir, $ds, str_pad($nr, 2, '0', STR_PAD_LEFT) . '_');
             $time = $ds->getColumns()->getByAttribute($ds->getMetaObject()->getAttribute('MODIFIED_ON'))->aggregate(EXF_AGGREGATOR_MAX);
             $last_modification_time = $time > $last_modification_time ? $time : $last_modification_time;
         }
@@ -99,14 +104,13 @@ class MetaModelInstaller extends AbstractAppInstaller
      * Writes JSON File of a $data_sheet to a specific location
      *
      * @param string $backupDir            
-     * @param
-     *            $data_sheet
+     * @param DataSheetInterface $data_sheet
      * @param string $filename_prefix            
      * @return string
      */
-    protected function exportModelFile($backupDir, $data_sheet, $filename_prefix = null)
+    protected function exportModelFile($backupDir, DataSheetInterface $data_sheet, $filename_prefix = null)
     {
-        $contents = $data_sheet->toUxon();
+        $contents = $data_sheet->exportUxonObject()->toJson(true);
         if (! $data_sheet->isEmpty()) {
             $fileManager = $this->getWorkbench()->filemanager();
             $fileManager->dumpFile($backupDir . DIRECTORY_SEPARATOR . $filename_prefix . $data_sheet->getMetaObject()->getAlias() . '.json', $contents);
@@ -127,6 +131,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         $app = $this->getApp();        
         $sheets = array();
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.APP'), 'UID');
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.DATATYPE'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT_BEHAVIORS'), 'OBJECT__APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
