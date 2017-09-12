@@ -238,12 +238,13 @@ class MetaModelInstaller extends AbstractAppInstaller
                 }
                 
                 // There were cases, when the attribute, that is being filtered over was new, so the filters
-                // did not work (because the attribute was not there). The solution is to run a create
-                // with update fallback in this case. This will cause filter problems, but will not delete
+                // did not work (because the attribute was not there). The solution is to run an update
+                // with create fallback in this case. This will cause filter problems, but will not delete
                 // obsolete instances. This is not critical, as the probability of this case is extremely
                 // low in any case and the next update will turn everything back to normal.
                 if (! $this->checkFiltersMatchModel($data_sheet->getFilters())) {
-                    $counter = $data_sheet->dataCreate(true, $transaction);
+                    $data_sheet->getFilters()->removeAll();
+                    $counter = $data_sheet->dataUpdate(true, $transaction);
                 } else {
                     $counter = $data_sheet->dataReplaceByFilters($transaction);
                 }
