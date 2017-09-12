@@ -92,6 +92,10 @@ class MetaModelInstaller extends AbstractAppInstaller
         $composer_json['extra']['app'] = $package_props;
         $packageManager->setComposerJson($app, $composer_json);
         
+        // Backup pages.
+        $pageInstaller = new PageInstaller($this->getNameResolver());
+        $pageInstaller->backup($destinationAbsolutePath);
+        
         return "\n Created meta model backup for " . $app->getAliasWithNamespace() . ".";
     }
 
@@ -212,6 +216,9 @@ class MetaModelInstaller extends AbstractAppInstaller
                     $result .= ($result ? "; " : "") . $data_sheet->getMetaObject()->getName() . " - " . $counter;
                 }
             }
+            // Install pages.
+            $pageInstaller = new PageInstaller($this->getNameResolver());
+            $pageInstaller->install($source_absolute_path);
             // Commit the transaction
             $transaction->commit();
             
