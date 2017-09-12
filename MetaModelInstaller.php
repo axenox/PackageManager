@@ -8,6 +8,7 @@ use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\CommonLogic\AppInstallers\AbstractAppInstaller;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\AppInterface;
+use exface\Core\CommonLogic\Model\ConditionGroup;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -236,7 +237,17 @@ class MetaModelInstaller extends AbstractAppInstaller
                     $behavior->disable();
                 }
                 
-                $counter = $data_sheet->dataReplaceByFilters($transaction);
+                // There were cases, when the attribute, that is being filtered over was new, so the filters
+                // did not work (because the attribute was not there). The solution is to run a create
+                // with update fallback in this case. This will cause filter problems, but will not delete
+                // obsolete instances. This is not critical, as the probability of this case is extremely
+                // low in any case and the next update will turn everything back to normal.
+                if (! $this->checkFiltersMatchModel($data_sheet->getFilters())) {
+                    $counter = $data_sheet->dataCreate(true, $transaction);
+                } else {
+                    $counter = $data_sheet->dataReplaceByFilters($transaction);
+                }
+                
                 if ($counter > 0) {
                     $result .= ($result ? "; " : "") . $data_sheet->getMetaObject()->getName() . " - " . $counter;
                 }
@@ -251,5 +262,21 @@ class MetaModelInstaller extends AbstractAppInstaller
             $result .= 'No model files to install';
         }
         return "\nModel changes: " . $result;
+    }
+    
+    protected function checkFiltersMatchModel(ConditionGroup $condition_group)
+    {
+        foreach ($condition_group->getConditions() as $condition){
+            if(! $condition->getExpression()->isMetaAttribute()){
+                return false;
+            }
+        }
+        
+        foreach ($condition_group->getNestedGroups() as $subgroup){
+            if (! $this->checkFiltersMatchModel($subgroup)){
+                return false;
+            }
+        }
+        return true;
     }
 }
