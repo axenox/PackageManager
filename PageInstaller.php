@@ -90,6 +90,7 @@ class PageInstaller extends AbstractAppInstaller
     }
 
     /**
+     * Searches an array of UiPages for a certain UiPage specified by its UID and returns it.
      * 
      * @param string $uid
      * @param UiPageInterface[] $pages
@@ -106,6 +107,12 @@ class PageInstaller extends AbstractAppInstaller
     }
 
     /**
+     * Ein Array von UiPages wird sortiert und zurueckgegeben. Die Sortierung erfolgt so, dass
+     * Seiten ohne Parent im uebergebenen Array, ganz nach oben sortiert werden. Hat die Seite
+     * einen Parent im Array, so wird sie nach diesem Parent einsortiert. Werden die Seiten
+     * in der zurueckgegebenen Reihenfolge im CMS aktualisiert, ist sichergestellt, dass der
+     * Seitenbaum des Arrays intakt bleibt, egal wo er dann in den existierenden Baum
+     * eingehaengt wird.
      * 
      * @param UiPageInterface[] $pages
      */
@@ -124,6 +131,7 @@ class PageInstaller extends AbstractAppInstaller
                 $page = $inputPages[$pagePos];
                 $parentId = $page->getMenuParentId();
                 $parentFound = false;
+                // Hat die Seite einen Parent im inputArray?
                 foreach ($inputPages as $parentPagePos => $parentPage) {
                     if ($parentId == $parentPage->getId()) {
                         $parentFound = true;
@@ -131,24 +139,34 @@ class PageInstaller extends AbstractAppInstaller
                     }
                 }
                 if (! $parentFound) {
+                    // Wenn die Seite keinen Parent im inputArray hat, hat sie einen im
+                    // outputArray?
                     foreach ($sortedPages as $parentPagePos => $parentPage) {
                         if ($parentId == $parentPage->getId()) {
                             $parentFound = true;
                             break;
                         }
                     }
+                    // Hat sie einen Parent im outputArray, dann wird sie nach diesem
+                    // einsortiert, sonst wird sie am Anfang einsortiert.
                     $out = array_splice($inputPages, $pagePos, 1);
                     array_splice($sortedPages, $parentFound ? $parentPagePos + 1 : 0, 0, $out);
                 } else {
+                    // Hat die Seite einen Parent im inputArray dann wird sie erstmal ueber-
+                    // sprungen. Sie wird erst im outputArray einsortiert, nachdem ihr Parent
+                    // dort einsortiert wurde.
                     $pagePos++;
                 }
+                // Alle Seiten im inputArray durchgehen.
             } while ($pagePos < count($inputPages));
-            // Abbruch bei kreisfoermigen Referenzen
             $i++;
+            // So oft wiederholen wie es Seiten im inputArray gibt oder die Abbruchbedingung
+            // erfuellt ist (kreisfoermige Referenzen).
         } while (count($inputPages) > 0 && $i < count($pages));
         
         if (count($inputPages) > 0) {
-            // Sortierung nicht erfolgreich, kreisfoermige Referenzen?
+            // Sortierung nicht erfolgreich, kreisfoermige Referenzen? Die unsortierten Seiten
+            // werden zurueckgegeben.
             return $pages;
         } else {
             return $sortedPages;
