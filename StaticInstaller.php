@@ -2,9 +2,14 @@
 namespace axenox\PackageManager;
 
 use Composer\Installer\PackageEvent;
+use exface\Core\CommonLogic\Filemanager;
 use exface\Core\CommonLogic\Workbench;
 use exface\Core\CommonLogic\NameResolver;
+use axenox\PackageManager\MetaModelInstaller;
+use axenox\PackageManager\Actions\BackupApp;
 use Composer\Script\Event;
+use Symfony\Component\Config\Definition\Exception\Exception;
+
 require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
 
 /**
@@ -13,7 +18,7 @@ require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATO
  * installatiom automatically once composer is done installing or updating all the files.
  *
  * @author Andrej Kabachnik
- *        
+ *
  */
 class StaticInstaller
 {
@@ -24,11 +29,15 @@ class StaticInstaller
 
     const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'UninstallApp';
 
+    const PACKAGE_MANAGER_BACKUP_ACTION_ALIAS = 'BackupApp';
+
+    const EXCLUDE_BACKUP_PACKAGES = ["composer","symfony"];
+
     private $workbench = null;
 
     /**
      *
-     * @param PackageEvent $composer_event            
+     * @param PackageEvent $composer_event
      * @return void
      */
     public static function composerFinishPackageInstall(PackageEvent $composer_event)
@@ -39,9 +48,44 @@ class StaticInstaller
         }
     }
 
+    public static function composerBackupEverything(Event $composer_event = null){
+        $composerContent = file_get_contents('composer.json');
+        $obj = json_decode($composerContent);
+        $installer = new self();
+
+        //write consistent backuptime to delete excess data after update run
+        $backupTime = date('Y_m_d_H_i');
+        $temp = self::getTempFile();
+        $temp['backupTime'] = $backupTime;
+        self::setTempFile($temp);
+
+
+        foreach($obj->require as $requiredPackage => $packageInfo){
+            $appIdentifier = explode("/",$requiredPackage);
+
+            if (!in_array($appIdentifier[0],self::EXCLUDE_BACKUP_PACKAGES)){
+                try {
+                    $installer->backup(implode(".",$appIdentifier), $backupTime);
+                }
+                catch(\Exception $e){
+                    echo "Could not backup ".implode(".",$appIdentifier).". ".$e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine();
+                }
+            }
+        }
+        return $composer_event;
+    }
+
+    public function backup($app_alias, $backupTime){
+        $exface = $this->getWorkbench();
+        $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
+        $backupAction = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_BACKUP_ACTION_ALIAS);
+
+        $backupAction->setBackupPath(Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime);
+        $backupAction->backup($app_name_resolver);
+    }
     /**
      *
-     * @param PackageEvent $composer_event            
+     * @param PackageEvent $composer_event
      * @return void
      */
     public static function composerFinishPackageUpdate(PackageEvent $composer_event)
@@ -54,7 +98,7 @@ class StaticInstaller
 
     /**
      *
-     * @param Event $composer_event            
+     * @param Event $composer_event
      * @return string
      */
     public static function composerFinishInstall(Event $composer_event = null)
@@ -79,9 +123,10 @@ class StaticInstaller
         return $text ? $text : 'No apps to install' . ".\n";
     }
 
+
     /**
      *
-     * @param Event $composer_event            
+     * @param Event $composer_event
      * @return string
      */
     public static function composerFinishUpdate(Event $composer_event = null)
@@ -89,6 +134,7 @@ class StaticInstaller
         $text = '';
         $processed_aliases = array();
         $temp = self::getTempFile();
+
         if (array_key_exists('update', $temp)) {
             // First of all check, if the core needs to be updated. If so, do that before updating other apps
             if (in_array(self::getCoreAppAlias(), $temp['update'])) {
@@ -96,9 +142,10 @@ class StaticInstaller
                     $processed_aliases[] = self::getCoreAppAlias();
                     $result = self::install(self::getCoreAppAlias());
                     $text .= '-> Updating app "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
-                    self::printToStdout($text);
+                    //self::printToStdout($text);
                 }
             }
+
             // Now that the core is up to date, we can update the others
             foreach ($temp['update'] as $app_alias) {
                 if (! in_array($app_alias, $processed_aliases)) {
@@ -106,23 +153,91 @@ class StaticInstaller
                 } else {
                     continue;
                 }
-                $result = self::install($app_alias);
-                $text .= '-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
-                self::printToStdout($text);
+                //@todo This part breaks the process when it tries to install apps that have no working installer. It desperately needs to be fixed.
+//                try {
+//                    $result = self::install($app_alias);
+//                    print_r($result);
+//                    $text .= '-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
+//                    self::printToStdout($text);
+//                }
+//                catch(\Exception $e){
+//                    echo "Could not install ".$app_alias.". ".$e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine();
+//                }
+            }
+            $composerContent = file_get_contents('composer.json');
+            $obj = json_decode($composerContent);
+            $backupTime = $temp['backupTime'];
+            $installer = new self();
+            foreach($obj->require as $requiredPackage => $packageInfo){
+                $appIdentifier = explode("/",$requiredPackage);
+
+                if (!in_array($appIdentifier[0],self::EXCLUDE_BACKUP_PACKAGES) &&
+                    !in_array(implode(".",$appIdentifier),$temp['update'])){
+                        print_r("Delete unused ".implode(".",$appIdentifier)." app backup\n");
+                    try {
+                        $result = $installer->unlinkBackup(implode(".",$appIdentifier),$backupTime);
+                    }
+                    catch(\Exception $e){
+                        echo "Could not delete ".implode(".",$appIdentifier).". ".$e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . ".\n";
+                    }
+                }
             }
             unset($temp['update']);
-            self::setTempFile($temp);
+            if ($result){
+                echo "Cleared backup from excess data. \n";
+                self::setTempFile($temp);
+            }
+            else {
+                echo "Could not clear backup. Please unlink manually. Check LastInstall.temp.json for list of apps to keep. \n";
+            }
         }
-        
+
         // If composer is performing an update operation, it will install new packages, but will not trigger the post-install-cmd
         // As a workaround, we just trigger finish_install() here by hand
         if (array_key_exists('install', $temp)) {
             $text .= self::composerFinishInstall();
         }
-        
+
         return $text ? $text : 'No apps to update' . ".\n";
     }
-
+    public function unlinkBackup($app_alias, $backupTime){
+        $exface = $this->getWorkbench();
+        $app = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS);
+        $link = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR.Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
+        self::deleteDir($link);
+        $parentLink = explode(".",$app_alias);
+        $parentLink = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR.Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.$parentLink[0].DIRECTORY_SEPARATOR;
+        if (self::is_dir_empty($parentLink)){
+            self::deleteDir($parentLink);
+        }
+        return true;
+    }
+    public static function deleteDir($dirPath) {
+        if (is_dir($dirPath)) {
+            $objects = scandir($dirPath);
+            foreach ($objects as $object) {
+                if ($object != "." && $object !="..") {
+                    if (filetype($dirPath . DIRECTORY_SEPARATOR . $object) == "dir") {
+                        self::deleteDir($dirPath . DIRECTORY_SEPARATOR . $object);
+                    } else {
+                        unlink($dirPath . DIRECTORY_SEPARATOR . $object);
+                    }
+                }
+            }
+            reset($objects);
+            rmdir($dirPath);
+        }
+    }
+    public static function is_dir_empty($dir) {
+        if (!is_readable($dir)) return NULL;
+        $handle = opendir($dir);
+        while (false !== ($entry = readdir($handle))) {
+            if ($entry != "." && $entry != "..") {
+                return FALSE;
+            }
+        }
+        return TRUE;
+    }
     public static function composerPrepareUninstall(PackageEvent $composer_event)
     {
         return self::uninstall($composer_event->getOperation()->getPackage()->getName());
@@ -155,7 +270,7 @@ class StaticInstaller
             $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
             $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS)->install($app_name_resolver);
         } catch (\Exception $e) {
-            $result = $e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine();
+            print_r($e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine());
         }
         return $result;
     }
@@ -207,7 +322,7 @@ class StaticInstaller
 
     /**
      *
-     * @param array $json_array            
+     * @param array $json_array
      */
     protected static function setTempFile(array $json_array)
     {
@@ -220,8 +335,8 @@ class StaticInstaller
 
     /**
      *
-     * @param string $operation            
-     * @param string $app_alias            
+     * @param string $operation
+     * @param string $app_alias
      * @return array
      */
     protected static function addAppToTempFile($operation, $app_alias)
