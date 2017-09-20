@@ -54,7 +54,7 @@ class PackageManagerApp extends App
             ),
             "autoload" => [
                 "psr-4" => [
-                    "\\" . str_replace(NameResolver::NAMESPACE_SEPARATOR, "\\", $app->getAliasWithNamespace()) => ""
+                    "\\" . str_replace(NameResolver::NAMESPACE_SEPARATOR, "\\", $app->getAliasWithNamespace()) . "\\" => ""
                 ],
                 "exclude-from-classmap" => [
                     "/Config/",
