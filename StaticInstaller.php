@@ -155,7 +155,7 @@ class StaticInstaller
             $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
             $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS)->install($app_name_resolver);
         } catch (\Exception $e) {
-            $result = $e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine();
+            $result .= $e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine();
         }
         return $result;
     }
@@ -168,7 +168,7 @@ class StaticInstaller
             $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
             $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS)->uninstall($app_name_resolver);
         } catch (\Exception $e) {
-            $result = $e->getMessage();
+            $result .= $e->getMessage();
         }
         return $result;
     }

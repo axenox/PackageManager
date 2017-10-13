@@ -6,6 +6,11 @@ use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\CommonLogic\AppInstallers\AbstractAppInstaller;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\Interfaces\AppInterface;
+use exface\Core\CommonLogic\Model\ConditionGroup;
+use exface\Core\CommonLogic\Model\Aggregator;
+use exface\Core\CommonLogic\Constants\AggregatorFunctions;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -14,8 +19,7 @@ class MetaModelInstaller extends AbstractAppInstaller
 
     /**
      *
-     * @param
-     *            $source_absolute_path
+     * @param string $source_absolute_path
      * @return string
      */
     public function install($source_absolute_path)
@@ -25,8 +29,7 @@ class MetaModelInstaller extends AbstractAppInstaller
 
     /**
      *
-     * @param
-     *            $source_absolute_path
+     * @param string $source_absolute_path
      * @return string
      */
     public function update($source_absolute_path)
@@ -50,23 +53,52 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @return string
      */
     public function uninstall()
-    {}
+    {
+        $result = '';
+        $sheets = $this->getModelDataSheets();
+        if (! empty($sheets)){
+            array_reverse($sheets);
+            
+            $transaction = $this->getWorkbench()->data()->startTransaction();
+            
+            foreach ($sheets as $ds){
+                $counter = $ds->dataDelete($transaction);
+                if ($counter > 0) {
+                    $result .= ($result ? "; " : "") . $ds->getMetaObject()->getName() . " - " . $counter;
+                }
+            }
+            
+            $transaction->commit();
+            
+            if (! $result) {
+                $result .= 'Nothing to uninstall';
+            }
+        } else {
+            $result .= 'Nothing to uninstall';
+        }
+        return "\nModel changes: " . $result;
+    }
 
     /**
      * Analyzes model data sheet and writes json files to the model folder
      *
-     * @param
-     *            $destinationAbsolutePath
+     * @param string $destinationAbsolutePath
      * @return string
      */
     protected function backupModel($destinationAbsolutePath)
     {
         $app = $this->getApp();
         $dir = $destinationAbsolutePath . DIRECTORY_SEPARATOR . self::FOLDER_NAME_MODEL;
-        $app->getWorkbench()->filemanager()->pathConstruct($dir);
         
         // Fetch all model data in form of data sheets
         $sheets = $this->getModelDataSheets();
+        
+        // Make sure, the destination folder is there and empty (to remove 
+        // files, that are not neccessary anymore)
+        $app->getWorkbench()->filemanager()->pathConstruct($dir);
+        // Remove any old files AFTER the data sheets were read successfully
+        // in order to keep old data on errors.
+        $app->getWorkbench()->filemanager()->emptyDir($dir);
         
         // Save each data sheet as a file and additionally compute the modification date of the last modified model instance and
         // the MD5-hash of the entire model definition (concatennated contents of all files). This data will be stored in the composer.json
@@ -74,8 +106,8 @@ class MetaModelInstaller extends AbstractAppInstaller
         $last_modification_time = '0000-00-00 00:00:00';
         $model_string = '';
         foreach ($sheets as $nr => $ds) {
-            $model_string .= $this->exportModelFile($dir, $ds, $nr . '_');
-            $time = $ds->getColumns()->getByAttribute($ds->getMetaObject()->getAttribute('MODIFIED_ON'))->aggregate(EXF_AGGREGATOR_MAX);
+            $model_string .= $this->exportModelFile($dir, $ds, str_pad($nr, 2, '0', STR_PAD_LEFT) . '_');
+            $time = $ds->getColumns()->getByAttribute($ds->getMetaObject()->getAttribute('MODIFIED_ON'))->aggregate(new Aggregator(AggregatorFunctions::MAX));
             $last_modification_time = $time > $last_modification_time ? $time : $last_modification_time;
         }
         
@@ -103,14 +135,13 @@ class MetaModelInstaller extends AbstractAppInstaller
      * Writes JSON File of a $data_sheet to a specific location
      *
      * @param string $backupDir            
-     * @param
-     *            $data_sheet
+     * @param DataSheetInterface $data_sheet
      * @param string $filename_prefix            
      * @return string
      */
-    protected function exportModelFile($backupDir, $data_sheet, $filename_prefix = null)
+    protected function exportModelFile($backupDir, DataSheetInterface $data_sheet, $filename_prefix = null)
     {
-        $contents = $data_sheet->toUxon();
+        $contents = $data_sheet->exportUxonObject()->toJson(true);
         if (! $data_sheet->isEmpty()) {
             $fileManager = $this->getWorkbench()->filemanager();
             $fileManager->dumpFile($backupDir . DIRECTORY_SEPARATOR . $filename_prefix . $data_sheet->getMetaObject()->getAlias() . '.json', $contents);
@@ -131,8 +162,9 @@ class MetaModelInstaller extends AbstractAppInstaller
         $app = $this->getApp();        
         $sheets = array();
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.APP'), 'UID');
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.DATATYPE'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT'), 'APP');
-        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT_BEHAVIORS'), 'OBJECT__APP');
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT_BEHAVIORS'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.DATASRC'), 'APP', array(
             'CONNECTION',
@@ -211,7 +243,18 @@ class MetaModelInstaller extends AbstractAppInstaller
                     $behavior->disable();
                 }
                 
-                $counter = $data_sheet->dataReplaceByFilters($transaction);
+                // There were cases, when the attribute, that is being filtered over was new, so the filters
+                // did not work (because the attribute was not there). The solution is to run an update
+                // with create fallback in this case. This will cause filter problems, but will not delete
+                // obsolete instances. This is not critical, as the probability of this case is extremely
+                // low in any case and the next update will turn everything back to normal.
+                if (! $this->checkFiltersMatchModel($data_sheet->getFilters())) {
+                    $data_sheet->getFilters()->removeAll();
+                    $counter = $data_sheet->dataUpdate(true, $transaction);
+                } else {
+                    $counter = $data_sheet->dataReplaceByFilters($transaction);
+                }
+                
                 if ($counter > 0) {
                     $result .= ($result ? "; " : "") . $data_sheet->getMetaObject()->getName() . " - " . $counter;
                 }
@@ -229,5 +272,21 @@ class MetaModelInstaller extends AbstractAppInstaller
             $result .= 'No model files to install';
         }
         return "\nModel changes: " . $result;
+    }
+    
+    protected function checkFiltersMatchModel(ConditionGroup $condition_group)
+    {
+        foreach ($condition_group->getConditions() as $condition){
+            if(! $condition->getExpression()->isMetaAttribute()){
+                return false;
+            }
+        }
+        
+        foreach ($condition_group->getNestedGroups() as $subgroup){
+            if (! $this->checkFiltersMatchModel($subgroup)){
+                return false;
+            }
+        }
+        return true;
     }
 }
