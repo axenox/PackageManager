@@ -10,6 +10,7 @@ use exface\Core\Exceptions\DirectoryNotFoundError;
 use axenox\PackageManager\MetaModelInstaller;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -41,12 +42,12 @@ class InstallApp extends AbstractAction
             try {
                 $installed_counter ++;
                 $this->install($app_name_resolver);
+                $this->addResultMessage("\n" . $app_alias . " successfully installed.\n");
             } catch (\Exception $e) {
                 $installed_counter --;
-                // FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
-                throw $e;
+                $this->getWorkbench()->getLogger()->logException($e);
+                $this->addResultMessage("\n" . $app_alias . " could not be installed" . ($e instanceof ExceptionInterface ? ' (see log ID ' . $e->getId() . ')' : '') . ".\n");
             }
-            $this->addResultMessage("\n" . $app_alias . " successfully installed.\n");
         }
         
         if (count($this->getTargetAppAliases()) == 0) {
