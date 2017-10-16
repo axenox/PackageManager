@@ -2,81 +2,40 @@
     "object_alias": "exface.Core.ERROR",
     "columns": [
         {
-            "expression": "CREATED_ON",
             "name": "CREATED_ON",
-            "hidden": false,
-            "data_type": "exface.Core.Timestamp",
             "attribute_alias": "CREATED_ON"
         },
         {
-            "expression": "MODIFIED_ON",
             "name": "MODIFIED_ON",
-            "hidden": false,
-            "data_type": "exface.Core.Timestamp",
             "attribute_alias": "MODIFIED_ON"
         },
         {
-            "expression": "CREATED_BY_USER",
             "name": "CREATED_BY_USER",
-            "hidden": false,
-            "data_type": "exface.Core.Relation",
             "attribute_alias": "CREATED_BY_USER"
         },
         {
-            "expression": "MODIFIED_BY_USER",
             "name": "MODIFIED_BY_USER",
-            "hidden": false,
-            "data_type": "exface.Core.Relation",
             "attribute_alias": "MODIFIED_BY_USER"
         },
         {
-            "expression": "UID",
             "name": "UID",
-            "hidden": false,
-            "data_type": "exface.Core.Number",
             "attribute_alias": "UID"
         },
         {
-            "expression": "FULL_ERROR_CODE",
-            "name": "FULL_ERROR_CODE",
-            "hidden": false,
-            "data_type": "exface.Core.String",
-            "attribute_alias": "FULL_ERROR_CODE"
-        },
-        {
-            "expression": "APP",
             "name": "APP",
-            "hidden": false,
-            "data_type": "exface.Core.Relation",
             "attribute_alias": "APP"
         },
         {
-            "expression": "ERROR_CODE",
             "name": "ERROR_CODE",
-            "hidden": false,
-            "data_type": "exface.Core.String",
             "attribute_alias": "ERROR_CODE"
         },
         {
-            "expression": "ERROR_TEXT",
             "name": "ERROR_TEXT",
-            "hidden": false,
-            "data_type": "exface.Core.String",
             "attribute_alias": "ERROR_TEXT"
         },
         {
-            "expression": "DESCRIPTION",
             "name": "DESCRIPTION",
-            "hidden": false,
-            "data_type": "exface.Core.Text",
             "attribute_alias": "DESCRIPTION"
-        },
-        {
-            "expression": "LABEL",
-            "name": "LABEL",
-            "hidden": false,
-            "data_type": "exface.Core.String",
-            "attribute_alias": "LABEL"
         }
     ],
     "rows": [
@@ -86,12 +45,10 @@
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e6c82b7a05cf1f93cce4b318306b9a",
-            "FULL_ERROR_CODE": "axenox.PackageManager.6T5TRFE",
             "APP": "0x31380000000000000000000000000000",
             "ERROR_CODE": "6T5TRFE",
             "ERROR_TEXT": "Wrong input object for package manager action",
-            "DESCRIPTION": "",
-            "LABEL": "axenox.PackageManager.6T5TRFE"
+            "DESCRIPTION": ""
         },
         {
             "CREATED_ON": "2016-12-22 09:46:58",
@@ -99,12 +56,10 @@
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e6c82b9302352e93cce4b318306b9a",
-            "FULL_ERROR_CODE": "axenox.PackageManager.6T5TRR1",
             "APP": "0x31380000000000000000000000000000",
             "ERROR_CODE": "6T5TRR1",
             "ERROR_TEXT": "Missing package name in input data",
-            "DESCRIPTION": "",
-            "LABEL": "axenox.PackageManager.6T5TRR1"
+            "DESCRIPTION": ""
         },
         {
             "CREATED_ON": "2016-12-22 09:53:27",
@@ -112,12 +67,10 @@
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e6c82c7b0898e093cce4b318306b9a",
-            "FULL_ERROR_CODE": "axenox.PackageManager.6T5TUR1",
             "APP": "0x31380000000000000000000000000000",
             "ERROR_CODE": "6T5TUR1",
             "ERROR_TEXT": "Install\/Export actions can be performed on meta object exface.Core.OBJECT only",
-            "DESCRIPTION": "",
-            "LABEL": "axenox.PackageManager.6T5TUR1"
+            "DESCRIPTION": ""
         },
         {
             "CREATED_ON": "2016-12-22 10:04:01",
@@ -125,12 +78,10 @@
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e6c82df50166c593cce4b318306b9a",
-            "FULL_ERROR_CODE": "axenox.PackageManager.6T5TZN5",
             "APP": "0x31380000000000000000000000000000",
             "ERROR_CODE": "6T5TZN5",
             "ERROR_TEXT": "No installable app found in path",
-            "DESCRIPTION": "",
-            "LABEL": "axenox.PackageManager.6T5TZN5"
+            "DESCRIPTION": ""
         }
     ],
     "totals_rows": [],

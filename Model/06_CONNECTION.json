@@ -2,87 +2,51 @@
     "object_alias": "exface.Core.CONNECTION",
     "columns": [
         {
-            "expression": "CREATED_ON",
             "name": "CREATED_ON",
-            "hidden": false,
-            "data_type": "exface.Core.Timestamp",
             "attribute_alias": "CREATED_ON"
         },
         {
-            "expression": "MODIFIED_ON",
             "name": "MODIFIED_ON",
-            "hidden": false,
-            "data_type": "exface.Core.Timestamp",
             "attribute_alias": "MODIFIED_ON"
         },
         {
-            "expression": "CREATED_BY_USER",
             "name": "CREATED_BY_USER",
-            "hidden": false,
-            "data_type": "exface.Core.Relation",
             "attribute_alias": "CREATED_BY_USER"
         },
         {
-            "expression": "MODIFIED_BY_USER",
             "name": "MODIFIED_BY_USER",
-            "hidden": false,
-            "data_type": "exface.Core.Relation",
             "attribute_alias": "MODIFIED_BY_USER"
         },
         {
-            "expression": "UID",
             "name": "UID",
-            "hidden": false,
-            "data_type": "exface.Core.Number",
             "attribute_alias": "UID"
         },
         {
-            "expression": "APP",
             "name": "APP",
-            "hidden": false,
-            "data_type": "exface.Core.Relation",
             "attribute_alias": "APP"
         },
         {
-            "expression": "LABEL",
             "name": "LABEL",
-            "hidden": false,
-            "data_type": "exface.Core.String",
             "attribute_alias": "LABEL"
         },
         {
-            "expression": "CONNECTOR",
             "name": "CONNECTOR",
-            "hidden": false,
-            "data_type": "exface.Core.Relation",
             "attribute_alias": "CONNECTOR"
         },
         {
-            "expression": "CONFIG",
             "name": "CONFIG",
-            "hidden": false,
-            "data_type": "exface.Core.PropertySet",
             "attribute_alias": "CONFIG"
         },
         {
-            "expression": "READONLY",
             "name": "READONLY",
-            "hidden": false,
-            "data_type": "exface.Core.Boolean",
             "attribute_alias": "READONLY"
         },
         {
-            "expression": "ALIAS",
             "name": "ALIAS",
-            "hidden": false,
-            "data_type": "exface.Core.String",
             "attribute_alias": "ALIAS"
         },
         {
-            "expression": "FILTER_CONTEXT",
             "name": "FILTER_CONTEXT",
-            "hidden": false,
-            "data_type": "exface.Core.Text",
             "attribute_alias": "FILTER_CONTEXT"
         }
     ],
