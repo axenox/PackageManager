@@ -189,7 +189,7 @@ class MetaModelInstaller extends AbstractAppInstaller
     protected function getObjectDataSheet($app, MetaObjectInterface $object, $app_filter_attribute_alias, array $exclude_attribute_aliases = array())
     {
         $ds = DataSheetFactory::createFromObject($object);
-        foreach ($object->getAttributeGroup('~ALL')->getAttributes() as $attr) {
+        foreach ($object->getAttributeGroup('~WRITABLE')->getAttributes() as $attr) {
             if (in_array($attr->getAlias(), $exclude_attribute_aliases)){
                continue;
             }
