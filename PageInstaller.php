@@ -58,7 +58,7 @@ class PageInstaller extends AbstractAppInstaller
         
         foreach ($pagesFile as $pageFile) {
             try {
-                $pageDb = $this->getWorkbench()->getCMS()->loadPageById($pageFile->getId(), true);
+                $pageDb = $this->getWorkbench()->getCMS()->loadPageByAlias($pageFile->getAliasWithNamespace(), true);
                 if ($pageDb->isUpdateable()) {
                     $pagesUpdate[] = $pageFile;
                 }
@@ -68,7 +68,7 @@ class PageInstaller extends AbstractAppInstaller
         }
         
         foreach ($pagesDb as $pageDb) {
-            if (! $this->findPage($pageDb->getId(), $pagesFile) && $pageDb->isUpdateable()) {
+            if (! $this->findPage($pageDb->getAliasWithNamespace(), $pagesFile) && $pageDb->isUpdateable()) {
                 $pagesDelete[] = $pageDb;
             }
         }
@@ -90,16 +90,16 @@ class PageInstaller extends AbstractAppInstaller
     }
 
     /**
-     * Searches an array of UiPages for a certain UiPage specified by its UID and returns it.
+     * Searches an array of UiPages for a certain UiPage specified by its alias and returns it.
      * 
-     * @param string $uid
+     * @param string $alias
      * @param UiPageInterface[] $pages
      * @return UiPageInterface|NULL
      */
-    protected function findPage($uid, $pages)
+    protected function findPage($alias, $pages)
     {
         foreach ($pages as $page) {
-            if ($uid == $page->getId()) {
+            if ($alias == $page->getAliasWithNamespace()) {
                 return $page;
             }
         }
@@ -129,11 +129,11 @@ class PageInstaller extends AbstractAppInstaller
             $pagePos = 0;
             do {
                 $page = $inputPages[$pagePos];
-                $parentId = $page->getMenuParentId();
+                $parentAlias = $page->getMenuParentPageAlias();
                 $parentFound = false;
                 // Hat die Seite einen Parent im inputArray?
                 foreach ($inputPages as $parentPagePos => $parentPage) {
-                    if ($parentId == $parentPage->getId()) {
+                    if ($parentAlias == $parentPage->getAliasWithNamespace()) {
                         $parentFound = true;
                         break;
                     }
@@ -142,7 +142,7 @@ class PageInstaller extends AbstractAppInstaller
                     // Wenn die Seite keinen Parent im inputArray hat, hat sie einen im
                     // outputArray?
                     foreach ($sortedPages as $parentPagePos => $parentPage) {
-                        if ($parentId == $parentPage->getId()) {
+                        if ($parentAlias == $parentPage->getAliasWithNamespace()) {
                             $parentFound = true;
                             break;
                         }
