@@ -10,7 +10,7 @@ use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\CommonLogic\Model\ConditionGroup;
 use exface\Core\CommonLogic\Model\Aggregator;
-use exface\Core\CommonLogic\Constants\AggregatorFunctions;
+use exface\Core\DataTypes\AggregatorFunctionsDataType;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -107,7 +107,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         $model_string = '';
         foreach ($sheets as $nr => $ds) {
             $model_string .= $this->exportModelFile($dir, $ds, str_pad($nr, 2, '0', STR_PAD_LEFT) . '_');
-            $time = $ds->getColumns()->getByAttribute($ds->getMetaObject()->getAttribute('MODIFIED_ON'))->aggregate(new Aggregator(AggregatorFunctions::MAX));
+            $time = $ds->getColumns()->getByAttribute($ds->getMetaObject()->getAttribute('MODIFIED_ON'))->aggregate(new Aggregator($this->getWorkbench(), AggregatorFunctionsDataType::MAX));
             $last_modification_time = $time > $last_modification_time ? $time : $last_modification_time;
         }
         
