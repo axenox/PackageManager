@@ -99,7 +99,7 @@ class PageInstaller extends AbstractAppInstaller
     protected function findPage($alias, $pages)
     {
         foreach ($pages as $page) {
-            if ($alias == $page->getAliasWithNamespace()) {
+            if (strcasecmp($alias, $page->getAliasWithNamespace()) == 0) {
                 return $page;
             }
         }
@@ -133,7 +133,7 @@ class PageInstaller extends AbstractAppInstaller
                 $parentFound = false;
                 // Hat die Seite einen Parent im inputArray?
                 foreach ($inputPages as $parentPagePos => $parentPage) {
-                    if ($parentAlias == $parentPage->getAliasWithNamespace()) {
+                    if (strcasecmp($parentAlias, $parentPage->getAliasWithNamespace()) == 0) {
                         $parentFound = true;
                         break;
                     }
@@ -142,7 +142,7 @@ class PageInstaller extends AbstractAppInstaller
                     // Wenn die Seite keinen Parent im inputArray hat, hat sie einen im
                     // outputArray?
                     foreach ($sortedPages as $parentPagePos => $parentPage) {
-                        if ($parentAlias == $parentPage->getAliasWithNamespace()) {
+                        if (strcasecmp($parentAlias, $parentPage->getAliasWithNamespace()) == 0) {
                             $parentFound = true;
                             break;
                         }
