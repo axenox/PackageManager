@@ -56,7 +56,7 @@ class ExportAppModel extends AbstractAction
         
         // Save the result and output a message for the user
         $this->setResult('');
-        $this->setResultMessage('Exported model files for ' . $exported_counter . ' apps to app-folders into ' . ($this->getExportToPathRelative() ? '"' . $this->getExportToPathRelative() . '"' : ' the respective app folders') . '.');
+        $this->setResultMessage('Exported model files and pages for ' . $exported_counter . ' apps to app-folders into ' . ($this->getExportToPathRelative() ? '"' . $this->getExportToPathRelative() . '"' : ' the respective app folders') . '.');
         
         return;
     }

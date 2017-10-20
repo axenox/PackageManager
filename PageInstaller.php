@@ -44,6 +44,9 @@ class PageInstaller extends AbstractAppInstaller
             $page = UiPageFactory::create($this->getWorkbench()->ui(), '');
             $page->importUxonObject(UxonObject::fromJson(file_get_contents($file)));
             $page->setAppAlias($this->getApp()->getAliasWithNamespace());
+            // Wird eine Seite neu hinzugefuegt ist der parentDefaultAlias gleich dem
+            // gesetzen parentAlias.
+            $page->setMenuParentPageDefaultAlias($page->getMenuParentPageAlias());
             $pagesFile[] = $page;
         }
         $pagesFile = $this->sortPages($pagesFile);
@@ -60,6 +63,12 @@ class PageInstaller extends AbstractAppInstaller
             try {
                 $pageDb = $this->getWorkbench()->getCMS()->loadPageByAlias($pageFile->getAliasWithNamespace(), true);
                 if ($pageDb->isUpdateable()) {
+                    if ($pageDb->getMenuParentPageAlias() != $pageDb->getMenuParentPageDefaultAlias()) {
+                        // Die Seite wurde manuell umgehaengt. Der parentDefaultAlias wird
+                        // geupdated, die Position im Baum wird nicht geupdated.
+                        $pageFile->setMenuIndex($pageDb->getMenuIndex());
+                        $pageFile->setMenuParentPageAlias($pageDb->getMenuParentPageAlias());
+                    }
                     $pagesUpdate[] = $pageFile;
                 }
             } catch (UiPageNotFoundError $upnfe) {
@@ -87,6 +96,8 @@ class PageInstaller extends AbstractAppInstaller
         foreach ($pagesDelete as $page) {
             $this->getWorkbench()->getCMS()->deletePage($page);
         }
+        
+        return count($pagesCreate) . ' created, ' . count($pagesUpdate) . ' updated, ' . count($pagesDelete) . ' deleted pages for "' . $this->getApp()->getAliasWithNamespace() . '".';
     }
 
     /**
@@ -205,6 +216,8 @@ class PageInstaller extends AbstractAppInstaller
             $contents = $page->exportUxonObject()->toJson(true);
             $fileManager->dumpFile($dir . DIRECTORY_SEPARATOR . $page->getAliasWithNamespace() . '.json', $contents);
         }
+        
+        return count($pages) . ' pages for "' . $this->getApp()->getAliasWithNamespace() . '" exported.';
     }
 
     /**

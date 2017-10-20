@@ -87,6 +87,7 @@ class MetaModelInstaller extends AbstractAppInstaller
      */
     protected function backupModel($destinationAbsolutePath)
     {
+        $result = '';
         $app = $this->getApp();
         $dir = $destinationAbsolutePath . DIRECTORY_SEPARATOR . self::FOLDER_NAME_MODEL;
         
@@ -124,11 +125,13 @@ class MetaModelInstaller extends AbstractAppInstaller
         $composer_json['extra']['app'] = $package_props;
         $packageManager->setComposerJson($app, $composer_json);
         
+        $result .= "\n" . 'Created meta model backup for "' . $app->getAliasWithNamespace() . '".';
+        
         // Backup pages.
         $pageInstaller = new PageInstaller($this->getNameResolver());
-        $pageInstaller->backup($destinationAbsolutePath);
+        $result .= ' ' . $pageInstaller->backup($destinationAbsolutePath);
         
-        return "\n Created meta model backup for " . $app->getAliasWithNamespace() . ".";
+        return $result;
     }
 
     /**
@@ -261,7 +264,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             }
             // Install pages.
             $pageInstaller = new PageInstaller($this->getNameResolver());
-            $pageInstaller->install($source_absolute_path);
+            $result .= ($result ? '; ' : '') . $pageInstaller->install($source_absolute_path);
             // Commit the transaction
             $transaction->commit();
             
