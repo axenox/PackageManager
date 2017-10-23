@@ -34,10 +34,6 @@
             "attribute_alias": "DATA_SOURCE"
         },
         {
-            "name": "long_description",
-            "attribute_alias": "long_description"
-        },
-        {
             "name": "APP",
             "attribute_alias": "APP"
         },
@@ -80,7 +76,6 @@
             "READABLE_FLAG": "1",
             "WRITABLE_FLAG": "1",
             "DATA_SOURCE": "0x32370000000000000000000000000000",
-            "long_description": "",
             "APP": "0x31380000000000000000000000000000",
             "SHORT_DESCRIPTION": "",
             "PARENT_OBJECT": "",
@@ -99,7 +94,6 @@
             "READABLE_FLAG": "1",
             "WRITABLE_FLAG": "1",
             "DATA_SOURCE": "0x32370000000000000000000000000000",
-            "long_description": "",
             "APP": "0x31380000000000000000000000000000",
             "SHORT_DESCRIPTION": "",
             "PARENT_OBJECT": "",
@@ -118,7 +112,6 @@
             "READABLE_FLAG": "1",
             "WRITABLE_FLAG": "1",
             "DATA_SOURCE": "0x11e64d20a1fcb3079409c0f8dae36b4f",
-            "long_description": "",
             "APP": "0x31380000000000000000000000000000",
             "SHORT_DESCRIPTION": "",
             "PARENT_OBJECT": "",
