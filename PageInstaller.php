@@ -41,9 +41,8 @@ class PageInstaller extends AbstractAppInstaller
         }
         // Pages aus Dateien laden.
         foreach (glob($dir . DIRECTORY_SEPARATOR . '*') as $file) {
-            $page = UiPageFactory::create($this->getWorkbench()->ui(), '');
+            $page = UiPageFactory::create($this->getWorkbench()->ui(), '', null, $this->getApp()->getAliasWithNamespace());
             $page->importUxonObject(UxonObject::fromJson(file_get_contents($file)));
-            $page->setAppAlias($this->getApp()->getAliasWithNamespace());
             // Wird eine Seite neu hinzugefuegt ist der parentDefaultAlias gleich dem
             // gesetzen parentAlias.
             $page->setMenuParentPageDefaultAlias($page->getMenuParentPageAlias());
@@ -61,7 +60,8 @@ class PageInstaller extends AbstractAppInstaller
         
         foreach ($pagesFile as $pageFile) {
             try {
-                $pageDb = $this->getWorkbench()->getCMS()->loadPageByAlias($pageFile->getAliasWithNamespace(), true);
+                $pageDb = $this->getWorkbench()->getCMS()->loadPageById($pageFile->getId(), true);
+                // Die Seite existiert bereits und wird aktualisiert.
                 if ($pageDb->isUpdateable()) {
                     if ($pageDb->getMenuParentPageAlias() != $pageDb->getMenuParentPageDefaultAlias()) {
                         // Die Seite wurde manuell umgehaengt. Der parentDefaultAlias wird
@@ -72,12 +72,14 @@ class PageInstaller extends AbstractAppInstaller
                     $pagesUpdate[] = $pageFile;
                 }
             } catch (UiPageNotFoundError $upnfe) {
+                // Die Seite existiert noch nicht und muss erstellt werden.
                 $pagesCreate[] = $pageFile;
             }
         }
         
         foreach ($pagesDb as $pageDb) {
-            if (! $this->findPage($pageDb->getAliasWithNamespace(), $pagesFile) && $pageDb->isUpdateable()) {
+            if (! $this->hasPage($pageDb, $pagesFile) && $pageDb->isUpdateable()) {
+                // Die Seite existiert nicht mehr und wird geloescht.
                 $pagesDelete[] = $pageDb;
             }
         }
@@ -101,20 +103,20 @@ class PageInstaller extends AbstractAppInstaller
     }
 
     /**
-     * Searches an array of UiPages for a certain UiPage specified by its alias and returns it.
+     * Searches an array of UiPages for a certain UiPage and returns if it is contained.
      * 
-     * @param string $alias
-     * @param UiPageInterface[] $pages
-     * @return UiPageInterface|NULL
+     * @param UiPageInterface $page
+     * @param UiPageInterface[] $pageArray
+     * @return boolean
      */
-    protected function findPage($alias, $pages)
+    protected function hasPage(UiPageInterface $page, $pageArray)
     {
-        foreach ($pages as $page) {
-            if (strcasecmp($alias, $page->getAliasWithNamespace()) == 0) {
-                return $page;
+        foreach ($pageArray as $arrayPage) {
+            if ($page->isExactly($arrayPage)) {
+                return true;
             }
         }
-        return null;
+        return false;
     }
 
     /**
