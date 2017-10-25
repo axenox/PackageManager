@@ -404,7 +404,7 @@
         },
         {
             "CREATED_ON": "2007-01-01 00:00:00",
-            "MODIFIED_ON": "2007-01-01 00:00:00",
+            "MODIFIED_ON": "2017-10-25 05:01:19",
             "CREATED_BY_USER": "",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x35313900000000000000000000000000",
@@ -416,10 +416,10 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": null,
+            "DEFAULT_EDITOR_UXON": "",
             "LABEL": "Package Repository",
             "ALIAS": "PKG_REPO",
-            "DATATYPE": "0x35000000000000000000000000000000",
+            "DATATYPE": "0x31320000000000000000000000000000",
             "DATA_ADDRESS": "repo",
             "OBJECT": "0x31333000000000000000000000000000",
             "FORMATTER": "",
@@ -434,10 +434,10 @@
             "SORTERDIR": "",
             "RELATED_OBJ_ATTR": "",
             "SHORT_DESCRIPTION": "",
-            "DATA_ADDRESS_PROPS": "",
+            "DATA_ADDRESS_PROPS": "{}",
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": null
+            "CUSTOM_DATA_TYPE": ""
         },
         {
             "CREATED_ON": "2007-01-01 00:00:00",
@@ -826,7 +826,7 @@
             "DEFAULT_EDITOR_UXON": null,
             "LABEL": "App",
             "ALIAS": "app",
-            "DATATYPE": "0x35000000000000000000000000000000",
+            "DATATYPE": "0x11e7b0277435425e98350205857feb80",
             "DATA_ADDRESS": "extra\/app\/app_uid",
             "OBJECT": "0x11e64d20c9789d1a9409c0f8dae36b4f",
             "FORMATTER": "",
