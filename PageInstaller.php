@@ -41,8 +41,12 @@ class PageInstaller extends AbstractAppInstaller
         }
         // Pages aus Dateien laden.
         foreach (glob($dir . DIRECTORY_SEPARATOR . '*') as $file) {
+            $pageUxon = UxonObject::fromJson(file_get_contents($file));
             $page = UiPageFactory::create($this->getWorkbench()->ui(), '', null, $this->getApp()->getAliasWithNamespace());
-            $page->importUxonObject(UxonObject::fromJson(file_get_contents($file)));
+            // Der Inhalt der Seite darf nicht erzeugt werden, da verlinkte Seiten u.U. noch nicht
+            // vorhanden sind.
+            $page->importUxonObject($pageUxon, ['contents']);
+            $page->setContents($pageUxon->getProperty('contents'), false);
             // Wird eine Seite neu hinzugefuegt ist der parentDefaultAlias gleich dem
             // gesetzen parentAlias.
             $page->setMenuParentPageDefaultAlias($page->getMenuParentPageAlias());
