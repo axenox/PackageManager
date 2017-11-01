@@ -19,7 +19,7 @@ class ComposerRemove extends AbstractComposerAction implements iModifyData
     protected function init()
     {
         parent::init();
-        $this->setIconName(Icons::UNINSTALL);
+        $this->setIcon(Icons::UNINSTALL);
     }
 
     /**

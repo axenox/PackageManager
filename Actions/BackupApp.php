@@ -28,7 +28,7 @@ class BackupApp extends AbstractAction
 
     protected function init()
     {
-        $this->setIconName(Icons::HDD_O);
+        $this->setIcon(Icons::HDD_O);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }

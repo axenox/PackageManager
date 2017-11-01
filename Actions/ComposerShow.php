@@ -18,7 +18,7 @@ class ComposerShow extends AbstractComposerAction
     protected function init()
     {
         parent::init();
-        $this->setIconName(Icons::INFO);
+        $this->setIcon(Icons::INFO);
     }
 
     protected function performComposerAction(ComposerAPI $composer)

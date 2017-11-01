@@ -26,7 +26,7 @@ class ComposerCleanupPreviousActions extends AbstractAction implements iModifyDa
     protected function init()
     {
         parent::init();
-        $this->setIconName(Icons::WRENCH);
+        $this->setIcon(Icons::WRENCH);
     }
 
     /**

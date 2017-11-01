@@ -26,7 +26,7 @@ class ExportAppModel extends AbstractAction
 
     protected function init()
     {
-        $this->setIconName(Icons::DOWNLOAD);
+        $this->setIcon(Icons::DOWNLOAD);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }

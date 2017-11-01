@@ -19,7 +19,7 @@ class ComposerRequire extends AbstractComposerAction implements iModifyData
     protected function init()
     {
         parent::init();
-        $this->setIconName(Icons::INSTALL);
+        $this->setIcon(Icons::INSTALL);
     }
 
     /**
