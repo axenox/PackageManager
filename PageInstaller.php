@@ -207,7 +207,11 @@ class PageInstaller extends AbstractAppInstaller
         $fileManager = $this->getWorkbench()->filemanager();
         
         // Empty pages folder in case it is an update
-        $fileManager->emptyDir($this->getPagePath($destination_absolute_path));
+        try {
+            $fileManager->emptyDir($this->getPagePath($destination_absolute_path));
+        } catch (\Throwable $e) {
+            $this->getWorkbench()->getLogger()->logException($e);
+        }
         
         // Dann alle Dialoge der App als Dateien in den Ordner schreiben.
         $pages = $this->getWorkbench()->getCMS()->getPagesForApp($this->getApp());
