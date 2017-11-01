@@ -14,6 +14,16 @@ class PageInstaller extends AbstractAppInstaller
 
     const FOLDER_NAME_PAGES = 'Install\\Pages';
 
+    protected function getPagesPathWithLanguage($source_path, $languageCode)
+    {
+        return $this->getPagePath($source_path) . DIRECTORY_SEPARATOR . $languageCode;
+    }
+    
+    protected function getPagePath($source_path)
+    {
+        return $source_path . DIRECTORY_SEPARATOR . $this::FOLDER_NAME_PAGES;
+    }
+    
     /**
      * 
      * {@inheritDoc}
@@ -23,17 +33,7 @@ class PageInstaller extends AbstractAppInstaller
     {
         $pagesFile = [];
         // Ordner entsprechend momentaner Sprache bestimmen.
-        $baseDir = $source_absolute_path . DIRECTORY_SEPARATOR . $this::FOLDER_NAME_PAGES;
-        if (is_dir($baseDir . DIRECTORY_SEPARATOR . $this->getApp()->getTranslator()->getLocale())) {
-            $dir = $baseDir . DIRECTORY_SEPARATOR . $this->getApp()->getTranslator()->getLocale();
-        } else {
-            foreach ($this->getApp()->getTranslator()->getFallbackLocales() as $fallbackLocale) {
-                if (is_dir($baseDir . DIRECTORY_SEPARATOR . $fallbackLocale)) {
-                    $dir = $baseDir . DIRECTORY_SEPARATOR . $fallbackLocale;
-                    break;
-                }
-            }
-        }
+        $dir = $this->getPagesPathWithLanguage($source_absolute_path, $this->getApp()->getDefaultLanguageCode());
         if (! $dir) {
             // Ist entsprechend der momentanen Sprache kein passender Ordner vorhanden, wird
             // nichts gemacht.
@@ -204,16 +204,20 @@ class PageInstaller extends AbstractAppInstaller
     public function backup($destination_absolute_path)
     {
         /** @var Filemanager $fileManager */
-        /** @var UiPage $page */
         $fileManager = $this->getWorkbench()->filemanager();
-        $dir = $destination_absolute_path . DIRECTORY_SEPARATOR . $this::FOLDER_NAME_PAGES . DIRECTORY_SEPARATOR . $this->getApp()->getTranslator()->getLocale();
-        $fileManager->pathConstruct($dir);
         
-        // Zuerst alle Dateien im Ordner loeschen.
-        $fileManager->remove(glob($dir . DIRECTORY_SEPARATOR . '*'));
+        // Empty pages folder in case it is an update
+        $fileManager->emptyDir($this->getPagePath($destination_absolute_path));
         
         // Dann alle Dialoge der App als Dateien in den Ordner schreiben.
         $pages = $this->getWorkbench()->getCMS()->getPagesForApp($this->getApp());
+        
+        if (! empty($pages)) {
+            $dir = $this->getPagesPathWithLanguage($destination_absolute_path, $this->getApp()->getDefaultLanguageCode());
+            $fileManager->pathConstruct($dir);
+        }
+        
+        /** @var UiPage $page */
         foreach ($pages as $page) {
             $contents = $page->exportUxonObject()->toJson(true);
             $fileManager->dumpFile($dir . DIRECTORY_SEPARATOR . $page->getAliasWithNamespace() . '.json', $contents);
