@@ -84,22 +84,51 @@ class PageInstaller extends AbstractAppInstaller
             }
         }
         
+        $pagesCreatedCounter = 0;
+        $pagesUpdatedCounter = 0;
+        $pagesDeletedCounter = 0;
+        $result = '';
+        
         // Pages erstellen.
         foreach ($pagesCreate as $page) {
-            $this->getWorkbench()->getCMS()->createPage($page);
+            try {
+                $this->getWorkbench()->getCMS()->createPage($page);
+                $pagesCreatedCounter++;
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+            }
+        }
+        if ($pagesCreatedCounter) {
+            $result .= ($result ? ', ' : '') . $pagesCreatedCounter . ' created';
         }
         
         // Pages aktualisieren.
         foreach ($pagesUpdate as $page) {
-            $this->getWorkbench()->getCMS()->updatePage($page);
+            try {
+                $this->getWorkbench()->getCMS()->updatePage($page);
+                $pagesUpdatedCounter++;
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+            }
+        }
+        if ($pagesUpdatedCounter) {
+            $result .= ($result ? ', ' : '') . $pagesUpdatedCounter . ' updated';
         }
         
         // Pages loeschen.
         foreach ($pagesDelete as $page) {
-            $this->getWorkbench()->getCMS()->deletePage($page);
+            try {
+                $this->getWorkbench()->getCMS()->deletePage($page);
+                $pagesDeletedCounter++;
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+            }
+        }
+        if ($pagesDeletedCounter) {
+            $result .= ($result ? ', ' : '') . $pagesDeletedCounter . ' deleted';
         }
         
-        return 'Pages: ' . count($pagesCreate) . ' created, ' . count($pagesUpdate) . ' updated, ' . count($pagesDelete) . ' delete.';
+        return $result ? 'Pages: ' . $result : '';
     }
 
     /**
