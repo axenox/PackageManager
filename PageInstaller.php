@@ -62,7 +62,7 @@ class PageInstaller extends AbstractAppInstaller
             try {
                 $pageDb = $this->getWorkbench()->getCMS()->loadPageById($pageFile->getId(), true);
                 // Die Seite existiert bereits und wird aktualisiert.
-                if ($pageDb->isUpdateable()) {
+                if ($pageDb->exportUxonObject() != $pageFile->exportUxonObject() && $pageDb->isUpdateable()) {
                     if ($pageDb->getMenuParentPageAlias() != $pageDb->getMenuParentPageDefaultAlias()) {
                         // Die Seite wurde manuell umgehaengt. Der parentDefaultAlias wird
                         // geupdated, die Position im Baum wird nicht geupdated.
@@ -99,7 +99,7 @@ class PageInstaller extends AbstractAppInstaller
             $this->getWorkbench()->getCMS()->deletePage($page);
         }
         
-        return count($pagesCreate) . ' created, ' . count($pagesUpdate) . ' updated, ' . count($pagesDelete) . ' deleted pages for "' . $this->getApp()->getAliasWithNamespace() . '".';
+        return 'Pages: ' . count($pagesCreate) . ' created, ' . count($pagesUpdate) . ' updated, ' . count($pagesDelete) . ' delete.';
     }
 
     /**

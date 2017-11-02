@@ -129,7 +129,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         
         // Backup pages.
         $pageInstaller = new PageInstaller($this->getNameResolver());
-        $result .= ' ' . $pageInstaller->backup($destinationAbsolutePath);
+        $result .= '. ' . $pageInstaller->backup($destinationAbsolutePath);
         
         return $result;
     }
@@ -262,15 +262,17 @@ class MetaModelInstaller extends AbstractAppInstaller
                     $result .= ($result ? "; " : "") . $data_sheet->getMetaObject()->getName() . " - " . $counter;
                 }
             }
-            // Install pages.
-            $pageInstaller = new PageInstaller($this->getNameResolver());
-            $result .= ($result ? '; ' : '') . $pageInstaller->install($source_absolute_path);
-            // Commit the transaction
-            $transaction->commit();
             
             if (! $result) {
                 $result .= 'No changes found';
             }
+            
+            // Install pages.
+            $pageInstaller = new PageInstaller($this->getNameResolver());
+            $result .= ($result ? '; ' : '') . $pageInstaller->install($source_absolute_path);
+            
+            // Commit the transaction
+            $transaction->commit();
         } else {
             $result .= 'No model files to install';
         }
