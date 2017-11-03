@@ -14,6 +14,16 @@ class PageInstaller extends AbstractAppInstaller
 
     const FOLDER_NAME_PAGES = 'Install\\Pages';
 
+    protected function getPagesPathWithLanguage($source_path, $languageCode)
+    {
+        return $this->getPagePath($source_path) . DIRECTORY_SEPARATOR . $languageCode;
+    }
+    
+    protected function getPagePath($source_path)
+    {
+        return $source_path . DIRECTORY_SEPARATOR . $this::FOLDER_NAME_PAGES;
+    }
+    
     /**
      * 
      * {@inheritDoc}
@@ -23,17 +33,7 @@ class PageInstaller extends AbstractAppInstaller
     {
         $pagesFile = [];
         // Ordner entsprechend momentaner Sprache bestimmen.
-        $baseDir = $source_absolute_path . DIRECTORY_SEPARATOR . $this::FOLDER_NAME_PAGES;
-        if (is_dir($baseDir . DIRECTORY_SEPARATOR . $this->getApp()->getTranslator()->getLocale())) {
-            $dir = $baseDir . DIRECTORY_SEPARATOR . $this->getApp()->getTranslator()->getLocale();
-        } else {
-            foreach ($this->getApp()->getTranslator()->getFallbackLocales() as $fallbackLocale) {
-                if (is_dir($baseDir . DIRECTORY_SEPARATOR . $fallbackLocale)) {
-                    $dir = $baseDir . DIRECTORY_SEPARATOR . $fallbackLocale;
-                    break;
-                }
-            }
-        }
+        $dir = $this->getPagesPathWithLanguage($source_absolute_path, $this->getApp()->getDefaultLanguageCode());
         if (! $dir) {
             // Ist entsprechend der momentanen Sprache kein passender Ordner vorhanden, wird
             // nichts gemacht.
@@ -66,7 +66,7 @@ class PageInstaller extends AbstractAppInstaller
             try {
                 $pageDb = $this->getWorkbench()->getCMS()->loadPageById($pageFile->getId(), true);
                 // Die Seite existiert bereits und wird aktualisiert.
-                if ($pageDb->isUpdateable()) {
+                if ($pageDb->exportUxonObject() != $pageFile->exportUxonObject() && $pageDb->isUpdateable()) {
                     if ($pageDb->getMenuParentPageAlias() != $pageDb->getMenuParentPageDefaultAlias()) {
                         // Die Seite wurde manuell umgehaengt. Der parentDefaultAlias wird
                         // geupdated, die Position im Baum wird nicht geupdated.
@@ -88,22 +88,51 @@ class PageInstaller extends AbstractAppInstaller
             }
         }
         
+        $pagesCreatedCounter = 0;
+        $pagesUpdatedCounter = 0;
+        $pagesDeletedCounter = 0;
+        $result = '';
+        
         // Pages erstellen.
         foreach ($pagesCreate as $page) {
-            $this->getWorkbench()->getCMS()->createPage($page);
+            try {
+                $this->getWorkbench()->getCMS()->createPage($page);
+                $pagesCreatedCounter++;
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+            }
+        }
+        if ($pagesCreatedCounter) {
+            $result .= ($result ? ', ' : '') . $pagesCreatedCounter . ' created';
         }
         
         // Pages aktualisieren.
         foreach ($pagesUpdate as $page) {
-            $this->getWorkbench()->getCMS()->updatePage($page);
+            try {
+                $this->getWorkbench()->getCMS()->updatePage($page);
+                $pagesUpdatedCounter++;
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+            }
+        }
+        if ($pagesUpdatedCounter) {
+            $result .= ($result ? ', ' : '') . $pagesUpdatedCounter . ' updated';
         }
         
         // Pages loeschen.
         foreach ($pagesDelete as $page) {
-            $this->getWorkbench()->getCMS()->deletePage($page);
+            try {
+                $this->getWorkbench()->getCMS()->deletePage($page);
+                $pagesDeletedCounter++;
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+            }
+        }
+        if ($pagesDeletedCounter) {
+            $result .= ($result ? ', ' : '') . $pagesDeletedCounter . ' deleted';
         }
         
-        return count($pagesCreate) . ' created, ' . count($pagesUpdate) . ' updated, ' . count($pagesDelete) . ' deleted pages for "' . $this->getApp()->getAliasWithNamespace() . '".';
+        return $result ? 'Pages: ' . $result : '';
     }
 
     /**
@@ -208,16 +237,24 @@ class PageInstaller extends AbstractAppInstaller
     public function backup($destination_absolute_path)
     {
         /** @var Filemanager $fileManager */
-        /** @var UiPage $page */
         $fileManager = $this->getWorkbench()->filemanager();
-        $dir = $destination_absolute_path . DIRECTORY_SEPARATOR . $this::FOLDER_NAME_PAGES . DIRECTORY_SEPARATOR . $this->getApp()->getTranslator()->getLocale();
-        $fileManager->pathConstruct($dir);
         
-        // Zuerst alle Dateien im Ordner loeschen.
-        $fileManager->remove(glob($dir . DIRECTORY_SEPARATOR . '*'));
+        // Empty pages folder in case it is an update
+        try {
+            $fileManager->emptyDir($this->getPagePath($destination_absolute_path));
+        } catch (\Throwable $e) {
+            $this->getWorkbench()->getLogger()->logException($e);
+        }
         
         // Dann alle Dialoge der App als Dateien in den Ordner schreiben.
         $pages = $this->getWorkbench()->getCMS()->getPagesForApp($this->getApp());
+        
+        if (! empty($pages)) {
+            $dir = $this->getPagesPathWithLanguage($destination_absolute_path, $this->getApp()->getDefaultLanguageCode());
+            $fileManager->pathConstruct($dir);
+        }
+        
+        /** @var UiPage $page */
         foreach ($pages as $page) {
             $contents = $page->exportUxonObject()->toJson(true);
             $fileManager->dumpFile($dir . DIRECTORY_SEPARATOR . $page->getAliasWithNamespace() . '.json', $contents);

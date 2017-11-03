@@ -16,7 +16,7 @@ class ComposerUpdate extends AbstractComposerAction
     protected function init()
     {
         parent::init();
-        $this->setIconName(Icons::WRENCH);
+        $this->setIcon(Icons::WRENCH);
     }
 
     protected function performComposerAction(ComposerAPI $composer)

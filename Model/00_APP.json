@@ -26,6 +26,10 @@
             "attribute_alias": "PACKAGE"
         },
         {
+            "name": "DEFAULT_LANGUAGE_CODE",
+            "attribute_alias": "DEFAULT_LANGUAGE_CODE"
+        },
+        {
             "name": "ALIAS",
             "attribute_alias": "ALIAS"
         },
@@ -42,6 +46,7 @@
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x31380000000000000000000000000000",
             "PACKAGE": "axenox\/PackageManager",
+            "DEFAULT_LANGUAGE_CODE": "en",
             "ALIAS": "axenox.PackageManager",
             "NAME": "axenox Package Manager"
         }

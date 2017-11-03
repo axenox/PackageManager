@@ -27,7 +27,7 @@ class InstallApp extends AbstractAction
 
     protected function init()
     {
-        $this->setIconName(Icons::WRENCH);
+        $this->setIcon(Icons::WRENCH);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }

@@ -20,7 +20,7 @@ class ZipFile extends AbstractAction
 
     protected function init()
     {
-        $this->setIconName(Icons::FILE_ARCHIVE_O);
+        $this->setIcon(Icons::FILE_ARCHIVE_O);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }

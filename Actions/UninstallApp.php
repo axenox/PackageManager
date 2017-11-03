@@ -19,7 +19,7 @@ class UninstallApp extends InstallApp
     protected function init()
     {
         parent::init();
-        $this->setIconName(Icons::UNINSTALL);
+        $this->setIcon(Icons::UNINSTALL);
     }
 
     protected function perform()
