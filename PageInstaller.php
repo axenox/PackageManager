@@ -87,6 +87,7 @@ class PageInstaller extends AbstractAppInstaller
         $pagesCreatedCounter = 0;
         $pagesUpdatedCounter = 0;
         $pagesDeletedCounter = 0;
+        $errorCounter = 0;
         $result = '';
         
         // Pages erstellen.
@@ -96,6 +97,7 @@ class PageInstaller extends AbstractAppInstaller
                 $pagesCreatedCounter++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
+                $errorCounter++;
             }
         }
         if ($pagesCreatedCounter) {
@@ -109,6 +111,7 @@ class PageInstaller extends AbstractAppInstaller
                 $pagesUpdatedCounter++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
+                $errorCounter++;
             }
         }
         if ($pagesUpdatedCounter) {
@@ -122,10 +125,15 @@ class PageInstaller extends AbstractAppInstaller
                 $pagesDeletedCounter++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
+                $errorCounter++;
             }
         }
         if ($pagesDeletedCounter) {
             $result .= ($result ? ', ' : '') . $pagesDeletedCounter . ' deleted';
+        }
+        
+        if ($errorCounter) {
+            $result .= ($result ? ', ' : '') . $errorCounter . ' errors';
         }
         
         return $result ? 'Pages: ' . $result : '';
