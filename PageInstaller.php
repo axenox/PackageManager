@@ -41,7 +41,7 @@ class PageInstaller extends AbstractAppInstaller
             return;
         }
         // Pages aus Dateien laden.
-        foreach (glob($dir . DIRECTORY_SEPARATOR . '*') as $file) {
+        foreach (glob($dir . DIRECTORY_SEPARATOR . '*.json') as $file) {
             $page = UiPageFactory::create($this->getWorkbench()->ui(), '', null, $this->getApp()->getAliasWithNamespace());
             $page->importUxonObject(UxonObject::fromJson(file_get_contents($file)));
             // Wird eine Seite neu hinzugefuegt ist der parentDefaultAlias gleich dem
