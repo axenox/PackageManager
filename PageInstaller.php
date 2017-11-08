@@ -19,12 +19,12 @@ class PageInstaller extends AbstractAppInstaller
     {
         return $this->getPagePath($source_path) . DIRECTORY_SEPARATOR . $languageCode;
     }
-    
+
     protected function getPagePath($source_path)
     {
         return $source_path . DIRECTORY_SEPARATOR . $this::FOLDER_NAME_PAGES;
     }
-    
+
     /**
      * 
      * {@inheritDoc}
@@ -34,7 +34,7 @@ class PageInstaller extends AbstractAppInstaller
     {
         $pagesFile = [];
         // Ordner entsprechend momentaner Sprache bestimmen.
-        $dir = $this->getPagesPathWithLanguage($source_absolute_path, $this->getApp()->getDefaultLanguageCode());
+        $dir = $this->getPagesPathWithLanguage($source_absolute_path, $this->getDefaultLanguageCode());
         if (! $dir) {
             // Ist entsprechend der momentanen Sprache kein passender Ordner vorhanden, wird
             // nichts gemacht.
@@ -93,10 +93,10 @@ class PageInstaller extends AbstractAppInstaller
         foreach ($pagesCreate as $page) {
             try {
                 $this->getWorkbench()->getCMS()->createPage($page);
-                $pagesCreatedCounter++;
+                $pagesCreatedCounter ++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
-                $pagesCreatedErrorCounter++;
+                $pagesCreatedErrorCounter ++;
             }
         }
         if ($pagesCreatedCounter) {
@@ -112,10 +112,10 @@ class PageInstaller extends AbstractAppInstaller
         foreach ($pagesUpdate as $page) {
             try {
                 $this->getWorkbench()->getCMS()->updatePage($page);
-                $pagesUpdatedCounter++;
+                $pagesUpdatedCounter ++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
-                $pagesUpdatedErrorCounter++;
+                $pagesUpdatedErrorCounter ++;
             }
         }
         if ($pagesUpdatedCounter) {
@@ -131,10 +131,10 @@ class PageInstaller extends AbstractAppInstaller
         foreach ($pagesDelete as $page) {
             try {
                 $this->getWorkbench()->getCMS()->deletePage($page);
-                $pagesDeletedCounter++;
+                $pagesDeletedCounter ++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
-                $pagesDeletedErrorCounter++;
+                $pagesDeletedErrorCounter ++;
             }
         }
         if ($pagesDeletedCounter) {
@@ -213,11 +213,11 @@ class PageInstaller extends AbstractAppInstaller
                     // Hat die Seite einen Parent im inputArray dann wird sie erstmal ueber-
                     // sprungen. Sie wird erst im outputArray einsortiert, nachdem ihr Parent
                     // dort einsortiert wurde.
-                    $pagePos++;
+                    $pagePos ++;
                 }
                 // Alle Seiten im inputArray durchgehen.
             } while ($pagePos < count($inputPages));
-            $i++;
+            $i ++;
             // So oft wiederholen wie es Seiten im inputArray gibt oder die Abbruchbedingung
             // erfuellt ist (kreisfoermige Referenzen).
         } while (count($inputPages) > 0 && $i < count($pages));
@@ -229,6 +229,17 @@ class PageInstaller extends AbstractAppInstaller
         } else {
             return $sortedPages;
         }
+    }
+
+    protected function getDefaultLanguageCode()
+    {
+        $languageCode = $this->getApp()->getDefaultLanguageCode();
+        if (! $languageCode) {
+            $defaultLocale = $this->getWorkbench()->getConfig()->getOption("LOCALE.DEFAULT");
+            $languageCode = substr($defaultLocale, 0, strpos($defaultLocale, '_'));
+        }
+        
+        return $languageCode;
     }
 
     /**
