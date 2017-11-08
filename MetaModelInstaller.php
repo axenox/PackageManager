@@ -269,7 +269,8 @@ class MetaModelInstaller extends AbstractAppInstaller
             
             // Install pages.
             $pageInstaller = new PageInstaller($this->getNameResolver());
-            $result .= ($result ? '; ' : '') . $pageInstaller->install($source_absolute_path);
+            $result_pages = $pageInstaller->install($source_absolute_path);
+            $result .= ($result && $result_pages ? '; ' : '') . $result_pages;
             
             // Commit the transaction
             $transaction->commit();
