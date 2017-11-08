@@ -85,48 +85,63 @@ class PageInstaller extends AbstractAppInstaller
             }
         }
         
-        $pagesCreatedCounter = 0;
-        $pagesUpdatedCounter = 0;
-        $pagesDeletedCounter = 0;
         $result = '';
         
         // Pages erstellen.
+        $pagesCreatedCounter = 0;
+        $pagesCreatedErrorCounter = 0;
         foreach ($pagesCreate as $page) {
             try {
                 $this->getWorkbench()->getCMS()->createPage($page);
                 $pagesCreatedCounter++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
+                $pagesCreatedErrorCounter++;
             }
         }
         if ($pagesCreatedCounter) {
             $result .= ($result ? ', ' : '') . $pagesCreatedCounter . ' created';
         }
+        if ($pagesCreatedErrorCounter) {
+            $result .= ($result ? ', ' : '') . $pagesCreatedErrorCounter . ' create errors';
+        }
         
         // Pages aktualisieren.
+        $pagesUpdatedCounter = 0;
+        $pagesUpdatedErrorCounter = 0;
         foreach ($pagesUpdate as $page) {
             try {
                 $this->getWorkbench()->getCMS()->updatePage($page);
                 $pagesUpdatedCounter++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
+                $pagesUpdatedErrorCounter++;
             }
         }
         if ($pagesUpdatedCounter) {
             $result .= ($result ? ', ' : '') . $pagesUpdatedCounter . ' updated';
         }
+        if ($pagesUpdatedErrorCounter) {
+            $result .= ($result ? ', ' : '') . $pagesUpdatedErrorCounter . ' update errors';
+        }
         
         // Pages loeschen.
+        $pagesDeletedCounter = 0;
+        $pagesDeletedErrorCounter = 0;
         foreach ($pagesDelete as $page) {
             try {
                 $this->getWorkbench()->getCMS()->deletePage($page);
                 $pagesDeletedCounter++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
+                $pagesDeletedErrorCounter++;
             }
         }
         if ($pagesDeletedCounter) {
             $result .= ($result ? ', ' : '') . $pagesDeletedCounter . ' deleted';
+        }
+        if ($pagesDeletedErrorCounter) {
+            $result .= ($result ? ', ' : '') . $pagesDeletedErrorCounter . ' delete errors';
         }
         
         return $result ? 'Pages: ' . $result : '';
