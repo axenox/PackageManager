@@ -44,9 +44,9 @@ class PageInstaller extends AbstractAppInstaller
         foreach (glob($dir . DIRECTORY_SEPARATOR . '*.json') as $file) {
             $page = UiPageFactory::create($this->getWorkbench()->ui(), '', null, $this->getApp()->getAliasWithNamespace());
             $page->importUxonObject(UxonObject::fromJson(file_get_contents($file)));
-            // Wird eine Seite neu hinzugefuegt ist der parentDefaultAlias gleich dem
-            // gesetzen parentAlias.
-            $page->setMenuParentPageDefaultAlias($page->getMenuParentPageAlias());
+            // Wird eine Seite neu hinzugefuegt ist die menuDefaultPosition gleich der
+            // gesetzen Position.
+            $page->setMenuDefaultPosition($page->getMenuPosition());
             $pagesFile[] = $page;
         }
         $pagesFile = $this->sortPages($pagesFile);
@@ -63,9 +63,9 @@ class PageInstaller extends AbstractAppInstaller
             try {
                 $pageDb = $this->getWorkbench()->getCMS()->loadPageById($pageFile->getId(), true);
                 // Die Seite existiert bereits und wird aktualisiert.
-                if ($pageDb->exportUxonObject() != $pageFile->exportUxonObject() && $pageDb->isUpdateable()) {
-                    if ($pageDb->getMenuParentPageAlias() != $pageDb->getMenuParentPageDefaultAlias()) {
-                        // Die Seite wurde manuell umgehaengt. Der parentDefaultAlias wird
+                if (! $pageDb->equals($pageFile) && $pageDb->isUpdateable()) {
+                    if ($pageDb->isMoved()) {
+                        // Die Seite wurde manuell umgehaengt. Die menuDefaultPosition wird
                         // geupdated, die Position im Baum wird nicht geupdated.
                         $pageFile->setMenuIndex($pageDb->getMenuIndex());
                         $pageFile->setMenuParentPageAlias($pageDb->getMenuParentPageAlias());
