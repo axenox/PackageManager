@@ -191,7 +191,7 @@ class PageInstaller extends AbstractAppInstaller
                 $parentFound = false;
                 // Hat die Seite einen Parent im inputArray?
                 foreach ($inputPages as $parentPagePos => $parentPage) {
-                    if (strcasecmp($parentAlias, $parentPage->getAliasWithNamespace()) == 0) {
+                    if ($parentPage->isExactly($parentAlias)) {
                         $parentFound = true;
                         break;
                     }
@@ -200,7 +200,7 @@ class PageInstaller extends AbstractAppInstaller
                     // Wenn die Seite keinen Parent im inputArray hat, hat sie einen im
                     // outputArray?
                     foreach ($sortedPages as $parentPagePos => $parentPage) {
-                        if (strcasecmp($parentAlias, $parentPage->getAliasWithNamespace()) == 0) {
+                        if ($parentPage->isExactly($parentAlias)) {
                             $parentFound = true;
                             break;
                         }
