@@ -9,6 +9,7 @@ use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Model\UiPageInterface;
 use exface\Core\Exceptions\UiPageNotFoundError;
 use exface\Core\Exceptions\UiPageIdNotPresentError;
+use exface\Core\Exceptions\Installers\InstallerRuntimerError;
 
 class PageInstaller extends AbstractAppInstaller
 {
@@ -33,15 +34,25 @@ class PageInstaller extends AbstractAppInstaller
     public function install($source_absolute_path)
     {
         $pagesFile = [];
-        // Ordner entsprechend momentaner Sprache bestimmen.
+        // FIXME make the installer get all languages instead of only the default one.
         $dir = $this->getPagesPathWithLanguage($source_absolute_path, $this->getDefaultLanguageCode());
         if (! $dir) {
             // Ist entsprechend der momentanen Sprache kein passender Ordner vorhanden, wird
             // nichts gemacht.
             return;
         }
-        // Pages aus Dateien laden.
-        foreach (glob($dir . DIRECTORY_SEPARATOR . '*.json') as $file) {
+        
+        // Find pages files. 
+        $files = glob($dir . DIRECTORY_SEPARATOR . '*.json');
+        if ($files === false) {
+            $this->getWorkbench()->getLogger()->logException((new InstallerRuntimeError($this, 'Error reading folder "' . $dir . DIRECTORY_SEPARATOR . '*"! - no pages were installed!')));
+        }
+        // Make sure, the array only contains existing files.
+        $files = array_filter($files, 'is_file');
+        
+        // Load pages. If anything goes wrong, the installer should not continue to avoid broken menu
+        // structures etc., so don't silence any exceptions here.
+        foreach ($files as $file) {
             $page = UiPageFactory::create($this->getWorkbench()->ui(), '', null, $this->getApp()->getAliasWithNamespace());
             $page->importUxonObject(UxonObject::fromJson(file_get_contents($file)));
             // Wird eine Seite neu hinzugefuegt ist die menuDefaultPosition gleich der
