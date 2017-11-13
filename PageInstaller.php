@@ -9,7 +9,7 @@ use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Model\UiPageInterface;
 use exface\Core\Exceptions\UiPageNotFoundError;
 use exface\Core\Exceptions\UiPageIdNotPresentError;
-use exface\Core\Exceptions\Installers\InstallerRuntimerError;
+use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 
 class PageInstaller extends AbstractAppInstaller
 {
@@ -45,7 +45,7 @@ class PageInstaller extends AbstractAppInstaller
         // Find pages files. 
         $files = glob($dir . DIRECTORY_SEPARATOR . '*.json');
         if ($files === false) {
-            $this->getWorkbench()->getLogger()->logException((new InstallerRuntimeError($this, 'Error reading folder "' . $dir . DIRECTORY_SEPARATOR . '*"! - no pages were installed!')));
+            $this->getWorkbench()->getLogger()->logException((new InstallerRuntimeError($this, 'Error reading folder "' . $dir . DIRECTORY_SEPARATOR . '*.json"! - no pages were installed!')));
         }
         // Make sure, the array only contains existing files.
         $files = array_filter($files, 'is_file');
@@ -75,13 +75,21 @@ class PageInstaller extends AbstractAppInstaller
                 $pageDb = $this->getWorkbench()->getCMS()->loadPageById($pageFile->getId(), true);
                 // Die Seite existiert bereits und wird aktualisiert.
                 if (! $pageDb->equals($pageFile) && $pageDb->isUpdateable()) {
-                    if ($pageDb->isMoved()) {
-                        // Die Seite wurde manuell umgehaengt. Die menuDefaultPosition wird
-                        // geupdated, die Position im Baum wird nicht geupdated.
-                        $pageFile->setMenuIndex($pageDb->getMenuIndex());
-                        $pageFile->setMenuParentPageAlias($pageDb->getMenuParentPageAlias());
+                    // Irgendetwas hat sich an der Seite geaendert.
+                    if (! $pageDb->equals($pageFile, ['menuParentPageAlias', 'menuIndex'])) {
+                        // Der Inhalt der Seite (vlt. auch die Position) haben sich geaendert.
+                        if ($pageDb->isMoved()) {
+                            // Die Seite wurde manuell umgehaengt. Die menuDefaultPosition wird
+                            // aktualisiert, die Position im Baum wird nicht aktualisiert.
+                            $pageFile->setMenuIndex($pageDb->getMenuIndex());
+                            $pageFile->setMenuParentPageAlias($pageDb->getMenuParentPageAlias());
+                        }
+                        $pagesUpdate[] = $pageFile;
+                    } elseif (! $pageDb->isMoved()) {
+                        // Die Position der Seite hat sich geaendert. Nur Aktualisieren wenn die
+                        // Seite nicht manuell umgehaengt wurde.
+                        $pagesUpdate[] = $pageFile;
                     }
-                    $pagesUpdate[] = $pageFile;
                 }
             } catch (UiPageNotFoundError $upnfe) {
                 // Die Seite existiert noch nicht und muss erstellt werden.
@@ -284,7 +292,7 @@ class PageInstaller extends AbstractAppInstaller
         $pages = $this->getWorkbench()->getCMS()->getPagesForApp($this->getApp());
         
         if (! empty($pages)) {
-            $dir = $this->getPagesPathWithLanguage($destination_absolute_path, $this->getApp()->getDefaultLanguageCode());
+            $dir = $this->getPagesPathWithLanguage($destination_absolute_path, $this->getDefaultLanguageCode());
             $fileManager->pathConstruct($dir);
         }
         
