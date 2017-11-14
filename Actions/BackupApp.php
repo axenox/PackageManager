@@ -122,7 +122,7 @@ class BackupApp extends AbstractAction
         $directory = $app_name_resolver->getClassDirectory();
         if ($this->getBackupPath() == '') {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
-            $sDirName = date('Y_m_d_Hmi');
+            $sDirName = date('Y_m_d_H_m');
             $backupDir .= $directory . DIRECTORY_SEPARATOR . $sDirName;
         } else {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBaseFolder();

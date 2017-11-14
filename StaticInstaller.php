@@ -5,6 +5,7 @@ use Composer\Installer\PackageEvent;
 use exface\Core\CommonLogic\Workbench;
 use exface\Core\CommonLogic\NameResolver;
 use Composer\Script\Event;
+use exface\Core\CommonLogic\Filemanager;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
 
@@ -25,7 +26,20 @@ class StaticInstaller
 
     const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'UninstallApp';
 
+    const PACKAGE_MANAGER_BACKUP_ACTION_ALIAS = 'BackupApp';
+
     private $workbench = null;
+
+    const EXCLUDE_BACKUP_PACKAGES = [
+        "axenox/RedmineConnector",
+        "composer/composer",
+        "exface/AdminLteTemplate",
+        "exface/JQueryMobileTemplate",
+        "exface/PerformanceMonitor",
+        "kabachello/composerapi",
+        "symfony/translation",
+
+    ];
 
     /**
      *
@@ -89,6 +103,7 @@ class StaticInstaller
     {
         $text = '';
         $processed_aliases = array();
+        $updatedPackages = array();
         $temp = self::getTempFile();
         if (array_key_exists('update', $temp)) {
             // First of all check, if the core needs to be updated. If so, do that before updating other apps
@@ -111,10 +126,31 @@ class StaticInstaller
                 $text .= '-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
                 self::printToStdout($text);
             }
-            unset($temp['update']);
+        }
+        if ($temp['update']!=null){
+            $updatedPackages = $temp['update'];
+        }
+        self::printToStdout("Unlink unused backup components:\n");
+        $composerContent = file_get_contents('composer.json');
+        $obj = json_decode($composerContent);
+        $backupTime = $temp['backupTime'];
+        $installer = new self();
+        $unlinkResult = array();
+        foreach($obj->require as $requiredPackage => $packageInfo){
+            $appIdentifier = explode("/",$requiredPackage);
+            if (!in_array($requiredPackage,self::EXCLUDE_BACKUP_PACKAGES) &&
+                !in_array(implode(".",$appIdentifier),$updatedPackages)){
+                $unlinkResult[] = $installer->unlinkBackup(implode(".",$appIdentifier),$backupTime);
+            }
+        }
+        unset($temp['update']);
+        if (!in_array(false,$unlinkResult)){
+            self::printToStdout("Cleared backup from excess data. \n");
             self::setTempFile($temp);
         }
-        
+        else {
+            self::printToStdout("Could not clear backup. Please unlink manually. Check LastInstall.temp.json for list of apps to keep. \n");
+        }
         // If composer is performing an update operation, it will install new packages, but will not trigger the post-install-cmd
         // As a workaround, we just trigger finish_install() here by hand
         if (array_key_exists('install', $temp)) {
@@ -123,7 +159,66 @@ class StaticInstaller
         
         return $text ? $text : 'No apps to update' . ".\n";
     }
+    public function unlinkBackup($app_alias, $backupTime){
+        $exface = $this->getWorkbench();
+        $app = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS);
+        try {
+            $link = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR.Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
+            Filemanager::deleteDir($link);
+            $parentLink = explode(".",$app_alias);
+            $parentLink = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR.Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.$parentLink[0].DIRECTORY_SEPARATOR;
+            if (Filemanager::is_dir_empty($parentLink)){
+                Filemanager::deleteDir($parentLink);
+            }
+            self::printToStdout("Delete unused ".$app_alias." app backup\n");
+        }
+        catch(\Exception $e){
+            self::printToStdout("Could not delete ".$app_alias.". ".$e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . ".\n");
+            return false;
+        }
+        return true;
+    }
+    public static function composerBackupEverything(Event $composer_event = null){
+        $composerContent = file_get_contents('composer.json');
+        $obj = json_decode($composerContent);
+        $installer = new self();
 
+        //write consistent backuptime to delete excess data after update run
+        $backupTime = date('Y_m_d_H_i');
+        $temp = self::getTempFile();
+        $temp['backupTime'] = $backupTime;
+        self::setTempFile($temp);
+        foreach($obj->require as $requiredPackage => $packageInfo){
+
+            $appIdentifier = explode("/",$requiredPackage);
+            if (!in_array($requiredPackage,self::EXCLUDE_BACKUP_PACKAGES)){
+                $installer->backup(implode(".",$appIdentifier), $backupTime);
+            }
+        }
+        return $composer_event;
+    }
+
+    public function backup($app_alias, $backupTime){
+        $exface = $this->getWorkbench();
+        $result = '';
+        try {
+            $text = '-> Creating backup of app ' . $app_alias . "\n";
+            self::printToStdout($text);
+            $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
+            $backupAction = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_BACKUP_ACTION_ALIAS);
+            $backupAction->setBackupPath(Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime);
+            $backupAction->backup($app_name_resolver);
+        }
+        catch(\Exception $e){
+            if ($e instanceof ExceptionInterface){
+                $log_hint = ' (see log ID ' . $e->getId() . ')';
+            }
+            self::printToStdout('-> Error in ' . $app_alias . "! \n");
+            self::printToStdout($e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . $log_hint."\n");
+            //$exface->getLogger()->logException($e);
+        }
+      return $result;
+    }
     public static function composerPrepareUninstall(PackageEvent $composer_event)
     {
         return self::uninstall($composer_event->getOperation()->getPackage()->getName());
