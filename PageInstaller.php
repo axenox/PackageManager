@@ -8,7 +8,8 @@ use exface\Core\Factories\UiPageFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Model\UiPageInterface;
 use exface\Core\Exceptions\UiPageNotFoundError;
-use exface\Core\Exceptions\Installers\InstallerRuntimerError;
+use exface\Core\Exceptions\UiPageIdNotPresentError;
+use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 
 class PageInstaller extends AbstractAppInstaller
 {
@@ -19,12 +20,12 @@ class PageInstaller extends AbstractAppInstaller
     {
         return $this->getPagePath($source_path) . DIRECTORY_SEPARATOR . $languageCode;
     }
-    
+
     protected function getPagePath($source_path)
     {
         return $source_path . DIRECTORY_SEPARATOR . $this::FOLDER_NAME_PAGES;
     }
-    
+
     /**
      * 
      * {@inheritDoc}
@@ -34,7 +35,7 @@ class PageInstaller extends AbstractAppInstaller
     {
         $pagesFile = [];
         // FIXME make the installer get all languages instead of only the default one.
-        $dir = $this->getPagesPathWithLanguage($source_absolute_path, $this->getApp()->getDefaultLanguageCode());
+        $dir = $this->getPagesPathWithLanguage($source_absolute_path, $this->getDefaultLanguageCode());
         if (! $dir) {
             // Ist entsprechend der momentanen Sprache kein passender Ordner vorhanden, wird
             // nichts gemacht.
@@ -42,9 +43,9 @@ class PageInstaller extends AbstractAppInstaller
         }
         
         // Find pages files. 
-        $files = glob($dir . DIRECTORY_SEPARATOR . '*');
+        $files = glob($dir . DIRECTORY_SEPARATOR . '*.json');
         if ($files === false) {
-            $this->getWorkbench()->getLogger()->logException((new InstallerRuntimeError($this, 'Error reading folder "' . $dir . DIRECTORY_SEPARATOR . '*"! - no pages were installed!')));
+            $this->getWorkbench()->getLogger()->logException((new InstallerRuntimeError($this, 'Error reading folder "' . $dir . DIRECTORY_SEPARATOR . '*.json"! - no pages were installed!')));
         }
         // Make sure, the array only contains existing files.
         $files = array_filter($files, 'is_file');
@@ -54,9 +55,9 @@ class PageInstaller extends AbstractAppInstaller
         foreach ($files as $file) {
             $page = UiPageFactory::create($this->getWorkbench()->ui(), '', null, $this->getApp()->getAliasWithNamespace());
             $page->importUxonObject(UxonObject::fromJson(file_get_contents($file)));
-            // Wird eine Seite neu hinzugefuegt ist der parentDefaultAlias gleich dem
-            // gesetzen parentAlias.
-            $page->setMenuParentPageDefaultAlias($page->getMenuParentPageAlias());
+            // Wird eine Seite neu hinzugefuegt ist die menuDefaultPosition gleich der
+            // gesetzen Position.
+            $page->setMenuDefaultPosition($page->getMenuPosition());
             $pagesFile[] = $page;
         }
         $pagesFile = $this->sortPages($pagesFile);
@@ -73,14 +74,22 @@ class PageInstaller extends AbstractAppInstaller
             try {
                 $pageDb = $this->getWorkbench()->getCMS()->loadPageById($pageFile->getId(), true);
                 // Die Seite existiert bereits und wird aktualisiert.
-                if ($pageDb->exportUxonObject() != $pageFile->exportUxonObject() && $pageDb->isUpdateable()) {
-                    if ($pageDb->getMenuParentPageAlias() != $pageDb->getMenuParentPageDefaultAlias()) {
-                        // Die Seite wurde manuell umgehaengt. Der parentDefaultAlias wird
-                        // geupdated, die Position im Baum wird nicht geupdated.
-                        $pageFile->setMenuIndex($pageDb->getMenuIndex());
-                        $pageFile->setMenuParentPageAlias($pageDb->getMenuParentPageAlias());
+                if (! $pageDb->equals($pageFile) && $pageDb->isUpdateable()) {
+                    // Irgendetwas hat sich an der Seite geaendert.
+                    if (! $pageDb->equals($pageFile, ['menuParentPageAlias', 'menuIndex'])) {
+                        // Der Inhalt der Seite (vlt. auch die Position) haben sich geaendert.
+                        if ($pageDb->isMoved()) {
+                            // Die Seite wurde manuell umgehaengt. Die menuDefaultPosition wird
+                            // aktualisiert, die Position im Baum wird nicht aktualisiert.
+                            $pageFile->setMenuIndex($pageDb->getMenuIndex());
+                            $pageFile->setMenuParentPageAlias($pageDb->getMenuParentPageAlias());
+                        }
+                        $pagesUpdate[] = $pageFile;
+                    } elseif (! $pageDb->isMoved()) {
+                        // Die Position der Seite hat sich geaendert. Nur Aktualisieren wenn die
+                        // Seite nicht manuell umgehaengt wurde.
+                        $pagesUpdate[] = $pageFile;
                     }
-                    $pagesUpdate[] = $pageFile;
                 }
             } catch (UiPageNotFoundError $upnfe) {
                 // Die Seite existiert noch nicht und muss erstellt werden.
@@ -95,56 +104,63 @@ class PageInstaller extends AbstractAppInstaller
             }
         }
         
-        $pagesCreatedCounter = 0;
-        $pagesUpdatedCounter = 0;
-        $pagesDeletedCounter = 0;
-        $errorCounter = 0;
         $result = '';
         
         // Pages erstellen.
+        $pagesCreatedCounter = 0;
+        $pagesCreatedErrorCounter = 0;
         foreach ($pagesCreate as $page) {
             try {
                 $this->getWorkbench()->getCMS()->createPage($page);
-                $pagesCreatedCounter++;
+                $pagesCreatedCounter ++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
-                $errorCounter++;
+                $pagesCreatedErrorCounter ++;
             }
         }
         if ($pagesCreatedCounter) {
             $result .= ($result ? ', ' : '') . $pagesCreatedCounter . ' created';
         }
+        if ($pagesCreatedErrorCounter) {
+            $result .= ($result ? ', ' : '') . $pagesCreatedErrorCounter . ' create errors';
+        }
         
         // Pages aktualisieren.
+        $pagesUpdatedCounter = 0;
+        $pagesUpdatedErrorCounter = 0;
         foreach ($pagesUpdate as $page) {
             try {
                 $this->getWorkbench()->getCMS()->updatePage($page);
-                $pagesUpdatedCounter++;
+                $pagesUpdatedCounter ++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
-                $errorCounter++;
+                $pagesUpdatedErrorCounter ++;
             }
         }
         if ($pagesUpdatedCounter) {
             $result .= ($result ? ', ' : '') . $pagesUpdatedCounter . ' updated';
         }
+        if ($pagesUpdatedErrorCounter) {
+            $result .= ($result ? ', ' : '') . $pagesUpdatedErrorCounter . ' update errors';
+        }
         
         // Pages loeschen.
+        $pagesDeletedCounter = 0;
+        $pagesDeletedErrorCounter = 0;
         foreach ($pagesDelete as $page) {
             try {
                 $this->getWorkbench()->getCMS()->deletePage($page);
-                $pagesDeletedCounter++;
+                $pagesDeletedCounter ++;
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
-                $errorCounter++;
+                $pagesDeletedErrorCounter ++;
             }
         }
         if ($pagesDeletedCounter) {
             $result .= ($result ? ', ' : '') . $pagesDeletedCounter . ' deleted';
         }
-        
-        if ($errorCounter) {
-            $result .= ($result ? ', ' : '') . $errorCounter . ' errors';
+        if ($pagesDeletedErrorCounter) {
+            $result .= ($result ? ', ' : '') . $pagesDeletedErrorCounter . ' delete errors';
         }
         
         return $result ? 'Pages: ' . $result : '';
@@ -194,7 +210,7 @@ class PageInstaller extends AbstractAppInstaller
                 $parentFound = false;
                 // Hat die Seite einen Parent im inputArray?
                 foreach ($inputPages as $parentPagePos => $parentPage) {
-                    if (strcasecmp($parentAlias, $parentPage->getAliasWithNamespace()) == 0) {
+                    if ($parentPage->isExactly($parentAlias)) {
                         $parentFound = true;
                         break;
                     }
@@ -203,7 +219,7 @@ class PageInstaller extends AbstractAppInstaller
                     // Wenn die Seite keinen Parent im inputArray hat, hat sie einen im
                     // outputArray?
                     foreach ($sortedPages as $parentPagePos => $parentPage) {
-                        if (strcasecmp($parentAlias, $parentPage->getAliasWithNamespace()) == 0) {
+                        if ($parentPage->isExactly($parentAlias)) {
                             $parentFound = true;
                             break;
                         }
@@ -216,11 +232,11 @@ class PageInstaller extends AbstractAppInstaller
                     // Hat die Seite einen Parent im inputArray dann wird sie erstmal ueber-
                     // sprungen. Sie wird erst im outputArray einsortiert, nachdem ihr Parent
                     // dort einsortiert wurde.
-                    $pagePos++;
+                    $pagePos ++;
                 }
                 // Alle Seiten im inputArray durchgehen.
             } while ($pagePos < count($inputPages));
-            $i++;
+            $i ++;
             // So oft wiederholen wie es Seiten im inputArray gibt oder die Abbruchbedingung
             // erfuellt ist (kreisfoermige Referenzen).
         } while (count($inputPages) > 0 && $i < count($pages));
@@ -232,6 +248,17 @@ class PageInstaller extends AbstractAppInstaller
         } else {
             return $sortedPages;
         }
+    }
+
+    protected function getDefaultLanguageCode()
+    {
+        $languageCode = $this->getApp()->getDefaultLanguageCode();
+        if (! $languageCode) {
+            $defaultLocale = $this->getWorkbench()->getConfig()->getOption("LOCALE.DEFAULT");
+            $languageCode = substr($defaultLocale, 0, strpos($defaultLocale, '_'));
+        }
+        
+        return $languageCode;
     }
 
     /**
@@ -265,12 +292,31 @@ class PageInstaller extends AbstractAppInstaller
         $pages = $this->getWorkbench()->getCMS()->getPagesForApp($this->getApp());
         
         if (! empty($pages)) {
-            $dir = $this->getPagesPathWithLanguage($destination_absolute_path, $this->getApp()->getDefaultLanguageCode());
+            $dir = $this->getPagesPathWithLanguage($destination_absolute_path, $this->getDefaultLanguageCode());
             $fileManager->pathConstruct($dir);
         }
         
         /** @var UiPage $page */
         foreach ($pages as $page) {
+            // Ist die parent-Seite der Root, dann wird ein leerer MenuParentPageAlias gespeichert.
+            // Dadurch wird die Seite beim Hinzufuegen auf einem anderen System automatisch im Root
+            // eingehaengt, auch wenn der an einer anderen Stelle ist als auf diesem System.
+            if ($page->getMenuParentPageAlias() && ($this->getWorkbench()->getCMS()->getPageIdInCms($page->getMenuParentPage()) == $this->getWorkbench()->getCMS()->getPageIdRoot())) {
+                $page->setMenuParentPageAlias('');
+            }
+            
+            // Hat die Seite keine UID wird ein Fehler geworfen. Ohne UID kann die Seite nicht
+            // manipuliert werden, da beim Aktualisieren oder Loeschen die UID benoetigt wird.
+            if (! $page->getId()) {
+                throw new UiPageIdNotPresentError('The UiPage "' . $page->getAliasWithNamespace() . '" has no UID.');
+            }
+            // Hat die Seite keinen Alias wird ein Alias gesetzt und die Seite wird aktualisiert.
+            if (! $page->getAliasWithNamespace()) {
+                $page = $page->copy(UiPage::generateAlias($page->getApp()->getAliasWithNamespace() . '.'));
+                $this->getWorkbench()->getCMS()->updatePage($page);
+            }
+            
+            // Exportieren der Seite
             $contents = $page->exportUxonObject()->toJson(true);
             $fileManager->dumpFile($dir . DIRECTORY_SEPARATOR . $page->getAliasWithNamespace() . '.json', $contents);
         }
