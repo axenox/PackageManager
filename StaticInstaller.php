@@ -159,15 +159,23 @@ class StaticInstaller
         
         return $text ? $text : 'No apps to update' . ".\n";
     }
+    /**
+     * Unlink backup from specified backup folder, folder name is defined by backupTime-String
+     *
+     * @param string $app_alias
+     * @param string $backupTime
+     * @return boolean return TRUE if unlinking BackUp was successful, return FALSE if it was not
+     */
     public function unlinkBackup($app_alias, $backupTime){
         $exface = $this->getWorkbench();
         $app = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS);
         try {
             $link = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR.Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
             Filemanager::deleteDir($link);
+            // Delete Parent folders to avoid clutter, provided that they are in fact empty
             $parentLink = explode(".",$app_alias);
             $parentLink = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR.Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.$parentLink[0].DIRECTORY_SEPARATOR;
-            if (Filemanager::is_dir_empty($parentLink)){
+            if (Filemanager::isDirEmpty($parentLink)){
                 Filemanager::deleteDir($parentLink);
             }
             self::printToStdout("Delete unused ".$app_alias." app backup\n");
@@ -178,6 +186,13 @@ class StaticInstaller
         }
         return true;
     }
+    /**
+     * Backup all apps that are listen in composer.json but not listed in EXCLUDE_BACKUP_PACKAGES
+     * since they have no own backup function to call to
+     *
+     * @param Event $composer_event
+     * @return Event $composer_event
+     */
     public static function composerBackupEverything(Event $composer_event = null){
         $composerContent = file_get_contents('composer.json');
         $obj = json_decode($composerContent);
@@ -197,7 +212,12 @@ class StaticInstaller
         }
         return $composer_event;
     }
-
+    /**
+     * Call backup function on app, install at specified backup folder, folder name is defined by backupTime-String
+     * @param string $app_alias
+     * @param string $backupTime
+     * @return string
+     */
     public function backup($app_alias, $backupTime){
         $exface = $this->getWorkbench();
         $result = '';
