@@ -8,7 +8,7 @@ use exface\Core\Factories\UiPageFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Model\UiPageInterface;
 use exface\Core\Exceptions\UiPageNotFoundError;
-use exface\Core\Exceptions\UiPageIdNotPresentError;
+use exface\Core\Exceptions\UiPageIdMissingError;
 use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 
 class PageInstaller extends AbstractAppInstaller
@@ -308,7 +308,7 @@ class PageInstaller extends AbstractAppInstaller
             // Hat die Seite keine UID wird ein Fehler geworfen. Ohne UID kann die Seite nicht
             // manipuliert werden, da beim Aktualisieren oder Loeschen die UID benoetigt wird.
             if (! $page->getId()) {
-                throw new UiPageIdNotPresentError('The UiPage "' . $page->getAliasWithNamespace() . '" has no UID.');
+                throw new UiPageIdMissingError('The UiPage "' . $page->getAliasWithNamespace() . '" has no UID.');
             }
             // Hat die Seite keinen Alias wird ein Alias gesetzt und die Seite wird aktualisiert.
             if (! $page->getAliasWithNamespace()) {
