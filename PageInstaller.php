@@ -111,25 +111,6 @@ class PageInstaller extends AbstractAppInstaller
         
         $result = '';
         
-        // Pages erstellen.
-        $pagesCreatedCounter = 0;
-        $pagesCreatedErrorCounter = 0;
-        foreach ($pagesCreate as $page) {
-            try {
-                $this->getWorkbench()->getCMS()->createPage($page);
-                $pagesCreatedCounter ++;
-            } catch (\Throwable $e) {
-                $this->getWorkbench()->getLogger()->logException($e);
-                $pagesCreatedErrorCounter ++;
-            }
-        }
-        if ($pagesCreatedCounter) {
-            $result .= ($result ? ', ' : '') . $pagesCreatedCounter . ' created';
-        }
-        if ($pagesCreatedErrorCounter) {
-            $result .= ($result ? ', ' : '') . $pagesCreatedErrorCounter . ' create errors';
-        }
-        
         // Pages aktualisieren.
         $pagesUpdatedCounter = 0;
         $pagesUpdatedErrorCounter = 0;
@@ -147,6 +128,25 @@ class PageInstaller extends AbstractAppInstaller
         }
         if ($pagesUpdatedErrorCounter) {
             $result .= ($result ? ', ' : '') . $pagesUpdatedErrorCounter . ' update errors';
+        }
+        
+        // Pages erstellen.
+        $pagesCreatedCounter = 0;
+        $pagesCreatedErrorCounter = 0;
+        foreach ($pagesCreate as $page) {
+            try {
+                $this->getWorkbench()->getCMS()->createPage($page);
+                $pagesCreatedCounter ++;
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+                $pagesCreatedErrorCounter ++;
+            }
+        }
+        if ($pagesCreatedCounter) {
+            $result .= ($result ? ', ' : '') . $pagesCreatedCounter . ' created';
+        }
+        if ($pagesCreatedErrorCounter) {
+            $result .= ($result ? ', ' : '') . $pagesCreatedErrorCounter . ' create errors';
         }
         
         // Pages loeschen.
