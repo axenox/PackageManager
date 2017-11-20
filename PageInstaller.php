@@ -10,6 +10,7 @@ use exface\Core\Interfaces\Model\UiPageInterface;
 use exface\Core\Exceptions\UiPageNotFoundError;
 use exface\Core\Exceptions\UiPageIdMissingError;
 use exface\Core\Exceptions\Installers\InstallerRuntimeError;
+use exface\Core\Exceptions\InvalidArgumentException;
 
 class PageInstaller extends AbstractAppInstaller
 {
@@ -54,7 +55,11 @@ class PageInstaller extends AbstractAppInstaller
         // structures etc., so don't silence any exceptions here.
         foreach ($files as $file) {
             $page = UiPageFactory::create($this->getWorkbench()->ui(), '', null, $this->getApp()->getAliasWithNamespace());
-            $page->importUxonObject(UxonObject::fromJson(file_get_contents($file)));
+            try {
+                $page->importUxonObject(UxonObject::fromJson(file_get_contents($file)));
+            } catch (InvalidArgumentException $e) {
+                throw new InstallerRuntimeError($this, 'Cannot load page model from file "' . $file . '": corrupted UXON?', null, $e);
+            }
             // Wird eine Seite neu hinzugefuegt ist die menuDefaultPosition gleich der
             // gesetzen Position.
             $page->setMenuDefaultPosition($page->getMenuPosition());
