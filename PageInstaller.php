@@ -7,8 +7,8 @@ use exface\Core\CommonLogic\Model\UiPage;
 use exface\Core\Factories\UiPageFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Model\UiPageInterface;
-use exface\Core\Exceptions\UiPageNotFoundError;
-use exface\Core\Exceptions\UiPageIdMissingError;
+use exface\Core\Exceptions\UiPage\UiPageNotFoundError;
+use exface\Core\Exceptions\UiPage\UiPageIdMissingError;
 use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 use exface\Core\Exceptions\InvalidArgumentException;
 
