@@ -2,10 +2,12 @@
 namespace axenox\PackageManager;
 
 use Composer\Installer\PackageEvent;
+use exface\Core\CommonLogic\DataSheets\DataSheet;
 use exface\Core\CommonLogic\Workbench;
 use exface\Core\CommonLogic\NameResolver;
 use Composer\Script\Event;
 use exface\Core\CommonLogic\Filemanager;
+use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
 
@@ -31,14 +33,7 @@ class StaticInstaller
     private $workbench = null;
 
     const EXCLUDE_BACKUP_PACKAGES = [
-        "axenox/RedmineConnector",
-        "composer/composer",
-        "exface/AdminLteTemplate",
-        "exface/JQueryMobileTemplate",
-        "exface/PerformanceMonitor",
-        "kabachello/composerapi",
-        "symfony/translation",
-
+        //"axenox.RedmineConnector"
     ];
 
     /**
@@ -131,16 +126,16 @@ class StaticInstaller
             $updatedPackages = $temp['update'];
         }
         self::printToStdout("Unlink unused backup components:\n");
-        $composerContent = file_get_contents('composer.json');
-        $obj = json_decode($composerContent);
-        $backupTime = $temp['backupTime'];
         $installer = new self();
+        $apps = $installer->getAllApps();
+        $backupTime = $temp['backupTime'];
         $unlinkResult = array();
-        foreach($obj->require as $requiredPackage => $packageInfo){
-            $appIdentifier = explode("/",$requiredPackage);
-            if (!in_array($requiredPackage,self::EXCLUDE_BACKUP_PACKAGES) &&
-                !in_array(implode(".",$appIdentifier),$updatedPackages)){
-                $unlinkResult[] = $installer->unlinkBackup(implode(".",$appIdentifier),$backupTime);
+
+        foreach($apps as $app){
+
+            if (!in_array($app,self::EXCLUDE_BACKUP_PACKAGES) &&
+                !in_array($app,$updatedPackages)){
+                $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
             }
         }
         unset($temp['update']);
@@ -194,23 +189,31 @@ class StaticInstaller
      * @return Event $composer_event
      */
     public static function composerBackupEverything(Event $composer_event = null){
-        $composerContent = file_get_contents('composer.json');
-        $obj = json_decode($composerContent);
         $installer = new self();
-
-        //write consistent backuptime to delete excess data after update run
+        $apps = $installer->getAllApps();
+         //write consistent backuptime to delete excess data after update run
         $backupTime = date('Y_m_d_H_i');
         $temp = self::getTempFile();
         $temp['backupTime'] = $backupTime;
         self::setTempFile($temp);
-        foreach($obj->require as $requiredPackage => $packageInfo){
-
-            $appIdentifier = explode("/",$requiredPackage);
-            if (!in_array($requiredPackage,self::EXCLUDE_BACKUP_PACKAGES)){
-                $installer->backup(implode(".",$appIdentifier), $backupTime);
+        foreach( $apps as $app){
+            if (!in_array($app,self::EXCLUDE_BACKUP_PACKAGES)){
+                $installer->backup($app, $backupTime);
             }
         }
         return $composer_event;
+    }
+
+    public function getAllApps(){
+        $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.APP');
+        $result = $ds->dataRead();
+        $row = $ds->getRows();
+        $apps = array();
+        foreach ($row as $fld => $val) {
+            $app = $this->getWorkbench()->getApp($val['UID']);
+            $apps[] = $app->getAliasWithNamespace();
+        }
+        return $apps;
     }
     /**
      * Call backup function on app, install at specified backup folder, folder name is defined by backupTime-String
