@@ -138,6 +138,7 @@ class StaticInstaller
                 $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
             }
         }
+        $installer->copyTempFile($backupTime);
         unset($temp['update']);
         if (!in_array(false,$unlinkResult)){
             self::printToStdout("Cleared backup from excess data. \n");
@@ -165,11 +166,11 @@ class StaticInstaller
         $exface = $this->getWorkbench();
         $app = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS);
         try {
-            $link = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR.Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
+            $link = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
             Filemanager::deleteDir($link);
             // Delete Parent folders to avoid clutter, provided that they are in fact empty
             $parentLink = explode(".",$app_alias);
-            $parentLink = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR.Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.$parentLink[0].DIRECTORY_SEPARATOR;
+            $parentLink = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.$parentLink[0].DIRECTORY_SEPARATOR;
             if (Filemanager::isDirEmpty($parentLink)){
                 Filemanager::deleteDir($parentLink);
             }
@@ -229,7 +230,7 @@ class StaticInstaller
             self::printToStdout($text);
             $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
             $backupAction = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_BACKUP_ACTION_ALIAS);
-            $backupAction->setBackupPath(Filemanager::FOLDER_NAME_BACKUP.DIRECTORY_SEPARATOR.$backupTime);
+            $backupAction->setBackupPath("autobackup".DIRECTORY_SEPARATOR.$backupTime);
             $backupAction->backup($app_name_resolver);
         }
         catch(\Exception $e){
@@ -317,7 +318,10 @@ class StaticInstaller
     {
         return dirname(__FILE__) . DIRECTORY_SEPARATOR . 'LastInstall.temp.json';
     }
-
+    protected function copyTempFile($backuptime){
+        $exface = $this->getWorkbench();
+        $exface->filemanager()->copy(self::getTempFilePathAbsolute(),$exface->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backuptime.DIRECTORY_SEPARATOR."LastInstall.json");
+    }
     /**
      *
      * @return array
