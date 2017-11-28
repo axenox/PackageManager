@@ -190,7 +190,13 @@ class StaticInstaller
     {
         if (is_null($this->workbench)) {
             error_reporting(E_ALL ^ E_NOTICE);
-            $this->workbench = Workbench::startNewInstance();
+            try {
+                $this->workbench = Workbench::startNewInstance();
+            } catch (\Throwable $e) {
+                $workbench = new Workbench();
+                $workbench->getLogger()->logException($e);
+                return $workbench;
+            }
         }
         return $this->workbench;
     }
