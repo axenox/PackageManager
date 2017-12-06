@@ -222,6 +222,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             foreach (scandir($model_source) as $file) {
                 if ($file == '.' || $file == '..')
                     continue;
+                $this->getWorkbench()->getLogger()->debug('Installing model file ' . $file);
                 $data_sheet = DataSheetFactory::createFromUxon($exface, UxonObject::fromJson(file_get_contents($model_source . DIRECTORY_SEPARATOR . $file)));
                 
                 // Remove columns, that are not attributes. This is important to be able to import changes on the meta model itself.
