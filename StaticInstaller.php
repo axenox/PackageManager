@@ -207,7 +207,7 @@ class StaticInstaller
         foreach( $apps as $app){
             $installer->backup($app, $backupPath);
         }
-        return $composer_event;
+        return $backupPath;
     }
 
     public function getAllApps(){
