@@ -2,13 +2,11 @@
 namespace axenox\PackageManager;
 
 use Composer\Installer\PackageEvent;
-use exface\Core\CommonLogic\DataSheets\DataSheet;
 use exface\Core\CommonLogic\Workbench;
 use exface\Core\CommonLogic\NameResolver;
 use Composer\Script\Event;
-use exface\Core\CommonLogic\Filemanager;
-use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\Factories\DataSheetFactory;
 require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
 
 /**
@@ -17,7 +15,7 @@ require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATO
  * installatiom automatically once composer is done installing or updating all the files.
  *
  * @author Andrej Kabachnik
- *        
+ *
  */
 class StaticInstaller
 {
@@ -26,19 +24,15 @@ class StaticInstaller
 
     const PACKAGE_MANAGER_INSTALL_ACTION_ALIAS = 'InstallApp';
 
-    const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'UninstallApp';
-
     const PACKAGE_MANAGER_BACKUP_ACTION_ALIAS = 'BackupApp';
+
+    const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'UninstallApp';
 
     private $workbench = null;
 
-    const EXCLUDE_BACKUP_PACKAGES = [
-        //"axenox.RedmineConnector"
-    ];
-
     /**
      *
-     * @param PackageEvent $composer_event            
+     * @param PackageEvent $composer_event
      * @return void
      */
     public static function composerFinishPackageInstall(PackageEvent $composer_event)
@@ -51,7 +45,7 @@ class StaticInstaller
 
     /**
      *
-     * @param PackageEvent $composer_event            
+     * @param PackageEvent $composer_event
      * @return void
      */
     public static function composerFinishPackageUpdate(PackageEvent $composer_event)
@@ -64,7 +58,7 @@ class StaticInstaller
 
     /**
      *
-     * @param Event $composer_event            
+     * @param Event $composer_event
      * @return string
      */
     public static function composerFinishInstall(Event $composer_event = null)
@@ -91,14 +85,13 @@ class StaticInstaller
 
     /**
      *
-     * @param Event $composer_event            
+     * @param Event $composer_event
      * @return string
      */
     public static function composerFinishUpdate(Event $composer_event = null)
     {
         $text = '';
         $processed_aliases = array();
-        $updatedPackages = array();
         $temp = self::getTempFile();
         if (array_key_exists('update', $temp)) {
             // First of all check, if the core needs to be updated. If so, do that before updating other apps
@@ -133,8 +126,7 @@ class StaticInstaller
 
         foreach($apps as $app){
 
-            if (!in_array($app,self::EXCLUDE_BACKUP_PACKAGES) &&
-                !in_array($app,$updatedPackages)){
+            if (!in_array($app,$updatedPackages)){
                 $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
             }
         }
@@ -145,14 +137,14 @@ class StaticInstaller
             self::setTempFile($temp);
         }
         else {
-            self::printToStdout("Could not clear backup. Please unlink manually. Check LastInstall.temp.json for list of apps to keep. \n");
+            self::printToStdout("Could not clear backup. Please unlink manually at ".$backupTime.". Check LastInstall.temp.json for list of apps to keep. \n");
         }
         // If composer is performing an update operation, it will install new packages, but will not trigger the post-install-cmd
         // As a workaround, we just trigger finish_install() here by hand
         if (array_key_exists('install', $temp)) {
             $text .= self::composerFinishInstall();
         }
-        
+
         return $text ? $text : 'No apps to update' . ".\n";
     }
     /**
@@ -166,24 +158,37 @@ class StaticInstaller
         $exface = $this->getWorkbench();
         $app = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS);
         try {
-            $link = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
-            Filemanager::deleteDir($link);
-            // Delete Parent folders to avoid clutter, provided that they are in fact empty
-            $parentLink = explode(".",$app_alias);
-            $parentLink = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.$parentLink[0].DIRECTORY_SEPARATOR;
-            if (Filemanager::isDirEmpty($parentLink)){
-                Filemanager::deleteDir($parentLink);
+            $link = $exface->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
+            if ($exface->filemanager()->exists($link)){
+                $exface->filemanager()->deleteDir($link);
+                // Delete Parent folders to avoid clutter, provided that they are in fact empty
+                $parentLink = explode(".",$app_alias);
+                $parentLink = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.$parentLink[0].DIRECTORY_SEPARATOR;
+                if ($exface->filemanager()->isDirEmpty($parentLink)){
+                    $exface->filemanager()->deleteDir($parentLink);
+                }
+                self::printToStdout('-> '.$app_alias. "Delete unused backup\n");
             }
-            self::printToStdout("Delete unused ".$app_alias." app backup\n");
+            else {
+
+                $text = '-> '.$app_alias. " - Directory can't be found at ".$link.". Check your database for old app definitions that have since been uninstalled.\n\n";
+                self::printToStdout($text);
+            }
+
         }
         catch(\Exception $e){
-            self::printToStdout("Could not delete ".$app_alias.". ".$e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . ".\n");
+            if ($e instanceof ExceptionInterface){
+                $log_hint = ' (see log ID ' . $e->getId() . ')';
+            }
+            self::printToStdout('-> '.$app_alias. "Could not delete 'backup! \n");
+            self::printToStdout($e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . $log_hint."\n");
+            $exface->getLogger()->logException($e);
             return false;
         }
         return true;
     }
     /**
-     * Backup all apps that are listen in composer.json but not listed in EXCLUDE_BACKUP_PACKAGES
+     * Backup all apps
      * since they have no own backup function to call to
      *
      * @param Event $composer_event
@@ -192,27 +197,28 @@ class StaticInstaller
     public static function composerBackupEverything(Event $composer_event = null){
         $installer = new self();
         $apps = $installer->getAllApps();
-         //write consistent backuptime to delete excess data after update run
+        //write consistent backuptime to delete excess data after update run
         $backupTime = date('Y_m_d_H_i');
         $temp = self::getTempFile();
         $temp['backupTime'] = $backupTime;
         self::setTempFile($temp);
+        $backupPath = "autobackup".DIRECTORY_SEPARATOR.$backupTime;
+        self::printToStdout("Initializing automatic backup to ".$backupPath."\n");
         foreach( $apps as $app){
-            if (!in_array($app,self::EXCLUDE_BACKUP_PACKAGES)){
-                $installer->backup($app, $backupTime);
-            }
+            $installer->backup($app, $backupPath);
         }
         return $composer_event;
     }
 
     public function getAllApps(){
         $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.APP');
+        $ds->getColumns()->addFromExpression('ALIAS');
         $result = $ds->dataRead();
         $row = $ds->getRows();
         $apps = array();
+
         foreach ($row as $fld => $val) {
-            $app = $this->getWorkbench()->getApp($val['UID']);
-            $apps[] = $app->getAliasWithNamespace();
+            $apps[] =  $val['ALIAS'];
         }
         return $apps;
     }
@@ -222,16 +228,29 @@ class StaticInstaller
      * @param string $backupTime
      * @return string
      */
-    public function backup($app_alias, $backupTime){
+    public function backup($app_alias, $backupPath){
         $exface = $this->getWorkbench();
         $result = '';
+
         try {
-            $text = '-> Creating backup of app ' . $app_alias . "\n";
+            $text = '-> '.$app_alias. " - Create backup at ".$backupPath."\n";
             self::printToStdout($text);
             $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
             $backupAction = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_BACKUP_ACTION_ALIAS);
-            $backupAction->setBackupPath("autobackup".DIRECTORY_SEPARATOR.$backupTime);
-            $backupAction->backup($app_name_resolver);
+            $backupDir = $exface->filemanager()->getPathToBaseFolder();
+            $backupDir .= DIRECTORY_SEPARATOR . "vendor" . DIRECTORY_SEPARATOR. str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
+            if ($exface->filemanager()->exists($backupDir)){
+                $backupAction->setBackupPath($backupPath);
+                $backupAction->backup($app_name_resolver);
+                $text = '-> '.$app_alias. " - Backup was created successfully\n\n";
+                self::printToStdout($text);
+            }
+            else {
+
+                $text = '-> '.$app_alias. " - Directory can't be found at ".$backupDir.". Check your database for old app definitions that have since been uninstalled.\n\n";
+                self::printToStdout($text);
+            }
+
         }
         catch(\Exception $e){
             if ($e instanceof ExceptionInterface){
@@ -239,9 +258,9 @@ class StaticInstaller
             }
             self::printToStdout('-> Error in ' . $app_alias . "! \n");
             self::printToStdout($e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . $log_hint."\n");
-            //$exface->getLogger()->logException($e);
+            $exface->getLogger()->logException($e);
         }
-      return $result;
+        return $result;
     }
     public static function composerPrepareUninstall(PackageEvent $composer_event)
     {
@@ -309,7 +328,13 @@ class StaticInstaller
     {
         if (is_null($this->workbench)) {
             error_reporting(E_ALL ^ E_NOTICE);
-            $this->workbench = Workbench::startNewInstance();
+            try {
+                $this->workbench = Workbench::startNewInstance();
+            } catch (\Throwable $e) {
+                $workbench = new Workbench();
+                $workbench->getLogger()->logException($e);
+                return $workbench;
+            }
         }
         return $this->workbench;
     }
@@ -338,7 +363,7 @@ class StaticInstaller
 
     /**
      *
-     * @param array $json_array            
+     * @param array $json_array
      */
     protected static function setTempFile(array $json_array)
     {
@@ -351,8 +376,8 @@ class StaticInstaller
 
     /**
      *
-     * @param string $operation            
-     * @param string $app_alias            
+     * @param string $operation
+     * @param string $app_alias
      * @return array
      */
     protected static function addAppToTempFile($operation, $app_alias)
