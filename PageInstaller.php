@@ -303,27 +303,31 @@ class PageInstaller extends AbstractAppInstaller
         
         /** @var UiPage $page */
         foreach ($pages as $page) {
-            // Ist die parent-Seite der Root, dann wird ein leerer MenuParentPageAlias gespeichert.
-            // Dadurch wird die Seite beim Hinzufuegen auf einem anderen System automatisch im Root
-            // eingehaengt, auch wenn der an einer anderen Stelle ist als auf diesem System.
-            if ($page->getMenuParentPageAlias() && ($this->getWorkbench()->getCMS()->getPageIdInCms($page->getMenuParentPage()) == $this->getWorkbench()->getCMS()->getPageIdRoot())) {
-                $page->setMenuParentPageAlias('');
+            try {
+                // Ist die parent-Seite der Root, dann wird ein leerer MenuParentPageAlias gespeichert.
+                // Dadurch wird die Seite beim Hinzufuegen auf einem anderen System automatisch im Root
+                // eingehaengt, auch wenn der an einer anderen Stelle ist als auf diesem System.
+                if ($page->getMenuParentPageAlias() && ($this->getWorkbench()->getCMS()->getPageIdInCms($page->getMenuParentPage()) == $this->getWorkbench()->getCMS()->getPageIdRoot())) {
+                    $page->setMenuParentPageAlias('');
+                }
+                
+                // Hat die Seite keine UID wird ein Fehler geworfen. Ohne UID kann die Seite nicht
+                // manipuliert werden, da beim Aktualisieren oder Loeschen die UID benoetigt wird.
+                if (! $page->getId()) {
+                    throw new UiPageIdMissingError('The UiPage "' . $page->getAliasWithNamespace() . '" has no UID.');
+                }
+                // Hat die Seite keinen Alias wird ein Alias gesetzt und die Seite wird aktualisiert.
+                if (! $page->getAliasWithNamespace()) {
+                    $page = $page->copy(UiPage::generateAlias($page->getApp()->getAliasWithNamespace() . '.'));
+                    $this->getWorkbench()->getCMS()->updatePage($page);
+                }
+                
+                // Exportieren der Seite
+                $contents = $page->exportUxonObject()->toJson(true);
+                $fileManager->dumpFile($dir . DIRECTORY_SEPARATOR . $page->getAliasWithNamespace() . '.json', $contents);
+            } catch (\Throwable $e) {
+                throw new InstallerRuntimeError($this, 'Unknown error while backing up page "' . $page->getAliasWithNamespace() . '"!', null, $e);
             }
-            
-            // Hat die Seite keine UID wird ein Fehler geworfen. Ohne UID kann die Seite nicht
-            // manipuliert werden, da beim Aktualisieren oder Loeschen die UID benoetigt wird.
-            if (! $page->getId()) {
-                throw new UiPageIdMissingError('The UiPage "' . $page->getAliasWithNamespace() . '" has no UID.');
-            }
-            // Hat die Seite keinen Alias wird ein Alias gesetzt und die Seite wird aktualisiert.
-            if (! $page->getAliasWithNamespace()) {
-                $page = $page->copy(UiPage::generateAlias($page->getApp()->getAliasWithNamespace() . '.'));
-                $this->getWorkbench()->getCMS()->updatePage($page);
-            }
-            
-            // Exportieren der Seite
-            $contents = $page->exportUxonObject()->toJson(true);
-            $fileManager->dumpFile($dir . DIRECTORY_SEPARATOR . $page->getAliasWithNamespace() . '.json', $contents);
         }
         
         return count($pages) . ' pages for "' . $this->getApp()->getAliasWithNamespace() . '" exported.';
