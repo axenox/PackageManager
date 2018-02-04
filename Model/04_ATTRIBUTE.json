@@ -774,7 +774,7 @@
         },
         {
             "CREATED_ON": "2016-07-25 19:01:11",
-            "MODIFIED_ON": "2016-07-25 19:03:28",
+            "MODIFIED_ON": "2018-02-04 07:13:50",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e652895b5ea2189409c0f8dae36b4f",
@@ -786,13 +786,13 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": null,
+            "DEFAULT_EDITOR_UXON": "",
             "LABEL": "Install time",
             "ALIAS": "time",
             "DATATYPE": "0x33000000000000000000000000000000",
             "DATA_ADDRESS": "time",
             "OBJECT": "0x11e64d20c9789d1a9409c0f8dae36b4f",
-            "FORMATTER": "=DateTime(time)",
+            "FORMATTER": "",
             "DISPLAYORDER": null,
             "LABELFLAG": "0",
             "UIDFLAG": "0",
@@ -807,7 +807,7 @@
             "DATA_ADDRESS_PROPS": "{\"filter_locally\":\"1\"}",
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": null
+            "CUSTOM_DATA_TYPE": ""
         },
         {
             "CREATED_ON": "2016-09-26 10:04:21",
