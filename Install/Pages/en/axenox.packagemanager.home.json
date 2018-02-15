@@ -5,7 +5,7 @@
     "menu_index": "4",
     "menu_visible": true,
     "name": "PackageManager",
-    "description": "",
+    "description": "View installed packages",
     "intro": "",
     "replaces_page_alias": null,
     "contents": {
