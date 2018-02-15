@@ -5,7 +5,8 @@
     "menu_index": "4",
     "menu_visible": true,
     "name": "PackageManager",
-    "short_description": "",
+    "description": "",
+    "intro": "",
     "replaces_page_alias": null,
     "contents": {
         "widget_type": "DataTable",
