@@ -1,12 +1,12 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
-use exface\Core\CommonLogic\NameResolver;
 use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\ArchiveManager;
 use exface\Core\Factories\AppFactory;
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\CommonLogic\Selectors\AppSelector;
 
 /**
  * This Action adds all files of a designated folder into a ZIP Archive
@@ -34,8 +34,8 @@ class ZipFile extends AbstractAction
         $filename = DIRECTORY_SEPARATOR . $this->file_name . ".zip";
         foreach ($this->getTargetAppAliases() as $app_alias) {
             
-            $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
-            $app = AppFactory::create($app_name_resolver);
+            $app_selector = new AppSelector($exface, $app_alias);
+            $app = AppFactory::create($app_selector);
             
             if ($this->getFilePath() == '') {
                 $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();

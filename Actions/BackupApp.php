@@ -2,14 +2,14 @@
 namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\PackageManagerApp;
-use exface\Core\CommonLogic\NameResolver;
 use exface\Core\CommonLogic\AbstractAction;
-use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
 use axenox\PackageManager\MetaModelInstaller;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\CommonLogic\Selectors\AppSelector;
+use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -39,10 +39,10 @@ class BackupApp extends AbstractAction
         $backup_counter = 0;
         foreach ($this->getTargetAppAliases() as $app_alias) {
             $this->addResultMessage("Creating Backup for " . $app_alias . "...\n");
-            $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
+            $app_selector = new AppSelector($exface, $app_alias);
             try {
                 $backup_counter ++;
-                $this->backup($app_name_resolver);
+                $this->backup($app_selector);
             } catch (\Exception $e) {
                 $backup_counter --;
                 // FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
@@ -118,8 +118,8 @@ class BackupApp extends AbstractAction
         
         $app = AppFactory::create($app_name_resolver);
         
-        $installer = $app->getInstaller(new MetaModelInstaller($app_name_resolver));
-        $directory = $app_name_resolver->getClassDirectory();
+        $installer = $app->getInstaller(new MetaModelInstaller($appSelector));
+        $directory = $appSelector->getFolderRelativeToVendorFolder();
         if ($this->getBackupPath() == '') {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
             $sDirName = date('Y_m_d_H_m');
@@ -140,13 +140,13 @@ class BackupApp extends AbstractAction
 
     /**
      *
-     * @param NameResolverInterface $app_name_resolver            
+     * @param AppSelectorInterface $selector            
      * @throws DirectoryNotFoundError
      * @return string
      */
-    public function getAppAbsolutePath(NameResolverInterface $app_name_resolver)
+    public function getAppAbsolutePath(AppSelectorInterface $selector)
     {
-        $app_path = $this->getApp()->filemanager()->getPathToVendorFolder() . $app_name_resolver->getClassDirectory();
+        $app_path = $selector->getFolderAbsolute();
         if (! file_exists($app_path) || ! is_dir($app_path)) {
             throw new DirectoryNotFoundError('"' . $app_path . '" does not point to an installable app!', '6T5TZN5');
         }

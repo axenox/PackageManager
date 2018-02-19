@@ -70,7 +70,7 @@ class PackageManagerInstaller extends AbstractAppInstaller
 
     public function uninstall()
     {
-        return 'Uninstall not implemented for' . $this->getNameResolver()->getAliasWithNamespace() . '!';
+        return 'Uninstall not implemented for' . $this->getSelectorInstalling()->getAliasWithNamespace() . '!';
     }
 
     /**

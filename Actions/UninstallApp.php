@@ -1,11 +1,11 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
-use exface\Core\CommonLogic\NameResolver;
-use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\Interfaces\Selectors\AppSelectorInterface;
+use exface\Core\CommonLogic\Selectors\AppSelector;
 
 /**
  * This action uninstalls one or more apps
@@ -28,10 +28,10 @@ class UninstallApp extends InstallApp
         $installed_counter = 0;
         foreach ($this->getTargetAppAliases() as $app_alias) {
             $this->addResultMessage("Uninstalling " . $app_alias . "...\n");
-            $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
+            $app_selector = new AppSelector($exface, $app_alias);
             try {
                 $installed_counter ++;
-                $this->uninstall($app_name_resolver);
+                $this->uninstall($app_selector);
             } catch (\Exception $e) {
                 $installed_counter --;
                 // FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
@@ -48,15 +48,15 @@ class UninstallApp extends InstallApp
 
     /**
      *
-     * @param NameResolverInterface $app_name_resolver            
+     * @param AppSelectorInterface $app_selector            
      * @return void
      */
-    public function uninstall(NameResolverInterface $app_name_resolver)
+    public function uninstall(AppSelectorInterface $app_selector)
     {
         $result = '';
         
         // Run the custom uninstaller of the app
-        $app = AppFactory::create($app_name_resolver);
+        $app = AppFactory::create($app_selector);
         $custom_uninstaller_result = $app->uninstall();
         if ($custom_uninstaller_result) {
             $result .= ".\nUninstalling: " . $custom_uninstaller_result;

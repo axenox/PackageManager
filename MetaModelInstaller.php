@@ -1,7 +1,6 @@
 <?php
 namespace axenox\PackageManager;
 
-use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
@@ -11,6 +10,7 @@ use exface\Core\Interfaces\AppInterface;
 use exface\Core\CommonLogic\Model\ConditionGroup;
 use exface\Core\CommonLogic\Model\Aggregator;
 use exface\Core\DataTypes\AggregatorFunctionsDataType;
+use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -24,7 +24,7 @@ class MetaModelInstaller extends AbstractAppInstaller
      */
     public function install($source_absolute_path)
     {
-        return $this->installModel($this->getNameResolver(), $source_absolute_path);
+        return $this->installModel($this->getSelectorInstalling(), $source_absolute_path);
     }
 
     /**
@@ -34,7 +34,7 @@ class MetaModelInstaller extends AbstractAppInstaller
      */
     public function update($source_absolute_path)
     {
-        return $this->installModel($this->getNameResolver(), $source_absolute_path);
+        return $this->installModel($this->getSelectorInstalling(), $source_absolute_path);
     }
 
     /**
@@ -128,7 +128,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         $result .= "\n" . 'Created meta model backup for "' . $app->getAliasWithNamespace() . '".';
         
         // Backup pages.
-        $pageInstaller = new PageInstaller($this->getNameResolver());
+        $pageInstaller = new PageInstaller($this->getSelectorInstalling());
         $result .= '. ' . $pageInstaller->backup($destinationAbsolutePath);
         
         return $result;
@@ -207,11 +207,11 @@ class MetaModelInstaller extends AbstractAppInstaller
 
     /**
      *
-     * @param NameResolverInterface $app_name_resolver            
+     * @param AppSelectorInterface $app_selector            
      * @param string $source_absolute_path            
      * @return string
      */
-    protected function installModel(NameResolverInterface $app_name_resolver, $source_absolute_path)
+    protected function installModel(AppSelectorInterface $app_selector, $source_absolute_path)
     {
         $result = '';
         $exface = $this->getWorkbench();
@@ -269,7 +269,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             }
             
             // Install pages.
-            $pageInstaller = new PageInstaller($this->getNameResolver());
+            $pageInstaller = new PageInstaller($this->getSelectorInstalling());
             $result_pages = $pageInstaller->install($source_absolute_path);
             $result .= ($result && $result_pages ? '; ' : '') . $result_pages;
             
