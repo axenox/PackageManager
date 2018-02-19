@@ -10,8 +10,6 @@ use exface\Core\Exceptions\DirectoryNotFoundError;
 use axenox\PackageManager\MetaModelInstaller;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\Constants\Icons;
-use exface\Core\CommonLogic\Selectors\AppSelector;
-use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -41,7 +39,7 @@ class BackupApp extends AbstractAction
         $backup_counter = 0;
         foreach ($this->getTargetAppAliases() as $app_alias) {
             $this->addResultMessage("Creating Backup for " . $app_alias . "...\n");
-            $app_selector = new AppSelector($exface, $app_alias);
+            $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
             try {
                 $backup_counter ++;
                 $this->backup($app_name_resolver);
@@ -111,17 +109,17 @@ class BackupApp extends AbstractAction
 
     /**
      *
-     * @param AppSelectorInterface $appSelector            
+     * @param NameResolverInterface $app_name_resolver            
      * @return string
      */
-    public function backup(AppSelectorInterface $appSelector)
+    public function backup(NameResolverInterface $app_name_resolver)
     {
         $result = '';
         
-        $app = AppFactory::create($appSelector);
+        $app = AppFactory::create($app_name_resolver);
         
-        $installer = $app->getInstaller(new MetaModelInstaller($appSelector));
-        $directory = $appSelector->getClassDirectory();
+        $installer = $app->getInstaller(new MetaModelInstaller($app_name_resolver));
+        $directory = $app_name_resolver->getClassDirectory();
         if ($this->getBackupPath() == '') {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
             $sDirName = date('Y_m_d_Hmi');
