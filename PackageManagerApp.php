@@ -2,13 +2,13 @@
 namespace axenox\PackageManager;
 
 use exface\Core\Interfaces\AppInterface;
-use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Factories\DataSheetFactory;
-use exface\Core\CommonLogic\NameResolver;
 use exface\Core\Interfaces\InstallerInterface;
 use exface\Core\CommonLogic\Model\App;
 use exface\Core\CommonLogic\Filemanager;
+use exface\Core\Interfaces\Selectors\AppSelectorInterface;
+use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 
 class PackageManagerApp extends App
 {
@@ -20,22 +20,22 @@ class PackageManagerApp extends App
         return $this->getWorkbench()->filemanager();
     }
 
-    public function createAppFolder(NameResolverInterface $name_resolver)
+    public function createAppFolder(AppSelectorInterface $app_selector)
     {
         
         // Make sure the vendor folder exists
-        $app_vendor_folder = $this->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR . $name_resolver->getVendor();
+        $app_vendor_folder = $this->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR . $app_selector->getVendorAlias();
         if (! is_dir($app_vendor_folder)) {
             mkdir($app_vendor_folder);
         }
         
         // Create the app folder
-        $app_folder = $app_vendor_folder . DIRECTORY_SEPARATOR . $name_resolver->getAlias();
+        $app_folder = $app_vendor_folder . DIRECTORY_SEPARATOR . $app_selector->getAlias();
         if (! is_dir($app_folder)) {
             mkdir($app_folder);
         }
         
-        $app = AppFactory::create($name_resolver);
+        $app = AppFactory::create($app_selector);
         
         $this->createComposerJson($app);
     }
@@ -48,13 +48,13 @@ class PackageManagerApp extends App
     protected function createComposerJson(AppInterface $app)
     {
         $json = array(
-            "name" => $app->getVendor() . '/' . str_replace($app->getVendor() . NameResolver::NAMESPACE_SEPARATOR, '', $app->getAliasWithNamespace()),
+            "name" => $app->getVendor() . '/' . str_replace($app->getVendor() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '', $app->getAliasWithNamespace()),
             "require" => array(
                 "exface/core" => '~0.1'
             ),
             "autoload" => [
                 "psr-4" => [
-                    "\\" . str_replace(NameResolver::NAMESPACE_SEPARATOR, "\\", $app->getAliasWithNamespace()) . "\\" => ""
+                    "\\" . str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, "\\", $app->getAliasWithNamespace()) . "\\" => ""
                 ],
                 "exclude-from-classmap" => [
                     "/Config/",
@@ -113,7 +113,7 @@ class PackageManagerApp extends App
         if (! $base_path) {
             $base_path = Filemanager::FOLDER_NAME_VENDOR . DIRECTORY_SEPARATOR;
         }
-        return $base_path . ($app ? $app->getVendor() . DIRECTORY_SEPARATOR . str_replace($app->getVendor() . NameResolver::NAMESPACE_SEPARATOR, '', $app->getAlias()) : '');
+        return $base_path . ($app ? $app->getVendor() . DIRECTORY_SEPARATOR . str_replace($app->getVendor() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '', $app->getAlias()) : '');
     }
 
     public function getPathToAppAbsolute(AppInterface $app = null, $base_path = '')
@@ -133,12 +133,12 @@ class PackageManagerApp extends App
 
     public static function getPackageNameFromAppAlias($app_alias)
     {
-        return str_replace(NameResolver::NAMESPACE_SEPARATOR, '/', $app_alias);
+        return str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '/', $app_alias);
     }
 
     public static function getAppAliasFromPackageName($package_name)
     {
-        return str_replace('/', NameResolver::NAMESPACE_SEPARATOR, $package_name);
+        return str_replace('/', AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, $package_name);
     }
 
     public function getCurrentAppVersion($app_alias)
@@ -162,7 +162,7 @@ class PackageManagerApp extends App
     public function getInstaller(InstallerInterface $injected_installer = null)
     {
         $installer = parent::getInstaller($injected_installer);
-        $installer->addInstaller(new PackageManagerInstaller($this->getNameResolver()));
+        $installer->addInstaller(new PackageManagerInstaller($this->getSelector()));
         return $installer;
     }
 }

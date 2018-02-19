@@ -1,16 +1,14 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
-use exface\Core\Interfaces\Actions\ActionInterface;
 use exface\Core\Exceptions\AppNotFoundError;
 use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\AbstractAction;
-use exface\Core\CommonLogic\NameResolver;
 use exface\Core\Interfaces\AppInterface;
-use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use axenox\PackageManager\MetaModelInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\CommonLogic\Selectors\AppSelector;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
@@ -38,16 +36,15 @@ class ExportAppModel extends AbstractAction
         $workbench = $this->getWorkbench();
         $exported_counter = 0;
         foreach ($apps->getRows() as $row) {
+            $app_selector = new AppSelector($workbench, $row['ALIAS']);
             try {
                 $app = $this->getWorkbench()->getApp($row['ALIAS']);
             } catch (AppNotFoundError $e) {
-                $name_resolver = NameResolver::createFromString($row['ALIAS'], NameResolver::OBJECT_TYPE_APP, $workbench);
-                $this->getApp()->createAppFolder($name_resolver);
+                $this->getApp()->createAppFolder($app_selector);
                 $app = $this->getWorkbench()->getApp($row['ALIAS']);
             }
             
-            $app_name_resolver = NameResolver::createFromString($row['ALIAS'], NameResolver::OBJECT_TYPE_APP, $workbench);
-            $installer = new MetaModelInstaller($app_name_resolver);
+            $installer = new MetaModelInstaller($app_selector);
             $backupDir = $this->getModelFolderPathAbsolute($app);
             $installer->backup($backupDir);
             

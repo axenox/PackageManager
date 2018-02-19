@@ -3,9 +3,9 @@ namespace axenox\PackageManager;
 
 use Composer\Installer\PackageEvent;
 use exface\Core\CommonLogic\Workbench;
-use exface\Core\CommonLogic\NameResolver;
 use Composer\Script\Event;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\CommonLogic\Selectors\AppSelector;
 require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
 
 /**
@@ -153,8 +153,8 @@ class StaticInstaller
         $result = '';
         try {
             $exface = $this->getWorkbench();
-            $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
-            $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS)->install($app_name_resolver);
+            $app_selector = new AppSelector($exface, $app_alias);
+            $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS)->install($app_selector);
         } catch (\Exception $e) {
             if ($e instanceof ExceptionInterface){
                 $log_hint = ' (see log ID ' . $e->getId() . ')';
@@ -170,8 +170,8 @@ class StaticInstaller
         $result = '';
         try {
             $exface = $this->getWorkbench();
-            $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
-            $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS)->uninstall($app_name_resolver);
+            $app_selector = new AppSelector($exface, $app_alias);
+            $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS)->uninstall($app_selector);
         } catch (\Exception $e) {
             if ($e instanceof ExceptionInterface){
                 $log_hint = ' (see log ID ' . $e->getId() . ')';

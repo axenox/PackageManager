@@ -2,15 +2,15 @@
 namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\PackageManagerApp;
-use exface\Core\CommonLogic\NameResolver;
 use exface\Core\CommonLogic\AbstractAction;
-use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
 use axenox\PackageManager\MetaModelInstaller;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\CommonLogic\Selectors\AppSelector;
+use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -38,10 +38,10 @@ class InstallApp extends AbstractAction
         $installed_counter = 0;
         foreach ($this->getTargetAppAliases() as $app_alias) {
             $this->addResultMessage("Installing " . $app_alias . "...\n");
-            $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
+            $app_selector = new AppSelector($exface, $app_alias);
             try {
                 $installed_counter ++;
-                $this->install($app_name_resolver);
+                $this->install($app_selector);
                 $this->addResultMessage("\n" . $app_alias . " successfully installed.\n");
             } catch (\Exception $e) {
                 $installed_counter --;
@@ -104,16 +104,16 @@ class InstallApp extends AbstractAction
 
     /**
      *
-     * @param NameResolverInterface $app_name_resolver            
+     * @param AppSelectorInterface $app_selector            
      * @return string
      */
-    public function install(NameResolverInterface $app_name_resolver)
+    public function install(AppSelectorInterface $app_selector)
     {
         $result = '';
         
-        $app = AppFactory::create($app_name_resolver);
-        $installer = $app->getInstaller(new MetaModelInstaller($app_name_resolver));
-        $installer_result = $installer->install($this->getAppAbsolutePath($app_name_resolver));
+        $app = AppFactory::create($app_selector);
+        $installer = $app->getInstaller(new MetaModelInstaller($app_selector));
+        $installer_result = $installer->install($this->getAppAbsolutePath($app_selector));
         $result .= $installer_result . (substr($installer_result, - 1) != '.' ? '.' : '');
         
         // Save the result
@@ -123,13 +123,13 @@ class InstallApp extends AbstractAction
 
     /**
      *
-     * @param NameResolverInterface $app_name_resolver            
+     * @param AppSelectorInterface $app_selector            
      * @throws DirectoryNotFoundError
      * @return string
      */
-    public function getAppAbsolutePath(NameResolverInterface $app_name_resolver)
+    public function getAppAbsolutePath(AppSelectorInterface $app_selector)
     {
-        $app_path = $this->getApp()->filemanager()->getPathToVendorFolder() . $app_name_resolver->getClassDirectory();
+        $app_path = $app_selector->getFolderAbsolute();
         if (! file_exists($app_path) || ! is_dir($app_path)) {
             throw new DirectoryNotFoundError('"' . $app_path . '" does not point to an installable app!', '6T5TZN5');
         }

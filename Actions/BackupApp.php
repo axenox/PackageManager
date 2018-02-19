@@ -2,9 +2,7 @@
 namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\PackageManagerApp;
-use exface\Core\CommonLogic\NameResolver;
 use exface\Core\CommonLogic\AbstractAction;
-use exface\Core\Interfaces\NameResolverInterface;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
 use axenox\PackageManager\MetaModelInstaller;
@@ -44,7 +42,7 @@ class BackupApp extends AbstractAction
             $app_selector = new AppSelector($exface, $app_alias);
             try {
                 $backup_counter ++;
-                $this->backup($app_name_resolver);
+                $this->backup($app_selector);
             } catch (\Exception $e) {
                 $backup_counter --;
                 // FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
@@ -121,7 +119,7 @@ class BackupApp extends AbstractAction
         $app = AppFactory::create($appSelector);
         
         $installer = $app->getInstaller(new MetaModelInstaller($appSelector));
-        $directory = $appSelector->getClassDirectory();
+        $directory = $appSelector->getFolderRelativeToVendorFolder();
         if ($this->getBackupPath() == '') {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
             $sDirName = date('Y_m_d_Hmi');
@@ -142,13 +140,13 @@ class BackupApp extends AbstractAction
 
     /**
      *
-     * @param NameResolverInterface $app_name_resolver            
+     * @param AppSelectorInterface $selector            
      * @throws DirectoryNotFoundError
      * @return string
      */
-    public function getAppAbsolutePath(NameResolverInterface $app_name_resolver)
+    public function getAppAbsolutePath(AppSelectorInterface $selector)
     {
-        $app_path = $this->getApp()->filemanager()->getPathToVendorFolder() . $app_name_resolver->getClassDirectory();
+        $app_path = $selector->getFolderAbsolute();
         if (! file_exists($app_path) || ! is_dir($app_path)) {
             throw new DirectoryNotFoundError('"' . $app_path . '" does not point to an installable app!', '6T5TZN5');
         }
