@@ -115,7 +115,7 @@ class StaticInstaller
                 self::printToStdout($text);
             }
         }
-        if ($temp['update']!=null){
+        if (array_key_exists('update', $temp)){
             $updatedPackages = $temp['update'];
         }
         self::printToStdout("Unlink unused backup components:\n");
