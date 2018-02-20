@@ -6,6 +6,7 @@ use exface\Core\CommonLogic\Workbench;
 use Composer\Script\Event;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
+use exface\Core\Factories\DataSheetFactory;
 require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
 
 /**
@@ -212,11 +213,11 @@ class StaticInstaller
     public function getAllApps(){
         $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.APP');
         $ds->getColumns()->addFromExpression('ALIAS');
-        $result = $ds->dataRead();
+        $ds->dataRead();
         $row = $ds->getRows();
         $apps = array();
 
-        foreach ($row as $fld => $val) {
+        foreach ($row as $val) {
             $apps[] =  $val['ALIAS'];
         }
         return $apps;
@@ -234,13 +235,13 @@ class StaticInstaller
         try {
             $text = '-> '.$app_alias. " - Create backup at ".$backupPath."\n";
             self::printToStdout($text);
-            $app_name_resolver = NameResolver::createFromString($app_alias, NameResolver::OBJECT_TYPE_APP, $exface);
+            $app_selector = new AppSelector($exface, $app_alias);
             $backupAction = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_BACKUP_ACTION_ALIAS);
             $backupDir = $exface->filemanager()->getPathToBaseFolder();
             $backupDir .= DIRECTORY_SEPARATOR . "vendor" . DIRECTORY_SEPARATOR. str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
             if ($exface->filemanager()->exists($backupDir)){
                 $backupAction->setBackupPath($backupPath);
-                $backupAction->backup($app_name_resolver);
+                $backupAction->backup($app_selector);
                 $text = '-> '.$app_alias. " - Backup was created successfully\n\n";
                 self::printToStdout($text);
             }
