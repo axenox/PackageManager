@@ -109,14 +109,14 @@ class BackupApp extends AbstractAction
 
     /**
      *
-     * @param NameResolverInterface $app_name_resolver            
+     * @param AppSelectorInterface $appSelector            
      * @return string
      */
-    public function backup(NameResolverInterface $app_name_resolver)
+    public function backup(AppSelectorInterface $appSelector)
     {
         $result = '';
         
-        $app = AppFactory::create($app_name_resolver);
+        $app = AppFactory::create($appSelector);
         
         $installer = $app->getInstaller(new MetaModelInstaller($appSelector));
         $directory = $appSelector->getFolderRelativeToVendorFolder();
@@ -125,7 +125,7 @@ class BackupApp extends AbstractAction
             $sDirName = date('Y_m_d_H_m');
             $backupDir .= $directory . DIRECTORY_SEPARATOR . $sDirName;
         } else {
-            $backupDir = $app->getWorkbench()->filemanager()->getPathToBaseFolder();
+            $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
             $backupDir .= DIRECTORY_SEPARATOR . $this->getBackupPath() . $directory;
         }
         $backupDir = $app->getWorkbench()->filemanager()->pathNormalize($backupDir, DIRECTORY_SEPARATOR);

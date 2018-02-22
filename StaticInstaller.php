@@ -158,12 +158,12 @@ class StaticInstaller
         $exface = $this->getWorkbench();
         $app = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS);
         try {
-            $link = $exface->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
+            $link = $exface->filemanager()->getPathToBackupFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
             if ($exface->filemanager()->exists($link)){
                 $exface->filemanager()->deleteDir($link);
                 // Delete Parent folders to avoid clutter, provided that they are in fact empty
                 $parentLink = explode(".",$app_alias);
-                $parentLink = $app->getWorkbench()->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.$parentLink[0].DIRECTORY_SEPARATOR;
+                $parentLink = $app->getWorkbench()->filemanager()->getPathToBackupFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backupTime.DIRECTORY_SEPARATOR.$parentLink[0].DIRECTORY_SEPARATOR;
                 if ($exface->filemanager()->isDirEmpty($parentLink)){
                     $exface->filemanager()->deleteDir($parentLink);
                 }
