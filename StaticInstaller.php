@@ -93,7 +93,9 @@ class StaticInstaller
         $text = '';
         $processed_aliases = array();
         $temp = self::getTempFile();
-        if (array_key_exists('update', $temp)) {
+        
+        // Run installers for updated apps
+        if (array_key_exists('update', $temp) && is_array($temp['update'])) {
             // First of all check, if the core needs to be updated. If so, do that before updating other apps
             if (in_array(self::getCoreAppAlias(), $temp['update'])) {
                 if (! in_array(self::getCoreAppAlias(), $processed_aliases)) {
@@ -115,10 +117,14 @@ class StaticInstaller
                 self::printToStdout($text);
             }
         }
-        if (array_key_exists('update', $temp)){
+        if (array_key_exists('update', $temp) && is_array($temp['update'])){
             $updatedPackages = $temp['update'];
+        } else {
+            $updatedPackages = [];
         }
-        self::printToStdout("Unlink unused backup components:\n");
+        
+        // Cleanup backup
+        self::printToStdout("Delete unused backup components:\n");
         $installer = new self();
         $apps = $installer->getAllApps();
         $backupTime = $temp['backupTime'];
@@ -126,18 +132,18 @@ class StaticInstaller
 
         foreach($apps as $app){
 
-            if (!in_array($app,$updatedPackages)){
+            if (! in_array($app, $updatedPackages)){
                 $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
             }
         }
         $installer->copyTempFile($backupTime);
         unset($temp['update']);
         if (!in_array(false,$unlinkResult)){
-            self::printToStdout("Cleared backup from excess data. \n");
+            self::printToStdout("Cleared backup from excess data.\n");
             self::setTempFile($temp);
         }
         else {
-            self::printToStdout("Could not clear backup. Please unlink manually at ".$backupTime.". Check LastInstall.temp.json for list of apps to keep. \n");
+            self::printToStdout("Could not clear backup.\n");
         }
         // If composer is performing an update operation, it will install new packages, but will not trigger the post-install-cmd
         // As a workaround, we just trigger finish_install() here by hand
