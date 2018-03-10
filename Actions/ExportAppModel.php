@@ -9,6 +9,10 @@ use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use axenox\PackageManager\MetaModelInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
+use exface\Core\Interfaces\Tasks\TaskInterface;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
+use exface\Core\Interfaces\Tasks\TaskResultInterface;
+use exface\Core\CommonLogic\Tasks\TaskResultMessage;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
@@ -29,19 +33,24 @@ class ExportAppModel extends AbstractAction
         $this->setInputRowsMax(null);
     }
 
-    protected function perform()
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     */
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : TaskResultInterface
     {
-        $apps = $this->getInputAppsDataSheet();
+        $apps = $this->getInputAppsDataSheet($task);
         
         $workbench = $this->getWorkbench();
         $exported_counter = 0;
         foreach ($apps->getRows() as $row) {
             $app_selector = new AppSelector($workbench, $row['ALIAS']);
             try {
-                $app = $this->getWorkbench()->getApp($row['ALIAS']);
+                $app = $workbench->getApp($row['ALIAS']);
             } catch (AppNotFoundError $e) {
                 $this->getApp()->createAppFolder($app_selector);
-                $app = $this->getWorkbench()->getApp($row['ALIAS']);
+                $app = $workbench->getApp($row['ALIAS']);
             }
             
             $installer = new MetaModelInstaller($app_selector);
@@ -52,10 +61,9 @@ class ExportAppModel extends AbstractAction
         }
         
         // Save the result and output a message for the user
-        $this->setResult('');
-        $this->setResultMessage('Exported model files and pages for ' . $exported_counter . ' apps to app-folders into ' . ($this->getExportToPathRelative() ? '"' . $this->getExportToPathRelative() . '"' : ' the respective app folders') . '.');
+        $message = 'Exported model files and pages for ' . $exported_counter . ' apps to app-folders into ' . ($this->getExportToPathRelative() ? '"' . $this->getExportToPathRelative() . '"' : ' the respective app folders') . '.';
         
-        return;
+        return new TaskResultMessage($task, $message);
     }
 
     /**
@@ -63,13 +71,14 @@ class ExportAppModel extends AbstractAction
      * @throws ActionInputInvalidObjectError
      * @return \exface\Core\Interfaces\DataSheets\DataSheetInterface
      */
-    protected function getInputAppsDataSheet()
+    protected function getInputAppsDataSheet(TaskInterface $task)
     {
-        if ($this->getInputDataSheet() && ! $this->getInputDataSheet()->isEmpty() && ! $this->getInputDataSheet()->getMetaObject()->isExactly('exface.Core.APP')) {
-            throw new ActionInputInvalidObjectError($this, 'Action "' . $this->getAlias() . '" exprects an exface.Core.APP as input, "' . $this->getInputDataSheet()->getMetaObject()->getAliasWithNamespace() . '" given instead!', '6T5TUR1');
+        $input = $this->getInputDataSheet($task);
+        if (! $input->isEmpty() && ! $input->getMetaObject()->isExactly('exface.Core.APP')) {
+            throw new ActionInputInvalidObjectError($this, 'Action "' . $this->getAlias() . '" exprects an exface.Core.APP as input, "' . $input->getMetaObject()->getAliasWithNamespace() . '" given instead!', '6T5TUR1');
         }
         
-        $apps = $this->getInputDataSheet();
+        $apps = $input;
         $apps->getColumns()->addFromExpression('ALIAS');
         if (! $apps->isFresh()) {
             if (! $apps->isEmpty()) {

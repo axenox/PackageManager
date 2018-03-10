@@ -10,6 +10,10 @@ use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
+use exface\Core\Interfaces\Tasks\TaskResultInterface;
+use exface\Core\CommonLogic\Tasks\TaskResultMessage;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -19,11 +23,8 @@ use exface\Core\Interfaces\Selectors\AppSelectorInterface;
  * @author Andrej Kabachnik
  *        
  */
-class BackupApp extends AbstractAction
+class BackupApp extends InstallApp
 {
-
-    private $target_app_aliases = array();
-
     private $backup_path = '';
 
     protected function init()
@@ -33,78 +34,38 @@ class BackupApp extends AbstractAction
         $this->setInputRowsMax(null);
     }
 
-    protected function perform()
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     */
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : TaskResultInterface
     {
         $exface = $this->getWorkbench();
         $backup_counter = 0;
+        $messasge = '';
+        
         foreach ($this->getTargetAppAliases() as $app_alias) {
-            $this->addResultMessage("Creating Backup for " . $app_alias . "...\n");
+            $message .= "Creating Backup for " . $app_alias . "...\n";
             $app_selector = new AppSelector($exface, $app_alias);
             try {
                 $backup_counter ++;
-                $this->backup($app_selector);
+                $message .= $this->backup($app_selector);
             } catch (\Exception $e) {
                 $backup_counter --;
                 // FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
                 throw $e;
             }
-            $this->addResultMessage("\n Sucessfully created backup for " . $app_alias . " .\n");
+            $message .= "\n Sucessfully created backup for " . $app_alias . " .\n";
         }
         
         if (count($this->getTargetAppAliases()) == 0) {
-            $this->addResultMessage('No apps had been selected for backup!');
+            $message .= 'No apps had been selected for backup!';
         } elseif ($backup_counter == 0) {
-            $this->addResultMessage('No backups have been created');
+            $message .= 'No backups have been created';
         }
         
-        // Save the result
-        $this->setResult('');
-        
-        return;
-    }
-
-    /**
-     * Get all affected apps
-     *
-     * @return array
-     * @throws ActionInputInvalidObjectError
-     */
-    public function getTargetAppAliases()
-    {
-        if (count($this->target_app_aliases) < 1 && $this->getInputDataSheet()) {
-            
-            if ($this->getInputDataSheet()->getMetaObject()->isExactly('exface.Core.APP')) {
-                $this->getInputDataSheet()->getColumns()->addFromExpression('ALIAS');
-                if (! $this->getInputDataSheet()->isEmpty()) {
-                    if (! $this->getInputDataSheet()->isFresh()) {
-                        $this->getInputDataSheet()->dataRead();
-                    }
-                } elseif (! $this->getInputDataSheet()->getFilters()->isEmpty()) {
-                    $this->getInputDataSheet()->dataRead();
-                }
-                $this->target_app_aliases = array_unique($this->getInputDataSheet()->getColumnValues('ALIAS', false));
-            } elseif ($this->getInputDataSheet()->getMetaObject()->isExactly('axenox.PackageManager.PACKAGE_INSTALLED')) {
-                $this->getInputDataSheet()->getColumns()->addFromExpression('app_alias');
-                if (! $this->getInputDataSheet()->isEmpty()) {
-                    if (! $this->getInputDataSheet()->isFresh()) {
-                        $this->getInputDataSheet()->dataRead();
-                    }
-                } elseif (! $this->getInputDataSheet()->getFilters()->isEmpty()) {
-                    $this->getInputDataSheet()->dataRead();
-                }
-                $this->target_app_aliases = array_filter(array_unique($this->getInputDataSheet()->getColumnValues('app_alias', false)));
-            } else {
-                throw new ActionInputInvalidObjectError($this, 'The action "' . $this->getAliasWithNamespace() . '" can only be called on the meta objects "exface.Core.App" or "axenox.PackageManager.PACKAGE_INSTALLED" - "' . $this->getInputDataSheet()->getMetaObject()->getAliasWithNamespace() . '" given instead!');
-            }
-        }
-        
-        return $this->target_app_aliases;
-    }
-
-    public function setTargetAppAliases(array $values)
-    {
-        $this->target_app_aliases = $values;
-        return $this;
+        return new TaskResultMessage($task, $message);
     }
 
     /**
@@ -112,7 +73,7 @@ class BackupApp extends AbstractAction
      * @param AppSelectorInterface $appSelector            
      * @return string
      */
-    public function backup(AppSelectorInterface $appSelector)
+    public function backup(AppSelectorInterface $appSelector) : string
     {
         $result = '';
         
@@ -134,23 +95,7 @@ class BackupApp extends AbstractAction
         $result .= $installer_result . (substr($installer_result, - 1) != '.' ? '.' : '');
         
         // Save the result
-        $this->addResultMessage($result);
         return $result;
-    }
-
-    /**
-     *
-     * @param AppSelectorInterface $selector            
-     * @throws DirectoryNotFoundError
-     * @return string
-     */
-    public function getAppAbsolutePath(AppSelectorInterface $selector)
-    {
-        $app_path = $selector->getFolderAbsolute();
-        if (! file_exists($app_path) || ! is_dir($app_path)) {
-            throw new DirectoryNotFoundError('"' . $app_path . '" does not point to an installable app!', '6T5TZN5');
-        }
-        return $app_path;
     }
 
     /**

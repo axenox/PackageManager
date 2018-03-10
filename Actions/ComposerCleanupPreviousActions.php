@@ -5,6 +5,10 @@ use exface\Core\Interfaces\Actions\iModifyData;
 use exface\Core\CommonLogic\AbstractAction;
 use axenox\PackageManager\StaticInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\Interfaces\Tasks\TaskInterface;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
+use exface\Core\Interfaces\Tasks\TaskResultInterface;
+use exface\Core\CommonLogic\Tasks\TaskResultMessage;
 
 /**
  * This action cleans up all remains of previous composer actions if something went wrong.
@@ -29,20 +33,19 @@ class ComposerCleanupPreviousActions extends AbstractAction implements iModifyDa
         $this->setIcon(Icons::WRENCH);
     }
 
+    
     /**
-     *
-     * {@inheritdoc}
-     *
-     * @see \axenox\PackageManager\Actions\AbstractComposerAction::perform()
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractAction::perform()
      */
-    protected function perform()
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : TaskResultInterface
     {
         $installer = new StaticInstaller();
         $result = '';
         $result .= $installer::composerFinishInstall();
         $result .= $installer::composerFinishUpdate();
-        $this->setResultMessage($result);
-        $this->setResult('');
+        return new TaskResultMessage($task, $result);
     }
 }
 ?>
