@@ -8,8 +8,8 @@ use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
-use exface\Core\Interfaces\Tasks\TaskResultInterface;
-use exface\Core\CommonLogic\Tasks\TaskResultMessage;
+use exface\Core\Interfaces\Tasks\ResultInterface;
+use exface\Core\CommonLogic\Tasks\ResultMessage;
 
 /**
  * This action uninstalls one or more apps
@@ -31,7 +31,7 @@ class UninstallApp extends InstallApp
      * {@inheritDoc}
      * @see \exface\Core\CommonLogic\AbstractAction::perform()
      */
-    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : TaskResultInterface
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
         $workbench = $this->getWorkbench();
         $installed_counter = 0;
@@ -50,7 +50,7 @@ class UninstallApp extends InstallApp
         
         $workbench->clearCache();
         
-        return new TaskResultMessage($task, $message);
+        return new ResultMessage($task, $message);
     }
 
     /**

@@ -5,10 +5,10 @@ use exface\Core\CommonLogic\ArchiveManager;
 use exface\Core\Factories\AppFactory;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
-use exface\Core\Interfaces\Tasks\TaskResultInterface;
+use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
-use exface\Core\CommonLogic\Tasks\TaskResultMessage;
+use exface\Core\CommonLogic\Tasks\ResultMessage;
 
 /**
  * This Action adds all files of a designated folder into a ZIP Archive
@@ -37,7 +37,7 @@ class ZipFile extends InstallApp
      * {@inheritDoc}
      * @see \exface\Core\CommonLogic\AbstractAction::perform()
      */
-    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : TaskResultInterface
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
         $exface = $this->getWorkbench();
         $message = '';
@@ -64,7 +64,7 @@ class ZipFile extends InstallApp
         }
         $zipManager->archiveClose();
         
-        return new TaskResultMessage($task, $message);
+        return new ResultMessage($task, $message);
     }
 
     /**

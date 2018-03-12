@@ -8,7 +8,7 @@ use exface\Core\Factories\WidgetFactory;
 use kabachello\ComposerAPI\ComposerAPI;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
-use exface\Core\Interfaces\Tasks\TaskResultInterface;
+use exface\Core\Interfaces\Tasks\ResultInterface;
 
 /**
  * This action runs one or more selected test steps
@@ -48,7 +48,7 @@ abstract class AbstractComposerAction extends ShowDialog
      * {@inheritDoc}
      * @see \exface\Core\CommonLogic\AbstractAction::perform()
      */
-    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : TaskResultInterface
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
         $result = parent::perform($task, $transaction);
         $output = $this->performComposerAction($this->getComposer(), $task);

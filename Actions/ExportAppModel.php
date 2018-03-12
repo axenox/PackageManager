@@ -11,8 +11,8 @@ use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
-use exface\Core\Interfaces\Tasks\TaskResultInterface;
-use exface\Core\CommonLogic\Tasks\TaskResultMessage;
+use exface\Core\Interfaces\Tasks\ResultInterface;
+use exface\Core\CommonLogic\Tasks\ResultMessage;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
@@ -38,7 +38,7 @@ class ExportAppModel extends AbstractAction
      * {@inheritDoc}
      * @see \exface\Core\CommonLogic\AbstractAction::perform()
      */
-    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : TaskResultInterface
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
         $apps = $this->getInputAppsDataSheet($task);
         
@@ -63,7 +63,7 @@ class ExportAppModel extends AbstractAction
         // Save the result and output a message for the user
         $message = 'Exported model files and pages for ' . $exported_counter . ' apps to app-folders into ' . ($this->getExportToPathRelative() ? '"' . $this->getExportToPathRelative() . '"' : ' the respective app folders') . '.';
         
-        return new TaskResultMessage($task, $message);
+        return new ResultMessage($task, $message);
     }
 
     /**

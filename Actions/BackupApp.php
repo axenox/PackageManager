@@ -12,8 +12,8 @@ use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
-use exface\Core\Interfaces\Tasks\TaskResultInterface;
-use exface\Core\CommonLogic\Tasks\TaskResultMessage;
+use exface\Core\Interfaces\Tasks\ResultInterface;
+use exface\Core\CommonLogic\Tasks\ResultMessage;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -39,7 +39,7 @@ class BackupApp extends InstallApp
      * {@inheritDoc}
      * @see \exface\Core\CommonLogic\AbstractAction::perform()
      */
-    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : TaskResultInterface
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
         $exface = $this->getWorkbench();
         $backup_counter = 0;
@@ -65,7 +65,7 @@ class BackupApp extends InstallApp
             $message .= 'No backups have been created';
         }
         
-        return new TaskResultMessage($task, $message);
+        return new ResultMessage($task, $message);
     }
 
     /**
