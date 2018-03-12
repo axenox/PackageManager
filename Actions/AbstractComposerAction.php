@@ -41,7 +41,7 @@ abstract class AbstractComposerAction extends ShowDialog
      *
      * @return OutputInterface
      */
-    protected abstract function performComposerAction(ComposerAPI $composer);
+    protected abstract function performComposerAction(ComposerAPI $composer, TaskInterface $task);
 
     /**
      *
@@ -51,7 +51,7 @@ abstract class AbstractComposerAction extends ShowDialog
     protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : TaskResultInterface
     {
         $result = parent::perform($task, $transaction);
-        $output = $this->performComposerAction($this->getComposer());
+        $output = $this->performComposerAction($this->getComposer(), $task);
         $output_text = $this->dumpOutput($output);
         $result->setMessage($output_text);
         
