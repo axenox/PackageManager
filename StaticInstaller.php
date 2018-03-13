@@ -124,27 +124,30 @@ class StaticInstaller
         }
         
         // Cleanup backup
-        self::printToStdout("Delete unused backup components:\n");
-        $installer = new self();
-        $apps = $installer->getAllApps();
-        $backupTime = $temp['backupTime'];
-        $unlinkResult = array();
-
-        foreach($apps as $app){
-
-            if (! in_array($app, $updatedPackages)){
-                $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
+        if (array_key_exists('backupTime', $temp)) {
+            self::printToStdout("Delete unused backup components:\n");
+            $installer = new self();
+            $apps = $installer->getAllApps();
+            $backupTime = $temp['backupTime'];
+            $unlinkResult = array();
+    
+            foreach($apps as $app){
+    
+                if (! in_array($app, $updatedPackages)){
+                    $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
+                }
+            }
+            $installer->copyTempFile($backupTime);
+            if (!in_array(false,$unlinkResult)){
+                self::printToStdout("Cleared backup from excess data.\n");
+            } else {
+                self::printToStdout("Could not clear backup.\n");
             }
         }
-        $installer->copyTempFile($backupTime);
+        
         unset($temp['update']);
-        if (!in_array(false,$unlinkResult)){
-            self::printToStdout("Cleared backup from excess data.\n");
-            self::setTempFile($temp);
-        }
-        else {
-            self::printToStdout("Could not clear backup.\n");
-        }
+        self::setTempFile($temp);
+        
         // If composer is performing an update operation, it will install new packages, but will not trigger the post-install-cmd
         // As a workaround, we just trigger finish_install() here by hand
         if (array_key_exists('install', $temp)) {
@@ -181,13 +184,8 @@ class StaticInstaller
                 self::printToStdout($text);
             }
 
-        }
-        catch(\Exception $e){
-            if ($e instanceof ExceptionInterface){
-                $log_hint = ' (see log ID ' . $e->getId() . ')';
-            }
-            self::printToStdout('-> '.$app_alias. "Could not delete 'backup! \n");
-            self::printToStdout($e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . $log_hint."\n");
+        } catch (\Throwable $e){
+            static::printException($e);
             $exface->getLogger()->logException($e);
             return false;
         }
@@ -208,9 +206,10 @@ class StaticInstaller
         $temp = self::getTempFile();
         $temp['backupTime'] = $backupTime;
         self::setTempFile($temp);
+        $backupPath = $installer->getWorkbench()->filemanager()->getPathToBackupFolder();
         $backupPath = "autobackup".DIRECTORY_SEPARATOR.$backupTime;
-        self::printToStdout("Initializing automatic backup to ".$backupPath."\n");
-        foreach( $apps as $app){
+        self::printToStdout("Starting automatic backup to ".$backupPath);
+        foreach($apps as $app){
             $installer->backup($app, $backupPath);
         }
         return $backupPath;
@@ -236,10 +235,9 @@ class StaticInstaller
      */
     public function backup($app_alias, $backupPath){
         $exface = $this->getWorkbench();
-        $result = '';
-
+        $text = "-> {$app_alias} being backed up to {$backupPath}...";
+        
         try {
-            $text = '-> '.$app_alias. " - Create backup at ".$backupPath."\n";
             self::printToStdout($text);
             $app_selector = new AppSelector($exface, $app_alias);
             $backupAction = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_BACKUP_ACTION_ALIAS);
@@ -248,25 +246,21 @@ class StaticInstaller
             if ($exface->filemanager()->exists($backupDir)){
                 $backupAction->setBackupPath($backupPath);
                 $backupAction->backup($app_selector);
-                $text = '-> '.$app_alias. " - Backup was created successfully\n\n";
-                self::printToStdout($text);
+                $text .= " DONE!";
             }
             else {
-
-                $text = '-> '.$app_alias. " - Directory can't be found at ".$backupDir.". Check your database for old app definitions that have since been uninstalled.\n\n";
-                self::printToStdout($text);
+                $text .= ' SKIPPED - app not installed correctly?';
+                $exface->getLogger()->error("No folder for app {$app_alias} can be found at {$backupDir}. Check your database for old app definitions that have since been uninstalled.");
             }
+            self::printToStdout($text);
 
-        }
-        catch(\Exception $e){
-            if ($e instanceof ExceptionInterface){
-                $log_hint = ' (see log ID ' . $e->getId() . ')';
-            }
-            self::printToStdout('-> Error in ' . $app_alias . "! \n");
-            self::printToStdout($e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . $log_hint."\n");
+        } catch (\Throwable $e){
+            $text .= ' FAILED!';
+            self::printToStdout($text);
+            self::printException($e);
             $exface->getLogger()->logException($e);
         }
-        return $result;
+        return $text;
     }
     public static function composerPrepareUninstall(PackageEvent $composer_event)
     {
@@ -299,11 +293,9 @@ class StaticInstaller
             $exface = $this->getWorkbench();
             $app_selector = new AppSelector($exface, $app_alias);
             $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS)->install($app_selector);
-        } catch (\Exception $e) {
-            if ($e instanceof ExceptionInterface){
-                $log_hint = ' (see log ID ' . $e->getId() . ')';
-            }
-            $result .= $e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . $log_hint;
+        } catch (\Throwable $e) {
+            $this::printToStdout('FAILED installing ' . $app_alias . '!');
+            $this::printException($e);
             $exface->getLogger()->logException($e);
         }
         return $result;
@@ -316,11 +308,9 @@ class StaticInstaller
             $exface = $this->getWorkbench();
             $app_selector = new AppSelector($exface, $app_alias);
             $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS)->uninstall($app_selector);
-        } catch (\Exception $e) {
-            if ($e instanceof ExceptionInterface){
-                $log_hint = ' (see log ID ' . $e->getId() . ')';
-            }
-            $result .= $e->getMessage() . $log_hint;
+        } catch (\Throwable $e) {
+            $this::printToStdout('FAILED uninstalling ' . $app_alias . '!');
+            $this::printException($e);
             $exface->getLogger()->logException($e);
         }
         return $result;
@@ -337,9 +327,16 @@ class StaticInstaller
             try {
                 $this->workbench = Workbench::startNewInstance();
             } catch (\Throwable $e) {
-                $workbench = new Workbench();
-                $workbench->getLogger()->logException($e);
-                return $workbench;
+                $this::printToStdout('FAILED to start workbench!');
+                $this::printException($e);
+                try {
+                    $workbench = new Workbench();
+                    $workbench->getLogger()->logException($e);
+                    return $workbench;
+                } catch (\Throwable $e2) {
+                    $this::printToStdout('FAILED to start logger!');
+                    $this::printException($e2);
+                }
             }
         }
         return $this->workbench;
@@ -397,10 +394,22 @@ class StaticInstaller
     protected static function printToStdout($text)
     {
         if (is_resource(STDOUT)) {
-            fwrite(STDOUT, $text);
+            fwrite(STDOUT, $text . "\n");
             return true;
         }
         return false;
+    }
+    
+    protected static function printException(\Throwable $e, $prefix = 'ERROR ') 
+    {
+        if ($e instanceof ExceptionInterface){
+            $log_hint = 'See log ID ' . $e->getId();
+        }
+        static::printToStdout($e->__toString() . "\n-> " . $log_hint . "\n");
+        
+        if ($p = $e->getPrevious()) {
+            static::printException($p);
+        }
     }
 
     public static function getCoreAppAlias()
@@ -408,4 +417,3 @@ class StaticInstaller
         return 'exface.Core';
     }
 }
-?>
