@@ -181,13 +181,8 @@ class StaticInstaller
                 self::printToStdout($text);
             }
 
-        }
-        catch(\Exception $e){
-            if ($e instanceof ExceptionInterface){
-                $log_hint = ' (see log ID ' . $e->getId() . ')';
-            }
-            self::printToStdout('-> '.$app_alias. "Could not delete 'backup! \n");
-            self::printToStdout($e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . $log_hint."\n");
+        } catch (\Throwable $e){
+            static::printException($e);
             $exface->getLogger()->logException($e);
             return false;
         }
@@ -257,13 +252,9 @@ class StaticInstaller
                 self::printToStdout($text);
             }
 
-        }
-        catch(\Exception $e){
-            if ($e instanceof ExceptionInterface){
-                $log_hint = ' (see log ID ' . $e->getId() . ')';
-            }
-            self::printToStdout('-> Error in ' . $app_alias . "! \n");
-            self::printToStdout($e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . $log_hint."\n");
+        } catch (\Throwable $e){
+            self::printToStdout('FAILED to back up ' . $app_alias . "!");
+            self::printException($e);
             $exface->getLogger()->logException($e);
         }
         return $result;
@@ -299,11 +290,9 @@ class StaticInstaller
             $exface = $this->getWorkbench();
             $app_selector = new AppSelector($exface, $app_alias);
             $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS)->install($app_selector);
-        } catch (\Exception $e) {
-            if ($e instanceof ExceptionInterface){
-                $log_hint = ' (see log ID ' . $e->getId() . ')';
-            }
-            $result .= $e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine() . $log_hint;
+        } catch (\Throwable $e) {
+            $this::printToStdout('FAILED installing ' . $app_alias . '!');
+            $this::printException($e);
             $exface->getLogger()->logException($e);
         }
         return $result;
@@ -316,11 +305,9 @@ class StaticInstaller
             $exface = $this->getWorkbench();
             $app_selector = new AppSelector($exface, $app_alias);
             $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS)->uninstall($app_selector);
-        } catch (\Exception $e) {
-            if ($e instanceof ExceptionInterface){
-                $log_hint = ' (see log ID ' . $e->getId() . ')';
-            }
-            $result .= $e->getMessage() . $log_hint;
+        } catch (\Throwable $e) {
+            $this::printToStdout('FAILED uninstalling ' . $app_alias . '!');
+            $this::printException($e);
             $exface->getLogger()->logException($e);
         }
         return $result;
@@ -337,9 +324,16 @@ class StaticInstaller
             try {
                 $this->workbench = Workbench::startNewInstance();
             } catch (\Throwable $e) {
-                $workbench = new Workbench();
-                $workbench->getLogger()->logException($e);
-                return $workbench;
+                $this::printToStdout('FAILED to start workbench!');
+                $this::printException($e);
+                try {
+                    $workbench = new Workbench();
+                    $workbench->getLogger()->logException($e);
+                    return $workbench;
+                } catch (\Throwable $e2) {
+                    $this::printToStdout('FAILED to start logger!');
+                    $this::printException($e2);
+                }
             }
         }
         return $this->workbench;
@@ -397,10 +391,22 @@ class StaticInstaller
     protected static function printToStdout($text)
     {
         if (is_resource(STDOUT)) {
-            fwrite(STDOUT, $text);
+            fwrite(STDOUT, $text . "\n");
             return true;
         }
         return false;
+    }
+    
+    protected static function printException(\Throwable $e, $prefix = 'ERROR ') 
+    {
+        if ($e instanceof ExceptionInterface){
+            $log_hint = 'See log ID ' . $e->getId();
+        }
+        static::printToStdout($e->__toString() . "\n-> " . $log_hint . "\n";
+        
+        if ($p = $e->getPrevious()) {
+            static::printException($p);
+        }
     }
 
     public static function getCoreAppAlias()
