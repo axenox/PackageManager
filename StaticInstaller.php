@@ -402,7 +402,7 @@ class StaticInstaller
         if ($e instanceof ExceptionInterface){
             $log_hint = 'See log ID ' . $e->getId();
         }
-        static::printToStdout($e->__toString() . "\n-> " . $log_hint . "\n";
+        static::printToStdout($e->__toString() . "\n-> " . $log_hint . "\n");
         
         if ($p = $e->getPrevious()) {
             static::printException($p);
@@ -414,4 +414,3 @@ class StaticInstaller
         return 'exface.Core';
     }
 }
-?>
