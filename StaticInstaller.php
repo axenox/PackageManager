@@ -124,27 +124,30 @@ class StaticInstaller
         }
         
         // Cleanup backup
-        self::printToStdout("Delete unused backup components:\n");
-        $installer = new self();
-        $apps = $installer->getAllApps();
-        $backupTime = $temp['backupTime'];
-        $unlinkResult = array();
-
-        foreach($apps as $app){
-
-            if (! in_array($app, $updatedPackages)){
-                $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
+        if (array_key_exists('backupTime', $temp)) {
+            self::printToStdout("Delete unused backup components:\n");
+            $installer = new self();
+            $apps = $installer->getAllApps();
+            $backupTime = $temp['backupTime'];
+            $unlinkResult = array();
+    
+            foreach($apps as $app){
+    
+                if (! in_array($app, $updatedPackages)){
+                    $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
+                }
+            }
+            $installer->copyTempFile($backupTime);
+            if (!in_array(false,$unlinkResult)){
+                self::printToStdout("Cleared backup from excess data.\n");
+            } else {
+                self::printToStdout("Could not clear backup.\n");
             }
         }
-        $installer->copyTempFile($backupTime);
+        
         unset($temp['update']);
-        if (!in_array(false,$unlinkResult)){
-            self::printToStdout("Cleared backup from excess data.\n");
-            self::setTempFile($temp);
-        }
-        else {
-            self::printToStdout("Could not clear backup.\n");
-        }
+        self::setTempFile($temp);
+        
         // If composer is performing an update operation, it will install new packages, but will not trigger the post-install-cmd
         // As a workaround, we just trigger finish_install() here by hand
         if (array_key_exists('install', $temp)) {
@@ -203,9 +206,10 @@ class StaticInstaller
         $temp = self::getTempFile();
         $temp['backupTime'] = $backupTime;
         self::setTempFile($temp);
+        $backupPath = $installer->getWorkbench()->filemanager()->getPathToBackupFolder();
         $backupPath = "autobackup".DIRECTORY_SEPARATOR.$backupTime;
-        self::printToStdout("Initializing automatic backup to ".$backupPath."\n");
-        foreach( $apps as $app){
+        self::printToStdout("Starting automatic backup to ".$backupPath);
+        foreach($apps as $app){
             $installer->backup($app, $backupPath);
         }
         return $backupPath;
@@ -231,10 +235,9 @@ class StaticInstaller
      */
     public function backup($app_alias, $backupPath){
         $exface = $this->getWorkbench();
-        $result = '';
-
+        $text = "-> {$app_alias} being backed up to {$backupPath}...";
+        
         try {
-            $text = '-> '.$app_alias. " - Create backup at ".$backupPath."\n";
             self::printToStdout($text);
             $app_selector = new AppSelector($exface, $app_alias);
             $backupAction = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_BACKUP_ACTION_ALIAS);
@@ -243,21 +246,21 @@ class StaticInstaller
             if ($exface->filemanager()->exists($backupDir)){
                 $backupAction->setBackupPath($backupPath);
                 $backupAction->backup($app_selector);
-                $text = '-> '.$app_alias. " - Backup was created successfully\n\n";
-                self::printToStdout($text);
+                $text .= " DONE!";
             }
             else {
-
-                $text = '-> '.$app_alias. " - Directory can't be found at ".$backupDir.". Check your database for old app definitions that have since been uninstalled.\n\n";
-                self::printToStdout($text);
+                $text .= ' SKIPPED - app not installed correctly?';
+                $exface->getLogger()->error("No folder for app {$app_alias} can be found at {$backupDir}. Check your database for old app definitions that have since been uninstalled.");
             }
+            self::printToStdout($text);
 
         } catch (\Throwable $e){
-            self::printToStdout('FAILED to back up ' . $app_alias . "!");
+            $text .= ' FAILED!';
+            self::printToStdout($text);
             self::printException($e);
             $exface->getLogger()->logException($e);
         }
-        return $result;
+        return $text;
     }
     public static function composerPrepareUninstall(PackageEvent $composer_event)
     {
