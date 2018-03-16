@@ -47,7 +47,9 @@ class InstallApp extends AbstractAction
         $installed_counter = 0;
         $message = '';
         
-        foreach ($this->getTargetAppAliases() as $app_alias) {
+        $aliases = $this->getTargetAppAliases($task);
+        
+        foreach ($aliases as $app_alias) {
             $message .= "Installing " . $app_alias . "...\n";
             $app_selector = new AppSelector($exface, $app_alias);
             try {
@@ -61,7 +63,7 @@ class InstallApp extends AbstractAction
             }
         }
         
-        if (count($this->getTargetAppAliases()) == 0) {
+        if (count($aliases) == 0) {
             $message .= 'No installable apps had been selected!';
         } elseif ($installed_counter == 0) {
             $message .= 'No apps have been installed';
