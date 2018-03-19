@@ -4,10 +4,10 @@ namespace axenox\PackageManager\Actions;
 use axenox\PackageManager\MetaModelInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
-use exface\Core\CommonLogic\Tasks\ResultMessage;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
+use exface\Core\Factories\ResultFactory;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
@@ -53,7 +53,7 @@ class ImportAppModel extends InstallApp
         
         $workbench->clearCache();
         
-        return new ResultMessage($task, $message);
+        return ResultFactory::createMessageResult($task, $message);
     }
 }
 ?>

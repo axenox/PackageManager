@@ -8,7 +8,7 @@ use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
-use exface\Core\CommonLogic\Tasks\ResultMessage;
+use exface\Core\Factories\ResultFactory;
 
 /**
  * This action cleans up all remains of previous composer actions if something went wrong.
@@ -45,7 +45,7 @@ class ComposerCleanupPreviousActions extends AbstractAction implements iModifyDa
         $result = '';
         $result .= $installer::composerFinishInstall();
         $result .= $installer::composerFinishUpdate();
-        return new ResultMessage($task, $result);
+        return ResultFactory::createMessageResult($task, $result);
     }
 }
 ?>

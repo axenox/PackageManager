@@ -14,7 +14,7 @@ use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
-use exface\Core\CommonLogic\Tasks\ResultMessage;
+use exface\Core\Factories\ResultFactory;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -71,7 +71,7 @@ class InstallApp extends AbstractAction
         
         $this->getWorkbench()->clearCache();
         
-        return new ResultMessage($task, $message);
+        return ResultFactory::createMessageResult($task, $message);
     }
 
     /**

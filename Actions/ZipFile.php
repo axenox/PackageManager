@@ -8,7 +8,7 @@ use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
-use exface\Core\CommonLogic\Tasks\ResultMessage;
+use exface\Core\Factories\ResultFactory;
 
 /**
  * This Action adds all files of a designated folder into a ZIP Archive
@@ -64,7 +64,7 @@ class ZipFile extends InstallApp
         }
         $zipManager->archiveClose();
         
-        return new ResultMessage($task, $message);
+        return ResultFactory::createMessageResult($task, $message);
     }
 
     /**

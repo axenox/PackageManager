@@ -12,7 +12,7 @@ use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
-use exface\Core\CommonLogic\Tasks\ResultMessage;
+use exface\Core\Factories\ResultFactory;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
@@ -63,7 +63,7 @@ class ExportAppModel extends AbstractAction
         // Save the result and output a message for the user
         $message = 'Exported model files and pages for ' . $exported_counter . ' apps to app-folders into ' . ($this->getExportToPathRelative() ? '"' . $this->getExportToPathRelative() . '"' : ' the respective app folders') . '.';
         
-        return new ResultMessage($task, $message);
+        return ResultFactory::createMessageResult($task, $message);
     }
 
     /**
