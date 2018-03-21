@@ -7,7 +7,6 @@ use Composer\Script\Event;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Factories\DataSheetFactory;
-require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
 
 /**
  * The app installer is a simplified wrapper for the package manager actions, which simplifies installing apps from outside of
@@ -322,6 +321,7 @@ class StaticInstaller
      */
     protected function getWorkbench()
     {
+        $this->importSources();
         if (is_null($this->workbench)) {
             error_reporting(E_ALL ^ E_NOTICE);
             try {
@@ -415,5 +415,10 @@ class StaticInstaller
     public static function getCoreAppAlias()
     {
         return 'exface.Core';
+    }
+    
+    protected static function importSources()
+    {
+        require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
     }
 }
