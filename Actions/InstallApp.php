@@ -15,6 +15,7 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Factories\ResultFactory;
+use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -150,7 +151,8 @@ class InstallApp extends AbstractAction
      */
     protected function getAppAbsolutePath(AppSelectorInterface $app_selector) : string
     {
-        $app_path = $app_selector->getFolderAbsolute();
+        $app_path = $this->getWorkbench()->filemanager()->getPathToVendorFolder();
+        $app_path .= str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, DIRECTORY_SEPARATOR, $app_selector->getAppAlias());
         if (! file_exists($app_path) || ! is_dir($app_path)) {
             throw new DirectoryNotFoundError('"' . $app_path . '" does not point to an installable app!', '6T5TZN5');
         }

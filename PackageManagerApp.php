@@ -30,7 +30,7 @@ class PackageManagerApp extends App
         }
         
         // Create the app folder
-        $app_folder = $app_vendor_folder . DIRECTORY_SEPARATOR . $app_selector->getAlias();
+        $app_folder = $this->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR . $app_selector->getAlias();
         if (! is_dir($app_folder)) {
             mkdir($app_folder);
         }

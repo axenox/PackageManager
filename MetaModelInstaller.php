@@ -11,6 +11,7 @@ use exface\Core\CommonLogic\Model\ConditionGroup;
 use exface\Core\CommonLogic\Model\Aggregator;
 use exface\Core\DataTypes\AggregatorFunctionsDataType;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
+use exface\Core\Behaviors\TimeStampingBehavior;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -243,7 +244,7 @@ class MetaModelInstaller extends AbstractAppInstaller
                 // Disable timestamping behavior because it will prevent multiple installations of the same
                 // model since the first install will set the update timestamp to something later than the
                 // timestamp saved in the model files
-                if ($behavior = $data_sheet->getMetaObject()->getBehaviors()->getByAlias('exface.Core.Behaviors.TimeStampingBehavior')) {
+                foreach ($data_sheet->getMetaObject()->getBehaviors()->getByPrototypeClass(TimeStampingBehavior::class) as $behavior) {
                     $behavior->disable();
                 }
                 
