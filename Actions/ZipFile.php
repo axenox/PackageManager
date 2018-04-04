@@ -41,7 +41,6 @@ class ZipFile extends InstallApp
     {
         $exface = $this->getWorkbench();
         $message = '';
-        $zipManager = new ArchiveManager($exface);
         
         $filename = DIRECTORY_SEPARATOR . $this->file_name . ".zip";
         foreach ($this->getTargetAppAliases() as $app_alias) {
@@ -56,13 +55,13 @@ class ZipFile extends InstallApp
                 $backupDir .= DIRECTORY_SEPARATOR . $this->getFilePath();
             }
         }
-        $zipManager->setFilePath($backupDir . $filename);
-        if ($zipManager->addFolderFromSource($backupDir)) {
+        $zipManager = new ArchiveManager($exface, $filename);
+        if ($zipManager->addFolder($backupDir)) {
             $message .= "\n\nSuccessfully added the folder " . $this->file_path . " to archive!";
         } else {
             $message .= "\n\nCould not add folder " . $this->file_path . " to archive!";
         }
-        $zipManager->archiveClose();
+        $zipManager->close();
         
         return ResultFactory::createMessageResult($task, $message);
     }
