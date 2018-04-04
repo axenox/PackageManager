@@ -13,6 +13,7 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Factories\ResultFactory;
+use exface\Core\CommonLogic\Filemanager;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
@@ -46,11 +47,9 @@ class ExportAppModel extends AbstractAction
         $exported_counter = 0;
         foreach ($apps->getRows() as $row) {
             $app_selector = new AppSelector($workbench, $row['ALIAS']);
-            try {
-                $app = $workbench->getApp($row['ALIAS']);
-            } catch (AppNotFoundError $e) {
-                $this->getApp()->createAppFolder($app_selector);
-                $app = $workbench->getApp($row['ALIAS']);
+            $app = $workbench->getApp($row['ALIAS']);
+            if (! file_exists($app->getDirectoryAbsolutePath())) {
+                $this->getApp()->createAppFolder($app);
             }
             
             $installer = new MetaModelInstaller($app_selector);

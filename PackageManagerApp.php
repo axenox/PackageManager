@@ -20,24 +20,11 @@ class PackageManagerApp extends App
         return $this->getWorkbench()->filemanager();
     }
 
-    public function createAppFolder(AppSelectorInterface $app_selector)
+    public function createAppFolder(AppInterface $app)
     {
-        
-        // Make sure the vendor folder exists
-        $app_vendor_folder = $this->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR . $app_selector->getVendorAlias();
-        if (! is_dir($app_vendor_folder)) {
-            mkdir($app_vendor_folder);
-        }
-        
-        // Create the app folder
-        $app_folder = $this->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR . $app_selector->getAlias();
-        if (! is_dir($app_folder)) {
-            mkdir($app_folder);
-        }
-        
-        $app = AppFactory::create($app_selector);
-        
+        Filemanager::pathConstruct($app->getDirectoryAbsolutePath());
         $this->createComposerJson($app);
+        return $this;
     }
 
     /**
