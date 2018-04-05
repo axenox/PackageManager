@@ -77,7 +77,7 @@ class BackupApp extends InstallApp
         $app = AppFactory::create($appSelector);
         
         $installer = $app->getInstaller(new MetaModelInstaller($appSelector));
-        $directory = $appSelector->getFolderRelativeToVendorFolder();
+        $directory = $appSelector->getFolderRelativePath();
         if ($this->getBackupPath() == '') {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
             $sDirName = date('Y_m_d_H_m');

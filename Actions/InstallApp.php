@@ -151,8 +151,8 @@ class InstallApp extends AbstractAction
      */
     protected function getAppAbsolutePath(AppSelectorInterface $app_selector) : string
     {
-        $app_path = $this->getWorkbench()->filemanager()->getPathToVendorFolder();
-        $app_path .= str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, DIRECTORY_SEPARATOR, $app_selector->getAppAlias());
+        $app_path = $this->getWorkbench()->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR;
+        $app_path .= $this->getWorkbench()->getAppFolder($app_selector);
         if (! file_exists($app_path) || ! is_dir($app_path)) {
             throw new DirectoryNotFoundError('"' . $app_path . '" does not point to an installable app!', '6T5TZN5');
         }
