@@ -313,8 +313,8 @@ class PageInstaller extends AbstractAppInstaller
                 // Ist die parent-Seite der Root, dann wird ein leerer MenuParentPageAlias gespeichert.
                 // Dadurch wird die Seite beim Hinzufuegen auf einem anderen System automatisch im Root
                 // eingehaengt, auch wenn der an einer anderen Stelle ist als auf diesem System.
-                if ($page->getMenuParentPageAlias() && ($cms->getPageIdInCms($page->getMenuParentPage()) == $cms->getPageIdRoot())) {
-                    $page->setMenuParentPageAlias('');
+                if ($page->getMenuParentPageAlias() === null || ($cms->getPageIdInCms($page->getMenuParentPage()) == $cms->getPageIdRoot())) {
+                    $page->setMenuParentPageAlias("");
                 }
                 
                 // Hat die Seite keine UID wird ein Fehler geworfen. Ohne UID kann die Seite nicht
