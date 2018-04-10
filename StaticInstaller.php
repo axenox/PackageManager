@@ -22,11 +22,11 @@ class StaticInstaller
 
     const PACKAGE_MANAGER_APP_ALIAS = 'axenox.PackageManager';
 
-    const PACKAGE_MANAGER_INSTALL_ACTION_ALIAS = 'InstallApp';
+    const PACKAGE_MANAGER_INSTALL_ACTION_ALIAS = 'axenox.PackageManager.InstallApp';
 
-    const PACKAGE_MANAGER_BACKUP_ACTION_ALIAS = 'BackupApp';
+    const PACKAGE_MANAGER_BACKUP_ACTION_ALIAS = 'axenox.PackageManager.BackupApp';
 
-    const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'UninstallApp';
+    const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'axenox.PackageManager.UninstallApp';
 
     private $workbench = null;
 
