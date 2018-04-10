@@ -6,6 +6,10 @@ use exface\Core\Interfaces\AppInterface;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
+use exface\Core\Interfaces\Tasks\TaskInterface;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
+use exface\Core\Interfaces\Tasks\ResultInterface;
+use exface\Core\Factories\ResultFactory;
 
 /**
  * This action uninstalls one or more apps
@@ -22,28 +26,31 @@ class UninstallApp extends InstallApp
         $this->setIcon(Icons::UNINSTALL);
     }
 
-    protected function perform()
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     */
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
-        $exface = $this->getWorkbench();
+        $workbench = $this->getWorkbench();
         $installed_counter = 0;
         foreach ($this->getTargetAppAliases() as $app_alias) {
-            $this->addResultMessage("Uninstalling " . $app_alias . "...\n");
-            $app_selector = new AppSelector($exface, $app_alias);
+            $message .= "Uninstalling " . $app_alias . "...\n";
+            $app_selector = new AppSelector($workbench, $app_alias);
             try {
                 $installed_counter ++;
                 $this->uninstall($app_selector);
             } catch (\Exception $e) {
                 $installed_counter --;
-                // FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
-                throw $e;
+                throw $workbench->getLogger()->logException($e);
             }
-            $this->addResultMessage($app_alias . " successfully uninstalled.\n");
+            $message .= $app_alias . " successfully uninstalled.\n";
         }
         
-        // Save the result and output a message for the user
-        $this->setResult('');
+        $workbench->clearCache();
         
-        return;
+        return ResultFactory::createMessageResult($task, $message);
     }
 
     /**
@@ -51,7 +58,7 @@ class UninstallApp extends InstallApp
      * @param AppSelectorInterface $app_selector            
      * @return void
      */
-    public function uninstall(AppSelectorInterface $app_selector)
+    public function uninstall(AppSelectorInterface $app_selector) : string
     {
         $result = '';
         
@@ -66,12 +73,10 @@ class UninstallApp extends InstallApp
         $result .= "\nModel changes: ";
         $result .= $this->uninstallModel($app);
         
-        // Save the result
-        $this->addResultMessage($result);
         return $result;
     }
 
-    public function uninstallModel(AppInterface $app)
+    public function uninstallModel(AppInterface $app) : string
     {
         $result = '';
         

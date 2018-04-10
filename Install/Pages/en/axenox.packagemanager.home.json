@@ -55,7 +55,7 @@
             {
                 "caption": "Install package",
                 "action": {
-                    "alias": "exface.Core.CreateObjectDialog",
+                    "alias": "exface.Core.ShowObjectCreateDialog",
                     "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
                     "save_action_alias": "axenox.PackageManager.ComposerRequire"
                 }

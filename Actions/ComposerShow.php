@@ -3,6 +3,7 @@ namespace axenox\PackageManager\Actions;
 
 use kabachello\ComposerAPI\ComposerAPI;
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 
 /**
  * This action runs one or more selected test steps
@@ -21,7 +22,7 @@ class ComposerShow extends AbstractComposerAction
         $this->setIcon(Icons::INFO);
     }
 
-    protected function performComposerAction(ComposerAPI $composer)
+    protected function performComposerAction(ComposerAPI $composer, TaskInterface $task)
     {
         $options = array();
         if ($this->getShowLatestVersions()) {

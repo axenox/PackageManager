@@ -6,6 +6,9 @@ use Symfony\Component\Console\Output\StreamOutput;
 use exface\Core\Actions\ShowDialog;
 use exface\Core\Factories\WidgetFactory;
 use kabachello\ComposerAPI\ComposerAPI;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
+use exface\Core\Interfaces\Tasks\ResultInterface;
 
 /**
  * This action runs one or more selected test steps
@@ -38,14 +41,19 @@ abstract class AbstractComposerAction extends ShowDialog
      *
      * @return OutputInterface
      */
-    protected abstract function performComposerAction(ComposerAPI $composer);
+    protected abstract function performComposerAction(ComposerAPI $composer, TaskInterface $task);
 
-    protected function perform()
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     */
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
-        parent::perform();
-        $output = $this->performComposerAction($this->getComposer());
+        $result = parent::perform($task, $transaction);
+        $output = $this->performComposerAction($this->getComposer(), $task);
         $output_text = $this->dumpOutput($output);
-        $this->setResultMessage($output_text);
+        $result->setMessage($output_text);
         
         $dialog = $this->getDialogWidget();
         $page = $dialog->getPage();
@@ -55,10 +63,10 @@ abstract class AbstractComposerAction extends ShowDialog
         $console_widget->setValue($output_text);
         $dialog->addWidget($console_widget);
         
-        return;
+        return $result;
     }
 
-    public function dumpOutput(OutputInterface $output_formatter)
+    protected function dumpOutput(OutputInterface $output_formatter)
     {
         $dump = '';
         if ($output_formatter instanceof StreamOutput) {

@@ -11,6 +11,11 @@ use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
+use exface\Core\Interfaces\Tasks\ResultInterface;
+use exface\Core\Factories\ResultFactory;
+use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -23,7 +28,7 @@ use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 class InstallApp extends AbstractAction
 {
 
-    private $target_app_aliases = array();
+    private $target_app_aliases = [];
 
     protected function init()
     {
@@ -32,70 +37,88 @@ class InstallApp extends AbstractAction
         $this->setInputRowsMax(null);
     }
 
-    protected function perform()
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     */
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
         $exface = $this->getWorkbench();
         $installed_counter = 0;
-        foreach ($this->getTargetAppAliases() as $app_alias) {
-            $this->addResultMessage("Installing " . $app_alias . "...\n");
+        $message = '';
+        
+        $aliases = $this->getTargetAppAliases($task);
+        
+        foreach ($aliases as $app_alias) {
+            $message .= "Installing " . $app_alias . "...\n";
             $app_selector = new AppSelector($exface, $app_alias);
             try {
                 $installed_counter ++;
-                $this->install($app_selector);
-                $this->addResultMessage("\n" . $app_alias . " successfully installed.\n");
+                $message .= $this->install($app_selector);
+                $message .= "\n" . $app_alias . " successfully installed.\n";
             } catch (\Exception $e) {
                 $installed_counter --;
                 $this->getWorkbench()->getLogger()->logException($e);
-                $this->addResultMessage("\n" . $app_alias . " could not be installed" . ($e instanceof ExceptionInterface ? ' (see log ID ' . $e->getId() . ')' : '') . ".\n");
+                $message .= "\n" . $app_alias . " could not be installed" . ($e instanceof ExceptionInterface ? ' (see log ID ' . $e->getId() . ')' : '') . ".\n";
             }
         }
         
-        if (count($this->getTargetAppAliases()) == 0) {
-            $this->addResultMessage('No installable apps had been selected!');
+        if (count($aliases) == 0) {
+            $message .= 'No installable apps had been selected!';
         } elseif ($installed_counter == 0) {
-            $this->addResultMessage('No apps have been installed');
+            $message .= 'No apps have been installed';
         }
         
         $this->getWorkbench()->clearCache();
         
-        // Save the result
-        $this->setResult('');
-        
-        return;
+        return ResultFactory::createMessageResult($task, $message);
     }
 
-    public function getTargetAppAliases()
+    /**
+     * 
+     * @param TaskInterface $task
+     * @throws ActionInputInvalidObjectError
+     * @return string[]
+     */
+    protected function getTargetAppAliases(TaskInterface $task) : array
     {
-        if (count($this->target_app_aliases) < 1 && $this->getInputDataSheet()) {
+        $input = $this->getInputDataSheet($task);
+        if (empty($this->target_app_aliases) && $input) {
             
-            if ($this->getInputDataSheet()->getMetaObject()->isExactly('exface.Core.APP')) {
-                $this->getInputDataSheet()->getColumns()->addFromExpression('ALIAS');
-                if (! $this->getInputDataSheet()->isEmpty()) {
-                    if (! $this->getInputDataSheet()->isFresh()) {
-                        $this->getInputDataSheet()->dataRead();
+            if ($input->getMetaObject()->isExactly('exface.Core.APP')) {
+                $input->getColumns()->addFromExpression('ALIAS');
+                if (! $input->isEmpty()) {
+                    if (! $input->isFresh()) {
+                        $input->dataRead();
                     }
-                } elseif (! $this->getInputDataSheet()->getFilters()->isEmpty()) {
-                    $this->getInputDataSheet()->dataRead();
+                } elseif (! $input->getFilters()->isEmpty()) {
+                    $input->dataRead();
                 }
-                $this->target_app_aliases = array_unique($this->getInputDataSheet()->getColumnValues('ALIAS', false));
-            } elseif ($this->getInputDataSheet()->getMetaObject()->isExactly('axenox.PackageManager.PACKAGE_INSTALLED')) {
-                $this->getInputDataSheet()->getColumns()->addFromExpression('app_alias');
-                if (! $this->getInputDataSheet()->isEmpty()) {
-                    if (! $this->getInputDataSheet()->isFresh()) {
-                        $this->getInputDataSheet()->dataRead();
+                $this->target_app_aliases = array_unique($input->getColumnValues('ALIAS', false));
+            } elseif ($input->getMetaObject()->isExactly('axenox.PackageManager.PACKAGE_INSTALLED')) {
+                $input->getColumns()->addFromExpression('app_alias');
+                if (! $input->isEmpty()) {
+                    if (! $input->isFresh()) {
+                        $input->dataRead();
                     }
-                } elseif (! $this->getInputDataSheet()->getFilters()->isEmpty()) {
-                    $this->getInputDataSheet()->dataRead();
+                } elseif (! $input->getFilters()->isEmpty()) {
+                    $input->dataRead();
                 }
-                $this->target_app_aliases = array_filter(array_unique($this->getInputDataSheet()->getColumnValues('app_alias', false)));
+                $this->target_app_aliases = array_filter(array_unique($input->getColumnValues('app_alias', false)));
             } else {
-                throw new ActionInputInvalidObjectError($this, 'The action "' . $this->getAliasWithNamespace() . '" can only be called on the meta objects "exface.Core.App" or "axenox.PackageManager.PACKAGE_INSTALLED" - "' . $this->getInputDataSheet()->getMetaObject()->getAliasWithNamespace() . '" given instead!');
+                throw new ActionInputInvalidObjectError($this, 'The action "' . $this->getAliasWithNamespace() . '" can only be called on the meta objects "exface.Core.App" or "axenox.PackageManager.PACKAGE_INSTALLED" - "' . $input->getMetaObject()->getAliasWithNamespace() . '" given instead!');
             }
         }
         
         return $this->target_app_aliases;
     }
 
+    /**
+     * 
+     * @param array $values
+     * @return \axenox\PackageManager\Actions\InstallApp
+     */
     public function setTargetAppAliases(array $values)
     {
         $this->target_app_aliases = $values;
@@ -107,7 +130,7 @@ class InstallApp extends AbstractAction
      * @param AppSelectorInterface $app_selector            
      * @return string
      */
-    public function install(AppSelectorInterface $app_selector)
+    public function install(AppSelectorInterface $app_selector) : string
     {
         $result = '';
         
@@ -117,7 +140,6 @@ class InstallApp extends AbstractAction
         $result .= $installer_result . (substr($installer_result, - 1) != '.' ? '.' : '');
         
         // Save the result
-        $this->addResultMessage($result);
         return $result;
     }
 
@@ -127,9 +149,10 @@ class InstallApp extends AbstractAction
      * @throws DirectoryNotFoundError
      * @return string
      */
-    public function getAppAbsolutePath(AppSelectorInterface $app_selector)
+    protected function getAppAbsolutePath(AppSelectorInterface $app_selector) : string
     {
-        $app_path = $app_selector->getFolderAbsolute();
+        $app_path = $this->getWorkbench()->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR;
+        $app_path .= $this->getWorkbench()->getAppFolder($app_selector);
         if (! file_exists($app_path) || ! is_dir($app_path)) {
             throw new DirectoryNotFoundError('"' . $app_path . '" does not point to an installable app!', '6T5TZN5');
         }

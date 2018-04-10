@@ -1,23 +1,30 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
-use exface\Core\CommonLogic\AbstractAction;
-use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\ArchiveManager;
 use exface\Core\Factories\AppFactory;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
+use exface\Core\Interfaces\Tasks\ResultInterface;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
+use exface\Core\Factories\ResultFactory;
 
 /**
  * This Action adds all files of a designated folder into a ZIP Archive
  */
-class ZipFile extends AbstractAction
+class ZipFile extends InstallApp
 {
 
     private $file_path = '';
 
     private $file_name = 'download';
 
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractAction::init()
+     */
     protected function init()
     {
         $this->setIcon(Icons::FILE_ARCHIVE_O);
@@ -25,11 +32,15 @@ class ZipFile extends AbstractAction
         $this->setInputRowsMax(null);
     }
 
-    protected function perform()
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     */
+    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
         $exface = $this->getWorkbench();
-        $result = '';
-        $zipManager = new ArchiveManager($exface);
+        $message = '';
         
         $filename = DIRECTORY_SEPARATOR . $this->file_name . ".zip";
         foreach ($this->getTargetAppAliases() as $app_alias) {
@@ -44,56 +55,15 @@ class ZipFile extends AbstractAction
                 $backupDir .= DIRECTORY_SEPARATOR . $this->getFilePath();
             }
         }
-        $zipManager->setFilePath($backupDir . $filename);
-        if ($zipManager->addFolderFromSource($backupDir)) {
-            $this->addResultMessage("\n\nSuccessfully added the folder " . $this->file_path . " to archive!" . $result);
+        $zipManager = new ArchiveManager($exface, $filename);
+        if ($zipManager->addFolder($backupDir)) {
+            $message .= "\n\nSuccessfully added the folder " . $this->file_path . " to archive!";
         } else {
-            $this->addResultMessage("\n\nCould not add folder " . $this->file_path . " to archive!" . $result);
+            $message .= "\n\nCould not add folder " . $this->file_path . " to archive!";
         }
-        $zipManager->archiveClose();
-        // Save the result and output a message for the user
-        $this->setResult('');
+        $zipManager->close();
         
-        return;
-    }
-
-    /**
-     * Get all affected apps
-     *
-     * @return array
-     * @throws ActionInputInvalidObjectError
-     */
-    public function getTargetAppAliases()
-    {
-        if ( count($this->target_app_aliases) < 1
-            && $input_data = $this->getInputDataSheet()){
-                
-                if ($input_data->getMetaObject()->isExactly('exface.Core.APP')){
-                    $input_data->getColumns()->addFromExpression('ALIAS');
-                    if (!$input_data->isEmpty()){
-                        if (!$input_data->isFresh()){
-                            $input_data->dataRead();
-                        }
-                    } elseif (!$input_data->getFilters()->isEmpty()){
-                        $input_data->dataRead();
-                    }
-                    $this->target_app_aliases = array_unique($input_data->getColumnValues('ALIAS', false));
-                } elseif ($input_data->getMetaObject()->isExactly('axenox.PackageManager.PACKAGE_INSTALLED')){
-                    $input_data->getColumns()->addFromExpression('app_alias');
-                    if (!$input_data->isEmpty()){
-                        if (!$input_data->isFresh()){
-                            $input_data->dataRead();
-                        }
-                    } elseif (!$input_data->getFilters()->isEmpty()){
-                        $input_data->dataRead();
-                    }
-                    $this->target_app_aliases = array_filter(array_unique($input_data->getColumnValues('app_alias', false)));
-                } else {
-                    throw new ActionInputInvalidObjectError($this, 'The action "' . $this->getAliasWithNamespace() . '" can only be called on the meta objects "exface.Core.App" or "axenox.PackageManager.PACKAGE_INSTALLED" - "' . $input_data->getMetaObject()->getAliasWithNamespace() . '" given instead!');
-                }
-        }
-        
-        return $this->target_app_aliases;
+        return ResultFactory::createMessageResult($task, $message);
     }
 
     /**
@@ -107,6 +77,10 @@ class ZipFile extends AbstractAction
         $this->file_path = str_replace("/", DIRECTORY_SEPARATOR, str_replace("\\", DIRECTORY_SEPARATOR, $value));
     }
 
+    /**
+     * 
+     * @return string
+     */
     public function getFilePath()
     {
         return $this->file_path;
@@ -123,6 +97,10 @@ class ZipFile extends AbstractAction
         $this->file_name = $value;
     }
 
+    /**
+     * 
+     * @return string
+     */
     public function getFileName()
     {
         return $this->file_name;

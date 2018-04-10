@@ -11,6 +11,8 @@ use exface\Core\Exceptions\UiPage\UiPageNotFoundError;
 use exface\Core\Exceptions\UiPage\UiPageIdMissingError;
 use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 use exface\Core\Exceptions\InvalidArgumentException;
+use exface\Core\Interfaces\Selectors\UiPageSelectorInterface;
+use exface\Core\Factories\SelectorFactory;
 
 class PageInstaller extends AbstractAppInstaller
 {
@@ -35,6 +37,9 @@ class PageInstaller extends AbstractAppInstaller
     public function install($source_absolute_path)
     {
         $pagesFile = [];
+        $workbench = $this->getWorkbench();
+        $cms = $workbench->getCMS();
+        
         // FIXME make the installer get all languages instead of only the default one.
         $dir = $this->getPagesPathWithLanguage($source_absolute_path, $this->getDefaultLanguageCode());
         if (! $dir) {
@@ -46,7 +51,7 @@ class PageInstaller extends AbstractAppInstaller
         // Find pages files. 
         $files = glob($dir . DIRECTORY_SEPARATOR . '*.json');
         if ($files === false) {
-            $this->getWorkbench()->getLogger()->logException((new InstallerRuntimeError($this, 'Error reading folder "' . $dir . DIRECTORY_SEPARATOR . '*.json"! - no pages were installed!')));
+            $workbench->getLogger()->logException((new InstallerRuntimeError($this, 'Error reading folder "' . $dir . DIRECTORY_SEPARATOR . '*.json"! - no pages were installed!')));
         }
         // Make sure, the array only contains existing files.
         $files = array_filter($files, 'is_file');
@@ -54,21 +59,21 @@ class PageInstaller extends AbstractAppInstaller
         // Load pages. If anything goes wrong, the installer should not continue to avoid broken menu
         // structures etc., so don't silence any exceptions here.
         foreach ($files as $file) {
-            $page = UiPageFactory::create($this->getWorkbench()->ui(), '', null, $this->getApp()->getAliasWithNamespace());
             try {
-                $page->importUxonObject(UxonObject::fromJson(file_get_contents($file)));
-            } catch (InvalidArgumentException $e) {
+                $page = UiPageFactory::createFromUxon($workbench, UxonObject::fromJson(file_get_contents($file)));
+                $page->setApp($this->getApp()->getSelector());
+                // Wird eine Seite neu hinzugefuegt ist die menuDefaultPosition gleich der
+                // gesetzen Position.
+                $page->setMenuDefaultPosition($page->getMenuPosition());
+                $pagesFile[] = $page;
+            } catch (\Throwable $e) {
                 throw new InstallerRuntimeError($this, 'Cannot load page model from file "' . $file . '": corrupted UXON?', null, $e);
             }
-            // Wird eine Seite neu hinzugefuegt ist die menuDefaultPosition gleich der
-            // gesetzen Position.
-            $page->setMenuDefaultPosition($page->getMenuPosition());
-            $pagesFile[] = $page;
         }
         $pagesFile = $this->sortPages($pagesFile);
         
         // Pages aus der Datenbank laden.
-        $pagesDb = $this->getWorkbench()->getCMS()->getPagesForApp($this->getApp());
+        $pagesDb = $cms->getPagesForApp($this->getApp());
         
         // Pages vergleichen und bestimmen welche erstellt, aktualisiert oder geloescht werden muessen.
         $pagesCreate = [];
@@ -77,7 +82,7 @@ class PageInstaller extends AbstractAppInstaller
         
         foreach ($pagesFile as $pageFile) {
             try {
-                $pageDb = $this->getWorkbench()->getCMS()->loadPageById($pageFile->getId(), true);
+                $pageDb = $cms->getPage(SelectorFactory::createPageSelector($workbench, $pageFile->getId()), true);
                 // Die Seite existiert bereits und wird aktualisiert.
                 if (! $pageDb->equals($pageFile) && $pageDb->isUpdateable()) {
                     // Irgendetwas hat sich an der Seite geaendert.
@@ -116,10 +121,10 @@ class PageInstaller extends AbstractAppInstaller
         $pagesCreatedErrorCounter = 0;
         foreach ($pagesCreate as $page) {
             try {
-                $this->getWorkbench()->getCMS()->createPage($page);
+                $cms->createPage($page);
                 $pagesCreatedCounter ++;
             } catch (\Throwable $e) {
-                $this->getWorkbench()->getLogger()->logException($e);
+                $workbench->getLogger()->logException($e);
                 $pagesCreatedErrorCounter ++;
             }
         }
@@ -135,10 +140,10 @@ class PageInstaller extends AbstractAppInstaller
         $pagesUpdatedErrorCounter = 0;
         foreach ($pagesUpdate as $page) {
             try {
-                $this->getWorkbench()->getCMS()->updatePage($page);
+                $cms->updatePage($page);
                 $pagesUpdatedCounter ++;
             } catch (\Throwable $e) {
-                $this->getWorkbench()->getLogger()->logException($e);
+                $workbench->getLogger()->logException($e);
                 $pagesUpdatedErrorCounter ++;
             }
         }
@@ -154,10 +159,10 @@ class PageInstaller extends AbstractAppInstaller
         $pagesDeletedErrorCounter = 0;
         foreach ($pagesDelete as $page) {
             try {
-                $this->getWorkbench()->getCMS()->deletePage($page);
+                $cms->deletePage($page);
                 $pagesDeletedCounter ++;
             } catch (\Throwable $e) {
-                $this->getWorkbench()->getLogger()->logException($e);
+                $workbench->getLogger()->logException($e);
                 $pagesDeletedErrorCounter ++;
             }
         }
@@ -285,6 +290,7 @@ class PageInstaller extends AbstractAppInstaller
     {
         /** @var Filemanager $fileManager */
         $fileManager = $this->getWorkbench()->filemanager();
+        $cms = $this->getWorkbench()->getCMS();
         
         // Empty pages folder in case it is an update
         try {
@@ -294,7 +300,7 @@ class PageInstaller extends AbstractAppInstaller
         }
         
         // Dann alle Dialoge der App als Dateien in den Ordner schreiben.
-        $pages = $this->getWorkbench()->getCMS()->getPagesForApp($this->getApp());
+        $pages = $cms->getPagesForApp($this->getApp());
         
         if (! empty($pages)) {
             $dir = $this->getPagesPathWithLanguage($destination_absolute_path, $this->getDefaultLanguageCode());
@@ -307,8 +313,8 @@ class PageInstaller extends AbstractAppInstaller
                 // Ist die parent-Seite der Root, dann wird ein leerer MenuParentPageAlias gespeichert.
                 // Dadurch wird die Seite beim Hinzufuegen auf einem anderen System automatisch im Root
                 // eingehaengt, auch wenn der an einer anderen Stelle ist als auf diesem System.
-                if ($page->getMenuParentPageAlias() && ($this->getWorkbench()->getCMS()->getPageIdInCms($page->getMenuParentPage()) == $this->getWorkbench()->getCMS()->getPageIdRoot())) {
-                    $page->setMenuParentPageAlias('');
+                if ($page->getMenuParentPageAlias() === null || ($cms->getPageIdInCms($page->getMenuParentPage()) == $cms->getPageIdRoot())) {
+                    $page->setMenuParentPageAlias("");
                 }
                 
                 // Hat die Seite keine UID wird ein Fehler geworfen. Ohne UID kann die Seite nicht
@@ -319,7 +325,7 @@ class PageInstaller extends AbstractAppInstaller
                 // Hat die Seite keinen Alias wird ein Alias gesetzt und die Seite wird aktualisiert.
                 if (! $page->getAliasWithNamespace()) {
                     $page = $page->copy(UiPage::generateAlias($page->getApp()->getAliasWithNamespace() . '.'));
-                    $this->getWorkbench()->getCMS()->updatePage($page);
+                    $cms->updatePage($page);
                 }
                 
                 // Exportieren der Seite
