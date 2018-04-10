@@ -7,6 +7,7 @@ use Composer\Script\Event;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Factories\DataSheetFactory;
+use exface\Core\Factories\ActionFactory;
 
 /**
  * The app installer is a simplified wrapper for the package manager actions, which simplifies installing apps from outside of
@@ -239,7 +240,7 @@ class StaticInstaller
         try {
             self::printToStdout($text);
             $app_selector = new AppSelector($exface, $app_alias);
-            $backupAction = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_BACKUP_ACTION_ALIAS);
+            $backupAction = ActionFactory::createFromString($exface, self::PACKAGE_MANAGER_BACKUP_ACTION_ALIAS);
             $backupDir = $exface->filemanager()->getPathToBaseFolder();
             $backupDir .= DIRECTORY_SEPARATOR . "vendor" . DIRECTORY_SEPARATOR. str_replace(".",DIRECTORY_SEPARATOR,$app_alias);
             if ($exface->filemanager()->exists($backupDir)){
@@ -291,7 +292,8 @@ class StaticInstaller
         try {
             $exface = $this->getWorkbench();
             $app_selector = new AppSelector($exface, $app_alias);
-            $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS)->install($app_selector);
+            $action = ActionFactory::createFromString($exface, self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS);
+            $result = $action->install($app_selector);
         } catch (\Throwable $e) {
             $this::printToStdout('FAILED installing ' . $app_alias . '!');
             $this::printException($e);
@@ -306,7 +308,8 @@ class StaticInstaller
         try {
             $exface = $this->getWorkbench();
             $app_selector = new AppSelector($exface, $app_alias);
-            $result = $exface->getApp(self::PACKAGE_MANAGER_APP_ALIAS)->getAction(self::PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS)->uninstall($app_selector);
+            $action = ActionFactory::createFromString($exface, self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS);
+            $result = $action->uninstall($app_selector);
         } catch (\Throwable $e) {
             $this::printToStdout('FAILED uninstalling ' . $app_alias . '!');
             $this::printException($e);
