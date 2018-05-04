@@ -37,7 +37,7 @@ class ImportAppModel extends InstallApp
         $installed_counter = 0;
         $message = '';
         
-        foreach ($this->getTargetAppAliases() as $app_alias) {
+        foreach ($this->getTargetAppAliases($task) as $app_alias) {
             $app_selector = new AppSelector($workbench, $app_alias);
             try {
                 $installed_counter ++;
