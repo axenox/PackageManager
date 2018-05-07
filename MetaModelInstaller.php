@@ -18,6 +18,7 @@ use exface\Core\Factories\ConditionGroupFactory;
 use exface\Core\CommonLogic\Filemanager;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Exceptions\RuntimeException;
+use exface\Core\CommonLogic\QueryBuilder\RowDataArrayFilter;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -153,6 +154,10 @@ class MetaModelInstaller extends AbstractAppInstaller
      */
     protected function exportModelFile($backupDir, DataSheetInterface $data_sheet, $filename_prefix = null, $split_by_object = true) : string
     {
+        if ($data_sheet->isEmpty()) {
+            return '';
+        }
+        
         if (! file_exists($backupDir)) {
             Filemanager::pathConstruct($backupDir);
         }
@@ -164,7 +169,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             } else {
                 foreach ($data_sheet->getColumns() as $col) {
                     if ($attr = $col->getAttribute()) {
-                        if ($attr->isRelation() && $attr->getRelation()->getRelatedObject()->isExactly('exface.Core.OBJECT')) {
+                        if ($attr->isRelation() && $attr->getRelation()->getRelatedObject()->isExactly('exface.Core.OBJECT') && $attr->isRequired()) {
                             $objectUids = array_unique($col->getValues(false));
                             break;
                         }
@@ -173,22 +178,31 @@ class MetaModelInstaller extends AbstractAppInstaller
             }
         }
         
+        $fileManager = $this->getWorkbench()->filemanager();
+        $fileName = $filename_prefix . $data_sheet->getMetaObject()->getAlias() . '.json';
         if (! empty($objectUids)) {
+            $rows = $data_sheet->getRows();
+            $uxon = $data_sheet->exportUxonObject();
+            $objectColumnName = $col->getName();
             foreach ($objectUids as $objectUid) {
-                $condition = ConditionFactory::createFromExpression($this->getWorkbench(), $col->getExpressionObj(), $objectUid, EXF_COMPARATOR_EQUALS);
-                $splitSheet = $data_sheet->extract($condition);
-                $this->exportModelFile($backupDir . DIRECTORY_SEPARATOR . $this->getObjectSubfolder($objectUid), $splitSheet, $filename_prefix, false);
+                $uxon->setProperty('rows', array_values($this->filterRows($rows, $objectColumnName, $objectUid)));
+                $subfolder = $backupDir . DIRECTORY_SEPARATOR . $this->getObjectSubfolder($objectUid);
+                $fileManager->dumpFile($subfolder . DIRECTORY_SEPARATOR . $fileName, $uxon->toJson(true));
             }
         } else {
             $contents = $data_sheet->exportUxonObject()->toJson(true);
-            if (! $data_sheet->isEmpty()) {
-                $fileManager = $this->getWorkbench()->filemanager();
-                $fileManager->dumpFile($backupDir . DIRECTORY_SEPARATOR . $filename_prefix . $data_sheet->getMetaObject()->getAlias() . '.json', $contents);
-                return $contents;
-            }
+            $fileManager->dumpFile($backupDir . DIRECTORY_SEPARATOR . $fileName, $contents);
+            return $contents;
         }
         
         return '';
+    }
+    
+    protected function filterRows(array $rows, string $filterRowName, string $filterRowValue)
+    {
+        $filter = new RowDataArrayFilter();
+        $filter->addAnd($filterRowName, $filterRowValue, EXF_COMPARATOR_EQUALS);
+        return $filter->filter($rows);
     }
 
     /**
@@ -391,6 +405,6 @@ class MetaModelInstaller extends AbstractAppInstaller
             $alias = $this->getWorkbench()->model()->getObject($uid)->getAliasWithNamespace();
         }
         
-        return $alias;
+        return trim($alias);
     }
 }

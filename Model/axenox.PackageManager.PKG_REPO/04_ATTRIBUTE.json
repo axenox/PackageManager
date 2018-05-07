@@ -1,0 +1,319 @@
+{
+    "object_alias": "exface.Core.ATTRIBUTE",
+    "columns": [
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "SORTABLEFLAG",
+            "attribute_alias": "SORTABLEFLAG"
+        },
+        {
+            "name": "FILTERABLEFLAG",
+            "attribute_alias": "FILTERABLEFLAG"
+        },
+        {
+            "name": "AGGREGATABLEFLAG",
+            "attribute_alias": "AGGREGATABLEFLAG"
+        },
+        {
+            "name": "DEFAULT_AGGREGATE_FUNCTION",
+            "attribute_alias": "DEFAULT_AGGREGATE_FUNCTION"
+        },
+        {
+            "name": "VALUE_LIST_DELIMITER",
+            "attribute_alias": "VALUE_LIST_DELIMITER"
+        },
+        {
+            "name": "READABLEFLAG",
+            "attribute_alias": "READABLEFLAG"
+        },
+        {
+            "name": "WRITABLEFLAG",
+            "attribute_alias": "WRITABLEFLAG"
+        },
+        {
+            "name": "SYSTEMFLAG",
+            "attribute_alias": "SYSTEMFLAG"
+        },
+        {
+            "name": "DEFAULT_EDITOR_UXON",
+            "attribute_alias": "DEFAULT_EDITOR_UXON"
+        },
+        {
+            "name": "LABEL",
+            "attribute_alias": "LABEL"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "DATATYPE",
+            "attribute_alias": "DATATYPE"
+        },
+        {
+            "name": "DATA_ADDRESS",
+            "attribute_alias": "DATA_ADDRESS"
+        },
+        {
+            "name": "OBJECT",
+            "attribute_alias": "OBJECT"
+        },
+        {
+            "name": "FORMATTER",
+            "attribute_alias": "FORMATTER"
+        },
+        {
+            "name": "DISPLAYORDER",
+            "attribute_alias": "DISPLAYORDER"
+        },
+        {
+            "name": "LABELFLAG",
+            "attribute_alias": "LABELFLAG"
+        },
+        {
+            "name": "UIDFLAG",
+            "attribute_alias": "UIDFLAG"
+        },
+        {
+            "name": "HIDDENFLAG",
+            "attribute_alias": "HIDDENFLAG"
+        },
+        {
+            "name": "EDITABLEFLAG",
+            "attribute_alias": "EDITABLEFLAG"
+        },
+        {
+            "name": "REQUIREDFLAG",
+            "attribute_alias": "REQUIREDFLAG"
+        },
+        {
+            "name": "RELATED_OBJ",
+            "attribute_alias": "RELATED_OBJ"
+        },
+        {
+            "name": "SORTERPOS",
+            "attribute_alias": "SORTERPOS"
+        },
+        {
+            "name": "SORTERDIR",
+            "attribute_alias": "SORTERDIR"
+        },
+        {
+            "name": "RELATED_OBJ_ATTR",
+            "attribute_alias": "RELATED_OBJ_ATTR"
+        },
+        {
+            "name": "SHORT_DESCRIPTION",
+            "attribute_alias": "SHORT_DESCRIPTION"
+        },
+        {
+            "name": "DATA_ADDRESS_PROPS",
+            "attribute_alias": "DATA_ADDRESS_PROPS"
+        },
+        {
+            "name": "DEFAULT_VALUE",
+            "attribute_alias": "DEFAULT_VALUE"
+        },
+        {
+            "name": "FIXED_VALUE",
+            "attribute_alias": "FIXED_VALUE"
+        },
+        {
+            "name": "CUSTOM_DATA_TYPE",
+            "attribute_alias": "CUSTOM_DATA_TYPE"
+        }
+    ],
+    "rows": [
+        {
+            "CREATED_ON": "2007-01-01 00:00:00",
+            "MODIFIED_ON": "2007-01-01 00:00:00",
+            "CREATED_BY_USER": "",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x35313100000000000000000000000000",
+            "SORTABLEFLAG": "1",
+            "FILTERABLEFLAG": "1",
+            "AGGREGATABLEFLAG": "1",
+            "DEFAULT_AGGREGATE_FUNCTION": "",
+            "VALUE_LIST_DELIMITER": ",",
+            "READABLEFLAG": "1",
+            "WRITABLEFLAG": "1",
+            "SYSTEMFLAG": "0",
+            "DEFAULT_EDITOR_UXON": "",
+            "LABEL": "ID",
+            "ALIAS": "FULL_NAME",
+            "DATATYPE": "0x30000000000000000000000000000000",
+            "DATA_ADDRESS": "full_name",
+            "OBJECT": "0x31333100000000000000000000000000",
+            "FORMATTER": "",
+            "DISPLAYORDER": null,
+            "LABELFLAG": "0",
+            "UIDFLAG": "1",
+            "HIDDENFLAG": "0",
+            "EDITABLEFLAG": "0",
+            "REQUIREDFLAG": "0",
+            "RELATED_OBJ": "",
+            "SORTERPOS": null,
+            "SORTERDIR": "",
+            "RELATED_OBJ_ATTR": "",
+            "SHORT_DESCRIPTION": "",
+            "DATA_ADDRESS_PROPS": "",
+            "DEFAULT_VALUE": "",
+            "FIXED_VALUE": "",
+            "CUSTOM_DATA_TYPE": ""
+        },
+        {
+            "CREATED_ON": "2007-01-01 00:00:00",
+            "MODIFIED_ON": "2007-01-01 00:00:00",
+            "CREATED_BY_USER": "",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x35313200000000000000000000000000",
+            "SORTABLEFLAG": "1",
+            "FILTERABLEFLAG": "1",
+            "AGGREGATABLEFLAG": "1",
+            "DEFAULT_AGGREGATE_FUNCTION": "",
+            "VALUE_LIST_DELIMITER": ",",
+            "READABLEFLAG": "1",
+            "WRITABLEFLAG": "1",
+            "SYSTEMFLAG": "0",
+            "DEFAULT_EDITOR_UXON": "",
+            "LABEL": "Name",
+            "ALIAS": "NAME",
+            "DATATYPE": "0x30000000000000000000000000000000",
+            "DATA_ADDRESS": "name",
+            "OBJECT": "0x31333100000000000000000000000000",
+            "FORMATTER": "",
+            "DISPLAYORDER": null,
+            "LABELFLAG": "1",
+            "UIDFLAG": "0",
+            "HIDDENFLAG": "0",
+            "EDITABLEFLAG": "0",
+            "REQUIREDFLAG": "0",
+            "RELATED_OBJ": "",
+            "SORTERPOS": null,
+            "SORTERDIR": "",
+            "RELATED_OBJ_ATTR": "",
+            "SHORT_DESCRIPTION": "",
+            "DATA_ADDRESS_PROPS": "",
+            "DEFAULT_VALUE": "",
+            "FIXED_VALUE": "",
+            "CUSTOM_DATA_TYPE": ""
+        },
+        {
+            "CREATED_ON": "2007-01-01 00:00:00",
+            "MODIFIED_ON": "2007-01-01 00:00:00",
+            "CREATED_BY_USER": "",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x35313300000000000000000000000000",
+            "SORTABLEFLAG": "1",
+            "FILTERABLEFLAG": "1",
+            "AGGREGATABLEFLAG": "1",
+            "DEFAULT_AGGREGATE_FUNCTION": "",
+            "VALUE_LIST_DELIMITER": ",",
+            "READABLEFLAG": "1",
+            "WRITABLEFLAG": "1",
+            "SYSTEMFLAG": "0",
+            "DEFAULT_EDITOR_UXON": "",
+            "LABEL": "Description",
+            "ALIAS": "DESCRIPTION",
+            "DATATYPE": "0x30000000000000000000000000000000",
+            "DATA_ADDRESS": "description",
+            "OBJECT": "0x31333100000000000000000000000000",
+            "FORMATTER": "",
+            "DISPLAYORDER": null,
+            "LABELFLAG": "0",
+            "UIDFLAG": "0",
+            "HIDDENFLAG": "0",
+            "EDITABLEFLAG": "0",
+            "REQUIREDFLAG": "0",
+            "RELATED_OBJ": "",
+            "SORTERPOS": null,
+            "SORTERDIR": "",
+            "RELATED_OBJ_ATTR": "",
+            "SHORT_DESCRIPTION": "",
+            "DATA_ADDRESS_PROPS": "",
+            "DEFAULT_VALUE": "",
+            "FIXED_VALUE": "",
+            "CUSTOM_DATA_TYPE": ""
+        },
+        {
+            "CREATED_ON": "2016-03-30 11:18:29",
+            "MODIFIED_ON": "2016-03-30 11:18:29",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11e5f6583e68526089840050568905af",
+            "SORTABLEFLAG": "1",
+            "FILTERABLEFLAG": "1",
+            "AGGREGATABLEFLAG": "1",
+            "DEFAULT_AGGREGATE_FUNCTION": "",
+            "VALUE_LIST_DELIMITER": ",",
+            "READABLEFLAG": "1",
+            "WRITABLEFLAG": "1",
+            "SYSTEMFLAG": "0",
+            "DEFAULT_EDITOR_UXON": "",
+            "LABEL": "Last update",
+            "ALIAS": "UPDATED_AT",
+            "DATATYPE": "0x33000000000000000000000000000000",
+            "DATA_ADDRESS": "pushed_at",
+            "OBJECT": "0x31333100000000000000000000000000",
+            "FORMATTER": "",
+            "DISPLAYORDER": null,
+            "LABELFLAG": "0",
+            "UIDFLAG": "0",
+            "HIDDENFLAG": "0",
+            "EDITABLEFLAG": "0",
+            "REQUIREDFLAG": "0",
+            "RELATED_OBJ": "",
+            "SORTERPOS": null,
+            "SORTERDIR": "",
+            "RELATED_OBJ_ATTR": "",
+            "SHORT_DESCRIPTION": "",
+            "DATA_ADDRESS_PROPS": "",
+            "DEFAULT_VALUE": "",
+            "FIXED_VALUE": "",
+            "CUSTOM_DATA_TYPE": ""
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "conditions": [
+            {
+                "expression": "OBJECT__APP",
+                "comparator": "=",
+                "value": "0x31380000000000000000000000000000",
+                "object_alias": "exface.Core.ATTRIBUTE"
+            }
+        ]
+    },
+    "rows_on_page": null,
+    "row_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}
