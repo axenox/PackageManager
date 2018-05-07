@@ -12,18 +12,26 @@ use exface\Core\CommonLogic\Model\Aggregator;
 use exface\Core\DataTypes\AggregatorFunctionsDataType;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\Behaviors\TimeStampingBehavior;
+use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
+use exface\Core\Factories\ConditionFactory;
+use exface\Core\Factories\ConditionGroupFactory;
+use exface\Core\CommonLogic\Filemanager;
+use exface\Core\DataTypes\StringDataType;
+use exface\Core\Exceptions\RuntimeException;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
 
     const FOLDER_NAME_MODEL = 'Model';
+    
+    private $objectSheet = null;
 
     /**
      *
      * @param string $source_absolute_path
      * @return string
      */
-    public function install($source_absolute_path)
+    public function install($source_absolute_path) 
     {
         return $this->installModel($this->getSelectorInstalling(), $source_absolute_path);
     }
@@ -86,7 +94,7 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @param string $destinationAbsolutePath
      * @return string
      */
-    protected function backupModel($destinationAbsolutePath)
+    protected function backupModel($destinationAbsolutePath) : string
     {
         $result = '';
         $app = $this->getApp();
@@ -143,13 +151,41 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @param string $filename_prefix            
      * @return string
      */
-    protected function exportModelFile($backupDir, DataSheetInterface $data_sheet, $filename_prefix = null)
+    protected function exportModelFile($backupDir, DataSheetInterface $data_sheet, $filename_prefix = null, $split_by_object = true) : string
     {
-        $contents = $data_sheet->exportUxonObject()->toJson(true);
-        if (! $data_sheet->isEmpty()) {
-            $fileManager = $this->getWorkbench()->filemanager();
-            $fileManager->dumpFile($backupDir . DIRECTORY_SEPARATOR . $filename_prefix . $data_sheet->getMetaObject()->getAlias() . '.json', $contents);
-            return $contents;
+        if (! file_exists($backupDir)) {
+            Filemanager::pathConstruct($backupDir);
+        }
+        
+        if ($split_by_object === true) {
+            if ($data_sheet->getMetaObject()->isExactly('exface.Core.OBJECT')) {
+                $col = $data_sheet->getUidColumn();
+                $objectUids = $col->getValues(false);
+            } else {
+                foreach ($data_sheet->getColumns() as $col) {
+                    if ($attr = $col->getAttribute()) {
+                        if ($attr->isRelation() && $attr->getRelation()->getRelatedObject()->isExactly('exface.Core.OBJECT')) {
+                            $objectUids = array_unique($col->getValues(false));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (! empty($objectUids)) {
+            foreach ($objectUids as $objectUid) {
+                $condition = ConditionFactory::createFromExpression($this->getWorkbench(), $col->getExpressionObj(), $objectUid, EXF_COMPARATOR_EQUALS);
+                $splitSheet = $data_sheet->extract($condition);
+                $this->exportModelFile($backupDir . DIRECTORY_SEPARATOR . $this->getObjectSubfolder($objectUid), $splitSheet, $filename_prefix, false);
+            }
+        } else {
+            $contents = $data_sheet->exportUxonObject()->toJson(true);
+            if (! $data_sheet->isEmpty()) {
+                $fileManager = $this->getWorkbench()->filemanager();
+                $fileManager->dumpFile($backupDir . DIRECTORY_SEPARATOR . $filename_prefix . $data_sheet->getMetaObject()->getAlias() . '.json', $contents);
+                return $contents;
+            }
         }
         
         return '';
@@ -160,7 +196,7 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @param AppInterface $app            
      * @return DataSheetInterface[]
      */
-    public function getModelDataSheets()
+    public function getModelDataSheets() : array
     {
         $sheets = array();
         $app = $this->getApp();        
@@ -179,6 +215,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.CONNECTION'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.ERROR'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT_ACTION'), 'APP');
+        
         return $sheets;
     }
 
@@ -190,7 +227,7 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @param array $exclude_attribute_aliases         
      * @return DataSheetInterface
      */
-    protected function getObjectDataSheet($app, MetaObjectInterface $object, $app_filter_attribute_alias, array $exclude_attribute_aliases = array())
+    protected function getObjectDataSheet($app, MetaObjectInterface $object, $app_filter_attribute_alias, array $exclude_attribute_aliases = array()) : DataSheetInterface
     {
         $ds = DataSheetFactory::createFromObject($object);
         foreach ($object->getAttributeGroup('~WRITABLE')->getAttributes() as $attr) {
@@ -212,19 +249,15 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @param string $source_absolute_path            
      * @return string
      */
-    protected function installModel(AppSelectorInterface $app_selector, $source_absolute_path)
+    protected function installModel(AppSelectorInterface $app_selector, $source_absolute_path) : string
     {
         $result = '';
-        $exface = $this->getWorkbench();
         $model_source = $source_absolute_path . DIRECTORY_SEPARATOR . self::FOLDER_NAME_MODEL;
         
         if (is_dir($model_source)) {
             $transaction = $this->getWorkbench()->data()->startTransaction();
-            foreach (scandir($model_source) as $file) {
-                if ($file == '.' || $file == '..')
-                    continue;
-                $this->getWorkbench()->getLogger()->debug('Installing model file ' . $file);
-                $data_sheet = DataSheetFactory::createFromUxon($exface, UxonObject::fromJson(file_get_contents($model_source . DIRECTORY_SEPARATOR . $file)));
+            $dataSheets = $this->readModelSheets($model_source);
+            foreach ($dataSheets as $data_sheet) {
                 
                 // Remove columns, that are not attributes. This is important to be able to import changes on the meta model itself.
                 // The trouble is, that after new properties of objects or attributes are added, the export will already contain them
@@ -282,7 +315,56 @@ class MetaModelInstaller extends AbstractAppInstaller
         return "\nModel changes: " . $result;
     }
     
-    protected function checkFiltersMatchModel(ConditionGroup $condition_group)
+    /**
+     * 
+     * @param string $absolutePath
+     * @return DataSheetInterface[]
+     */
+    protected function readModelSheets($absolutePath) : array
+    {
+        $dataSheets = [];
+        $folderSheets = $this->readDataSheetsFromFolder($absolutePath);
+        
+        ksort($folderSheets);
+        
+        foreach ($folderSheets as $key => $sheet) {
+            $type = StringDataType::substringBefore($key, '@');
+            if ($dataSheets[$type] === null) {
+                $dataSheets[$type] = $sheet;
+            } else {
+                $baseSheet = $dataSheets[$type];
+                if (! $baseSheet->getMetaObject()->isExactly($sheet->getMetaObject())) {
+                    throw new RuntimeException('Model sheet type mismatch: model sheets with same name must have the same structure in all subfolders of the model!');
+                }
+                $dataSheets[$type]->addRows($sheet->getRows());
+            }
+        }
+        
+        return $dataSheets;
+    }
+    
+    protected function readDataSheetsFromFolder(string $absolutePath) : array
+    {
+        $folderSheets = [];
+        
+        $exface = $this->getWorkbench();
+        foreach (scandir($absolutePath) as $file) {
+            if ($file == '.' || $file == '..') {
+                continue;
+            }
+            $path = $absolutePath . DIRECTORY_SEPARATOR . $file;
+            $key = $file . '@' . $absolutePath;
+            if (is_dir($path)) {
+                $folderSheets = array_merge($folderSheets, $this->readDataSheetsFromFolder($path));
+            } else {
+                $folderSheets[$key] = DataSheetFactory::createFromUxon($exface, UxonObject::fromJson(file_get_contents($path)));
+            }
+        }
+        
+        return $folderSheets;
+    }
+    
+    protected function checkFiltersMatchModel(ConditionGroup $condition_group) : bool
     {
         foreach ($condition_group->getConditions() as $condition){
             if(! $condition->getExpression()->isMetaAttribute()){
@@ -296,5 +378,19 @@ class MetaModelInstaller extends AbstractAppInstaller
             }
         }
         return true;
+    }
+    
+    protected function getObjectSubfolder(string $uid) : string
+    {
+        if ($this->objectSheet !== null) {
+            $row = $this->objectSheet->getRow($this->objectSheet->getUidColumn()->findRowByValue($uid));
+            $alias = $this->getApp()->getAliasWithNamespace() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER . $row['ALIAS'];
+        }
+        
+        if (! $alias) {
+            $alias = $this->getWorkbench()->model()->getObject($uid)->getAliasWithNamespace();
+        }
+        
+        return $alias;
     }
 }
