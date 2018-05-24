@@ -19,6 +19,7 @@ use exface\Core\CommonLogic\Filemanager;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\CommonLogic\QueryBuilder\RowDataArrayFilter;
+use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -272,43 +273,48 @@ class MetaModelInstaller extends AbstractAppInstaller
             $transaction = $this->getWorkbench()->data()->startTransaction();
             $dataSheets = $this->readModelSheets($model_source);
             foreach ($dataSheets as $data_sheet) {
+                try {
                 
-                // Remove columns, that are not attributes. This is important to be able to import changes on the meta model itself.
-                // The trouble is, that after new properties of objects or attributes are added, the export will already contain them
-                // as columns, which would lead to an error because the model entities for these columns are not there yet.
-                foreach ($data_sheet->getColumns() as $column) {
-                    if (! $column->getMetaObject()->hasAttribute($column->getAttributeAlias()) || ! $column->getAttribute()) {
-                        $data_sheet->getColumns()->remove($column);
+                    // Remove columns, that are not attributes. This is important to be able to import changes on the meta model itself.
+                    // The trouble is, that after new properties of objects or attributes are added, the export will already contain them
+                    // as columns, which would lead to an error because the model entities for these columns are not there yet.
+                    foreach ($data_sheet->getColumns() as $column) {
+                        if (! $column->getMetaObject()->hasAttribute($column->getAttributeAlias()) || ! $column->getAttribute()) {
+                            $data_sheet->getColumns()->remove($column);
+                        }
                     }
-                }
-                
-                if ($mod_col = $data_sheet->getColumns()->getByExpression('MODIFIED_ON')) {
-                    $mod_col->setIgnoreFixedValues(true);
-                }
-                if ($user_col = $data_sheet->getColumns()->getByExpression('MODIFIED_BY_USER')) {
-                    $user_col->setIgnoreFixedValues(true);
-                }
-                // Disable timestamping behavior because it will prevent multiple installations of the same
-                // model since the first install will set the update timestamp to something later than the
-                // timestamp saved in the model files
-                foreach ($data_sheet->getMetaObject()->getBehaviors()->getByPrototypeClass(TimeStampingBehavior::class) as $behavior) {
-                    $behavior->disable();
-                }
-                
-                // There were cases, when the attribute, that is being filtered over was new, so the filters
-                // did not work (because the attribute was not there). The solution is to run an update
-                // with create fallback in this case. This will cause filter problems, but will not delete
-                // obsolete instances. This is not critical, as the probability of this case is extremely
-                // low in any case and the next update will turn everything back to normal.
-                if (! $this->checkFiltersMatchModel($data_sheet->getFilters())) {
-                    $data_sheet->getFilters()->removeAll();
-                    $counter = $data_sheet->dataUpdate(true, $transaction);
-                } else {
-                    $counter = $data_sheet->dataReplaceByFilters($transaction);
-                }
-                
-                if ($counter > 0) {
-                    $result .= ($result ? "; " : "") . $data_sheet->getMetaObject()->getName() . " - " . $counter;
+                    
+                    if ($mod_col = $data_sheet->getColumns()->getByExpression('MODIFIED_ON')) {
+                        $mod_col->setIgnoreFixedValues(true);
+                    }
+                    if ($user_col = $data_sheet->getColumns()->getByExpression('MODIFIED_BY_USER')) {
+                        $user_col->setIgnoreFixedValues(true);
+                    }
+                    
+                    // Disable timestamping behavior because it will prevent multiple installations of the same
+                    // model since the first install will set the update timestamp to something later than the
+                    // timestamp saved in the model files
+                    foreach ($data_sheet->getMetaObject()->getBehaviors()->getByPrototypeClass(TimeStampingBehavior::class) as $behavior) {
+                        $behavior->disable();
+                    }
+                    
+                    // There were cases, when the attribute, that is being filtered over was new, so the filters
+                    // did not work (because the attribute was not there). The solution is to run an update
+                    // with create fallback in this case. This will cause filter problems, but will not delete
+                    // obsolete instances. This is not critical, as the probability of this case is extremely
+                    // low in any case and the next update will turn everything back to normal.
+                    if (! $this->checkFiltersMatchModel($data_sheet->getFilters())) {
+                        $data_sheet->getFilters()->removeAll();
+                        $counter = $data_sheet->dataUpdate(true, $transaction);
+                    } else {
+                        $counter = $data_sheet->dataReplaceByFilters($transaction);
+                    }
+                    
+                    if ($counter > 0) {
+                        $result .= ($result ? "; " : "") . $data_sheet->getMetaObject()->getName() . " - " . $counter;
+                    }
+                } catch (\Throwable $e) {
+                    throw new InstallerRuntimeError($this, 'Failed to install model sheet for "' . $data_sheet->getMetaObject()->getAliasWithNamespace() . '": see details below.', null, $e);
                 }
             }
             
