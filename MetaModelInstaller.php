@@ -170,7 +170,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             } else {
                 foreach ($data_sheet->getColumns() as $col) {
                     if ($attr = $col->getAttribute()) {
-                        if ($attr->isRelation() && $attr->getRelation()->getRelatedObject()->isExactly('exface.Core.OBJECT') && $attr->isRequired()) {
+                        if ($attr->isRelation() && $attr->getRelation()->getRightObject()->isExactly('exface.Core.OBJECT') && $attr->isRequired()) {
                             $objectUids = array_unique($col->getValues(false));
                             break;
                         }
