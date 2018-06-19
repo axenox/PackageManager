@@ -41,8 +41,9 @@ class BackupApp extends InstallApp
         $exface = $this->getWorkbench();
         $backup_counter = 0;
         $messasge = '';
+        $target_aliases = $this->getTargetAppAliases($task);
         
-        foreach ($this->getTargetAppAliases() as $app_alias) {
+        foreach ($target_aliases as $app_alias) {
             $message .= "Creating Backup for " . $app_alias . "...\n";
             $app_selector = new AppSelector($exface, $app_alias);
             try {
@@ -56,7 +57,7 @@ class BackupApp extends InstallApp
             $message .= "\n Sucessfully created backup for " . $app_alias . " .\n";
         }
         
-        if (count($this->getTargetAppAliases()) == 0) {
+        if (count($target_aliases) == 0) {
             $message .= 'No apps had been selected for backup!';
         } elseif ($backup_counter == 0) {
             $message .= 'No backups have been created';
@@ -80,8 +81,8 @@ class BackupApp extends InstallApp
         $directory = $appSelector->getFolderRelativePath();
         if ($this->getBackupPath() == '') {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
-            $sDirName = date('Y_m_d_H_m');
-            $backupDir .= $directory . DIRECTORY_SEPARATOR . $sDirName;
+            $sDirName = date('Y-m-d Hm');
+            $backupDir .= DIRECTORY_SEPARATOR . $directory . DIRECTORY_SEPARATOR . $sDirName;
         } else {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
             $backupDir .= DIRECTORY_SEPARATOR . $this->getBackupPath() . $directory;
