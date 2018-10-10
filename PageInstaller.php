@@ -262,7 +262,7 @@ class PageInstaller extends AbstractAppInstaller
 
     protected function getDefaultLanguageCode()
     {
-        $languageCode = $this->getApp()->getDefaultLanguageCode();
+        $languageCode = $this->getApp()->getLanguageDefault();
         if (! $languageCode) {
             $defaultLocale = $this->getWorkbench()->getConfig()->getOption("LOCALE.DEFAULT");
             $languageCode = substr($defaultLocale, 0, strpos($defaultLocale, '_'));
