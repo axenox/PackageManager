@@ -228,7 +228,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             'CUSTOM_QUERY_BUILDER'
         ));
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.CONNECTION'), 'APP');
-        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.ERROR'), 'APP');
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.MESSAGE'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT_ACTION'), 'APP');
         
         return $sheets;
@@ -377,11 +377,33 @@ class MetaModelInstaller extends AbstractAppInstaller
             if (is_dir($path)) {
                 $folderSheets = array_merge($folderSheets, $this->readDataSheetsFromFolder($path));
             } else {
-                $folderSheets[$key] = DataSheetFactory::createFromUxon($exface, UxonObject::fromJson(file_get_contents($path)));
+                $folderSheets[$key] = $this->readDataSheetFromFile($path);
             }
         }
         
         return $folderSheets;
+    }
+    
+    protected function readDataSheetFromFile(string $path) : DataSheetInterface
+    {
+        $contents = file_get_contents($path);
+        
+        // Translate old error model to message model
+        if (mb_strtolower(basename($path)) === '07_error.json') {
+            $replaceFrom = [
+                'exface.Core.ERROR',
+                'ERROR_CODE',
+                'ERROR_TEXT'
+            ];
+            $replaceTo = [
+                'exface.Core.MESSAGE',
+                'CODE',
+                'TITLE'
+            ];
+            $contents = str_replace($replaceFrom, $replaceTo, $contents);
+        }
+        
+        return DataSheetFactory::createFromUxon($this->getWorkbench(), UxonObject::fromJson($contents));
     }
     
     protected function checkFiltersMatchModel(ConditionGroup $condition_group) : bool
