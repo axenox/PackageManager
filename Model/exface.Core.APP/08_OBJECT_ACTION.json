@@ -52,6 +52,10 @@
         {
             "name": "USE_IN_OBJECT_BASKET_FLAG",
             "attribute_alias": "USE_IN_OBJECT_BASKET_FLAG"
+        },
+        {
+            "name": "DOCS",
+            "attribute_alias": "DOCS"
         }
     ],
     "rows": [
@@ -68,7 +72,8 @@
             "SHORT_DESCRIPTION": "Installs an app from the vendor folder",
             "CONFIG_UXON": "{\"widget\":{\"widget_type\":\"Dialog\",\"object_alias\":\"exface.Core.APP\",\"widgets\":[{\"attribute_alias\":\"ALIAS\"}],\"Buttons\":[{\"action_alias\":\"axenox.PackageManager.InstallApp\",\"align\":\"opposite\",\"visibility\":\"promoted\"}]}}",
             "APP": "0x31380000000000000000000000000000",
-            "USE_IN_OBJECT_BASKET_FLAG": "0"
+            "USE_IN_OBJECT_BASKET_FLAG": "0",
+            "DOCS": null
         }
     ],
     "totals_rows": [],
@@ -83,8 +88,8 @@
             }
         ]
     },
-    "rows_on_page": null,
-    "row_offset": 0,
+    "rows_limit": null,
+    "rows_offset": 0,
     "sorters": [
         {
             "attribute_alias": "CREATED_ON",

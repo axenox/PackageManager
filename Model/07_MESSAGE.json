@@ -1,5 +1,5 @@
 {
-    "object_alias": "exface.Core.ERROR",
+    "object_alias": "exface.Core.MESSAGE",
     "columns": [
         {
             "name": "CREATED_ON",
@@ -26,16 +26,40 @@
             "attribute_alias": "APP"
         },
         {
-            "name": "ERROR_CODE",
-            "attribute_alias": "ERROR_CODE"
+            "name": "CODE",
+            "attribute_alias": "CODE"
         },
         {
-            "name": "ERROR_TEXT",
-            "attribute_alias": "ERROR_TEXT"
+            "name": "TITLE",
+            "attribute_alias": "TITLE"
         },
         {
             "name": "DESCRIPTION",
             "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "hint",
+            "attribute_alias": "hint"
+        },
+        {
+            "name": "type",
+            "attribute_alias": "type"
+        },
+        {
+            "name": "docs_path",
+            "attribute_alias": "docs_path"
+        },
+        {
+            "name": "HINT",
+            "attribute_alias": "HINT"
+        },
+        {
+            "name": "TYPE",
+            "attribute_alias": "TYPE"
+        },
+        {
+            "name": "DOCS",
+            "attribute_alias": "DOCS"
         }
     ],
     "rows": [
@@ -46,9 +70,15 @@
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e6c82b7a05cf1f93cce4b318306b9a",
             "APP": "0x31380000000000000000000000000000",
-            "ERROR_CODE": "6T5TRFE",
-            "ERROR_TEXT": "Wrong input object for package manager action",
-            "DESCRIPTION": ""
+            "CODE": "6T5TRFE",
+            "TITLE": "Wrong input object for package manager action",
+            "DESCRIPTION": "",
+            "hint": null,
+            "type": "ERROR",
+            "docs_path": null,
+            "HINT": null,
+            "TYPE": "ERROR",
+            "DOCS": null
         },
         {
             "CREATED_ON": "2016-12-22 09:46:58",
@@ -57,9 +87,15 @@
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e6c82b9302352e93cce4b318306b9a",
             "APP": "0x31380000000000000000000000000000",
-            "ERROR_CODE": "6T5TRR1",
-            "ERROR_TEXT": "Missing package name in input data",
-            "DESCRIPTION": ""
+            "CODE": "6T5TRR1",
+            "TITLE": "Missing package name in input data",
+            "DESCRIPTION": "",
+            "hint": null,
+            "type": "ERROR",
+            "docs_path": null,
+            "HINT": null,
+            "TYPE": "ERROR",
+            "DOCS": null
         },
         {
             "CREATED_ON": "2016-12-22 09:53:27",
@@ -68,9 +104,15 @@
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e6c82c7b0898e093cce4b318306b9a",
             "APP": "0x31380000000000000000000000000000",
-            "ERROR_CODE": "6T5TUR1",
-            "ERROR_TEXT": "Install\/Export actions can be performed on meta object exface.Core.OBJECT only",
-            "DESCRIPTION": ""
+            "CODE": "6T5TUR1",
+            "TITLE": "Install\/Export actions can be performed on meta object exface.Core.OBJECT only",
+            "DESCRIPTION": "",
+            "hint": null,
+            "type": "ERROR",
+            "docs_path": null,
+            "HINT": null,
+            "TYPE": "ERROR",
+            "DOCS": null
         },
         {
             "CREATED_ON": "2016-12-22 10:04:01",
@@ -79,9 +121,15 @@
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e6c82df50166c593cce4b318306b9a",
             "APP": "0x31380000000000000000000000000000",
-            "ERROR_CODE": "6T5TZN5",
-            "ERROR_TEXT": "No installable app found in path",
-            "DESCRIPTION": ""
+            "CODE": "6T5TZN5",
+            "TITLE": "No installable app found in path",
+            "DESCRIPTION": "",
+            "hint": null,
+            "type": "ERROR",
+            "docs_path": null,
+            "HINT": null,
+            "TYPE": "ERROR",
+            "DOCS": null
         }
     ],
     "totals_rows": [],
@@ -92,12 +140,12 @@
                 "expression": "APP",
                 "comparator": "=",
                 "value": "0x31380000000000000000000000000000",
-                "object_alias": "exface.Core.ERROR"
+                "object_alias": "exface.Core.MESSAGE"
             }
         ]
     },
-    "rows_on_page": null,
-    "row_offset": 0,
+    "rows_limit": null,
+    "rows_offset": 0,
     "sorters": [
         {
             "attribute_alias": "CREATED_ON",

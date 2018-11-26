@@ -30,6 +30,14 @@
             "attribute_alias": "WRITABLE_FLAG"
         },
         {
+            "name": "COMMENTS",
+            "attribute_alias": "COMMENTS"
+        },
+        {
+            "name": "DOCS",
+            "attribute_alias": "DOCS"
+        },
+        {
             "name": "DATA_SOURCE",
             "attribute_alias": "DATA_SOURCE"
         },
@@ -75,9 +83,11 @@
             "UID": "0x31333100000000000000000000000000",
             "READABLE_FLAG": "1",
             "WRITABLE_FLAG": "1",
+            "COMMENTS": null,
+            "DOCS": null,
             "DATA_SOURCE": "0x32370000000000000000000000000000",
             "APP": "0x31380000000000000000000000000000",
-            "SHORT_DESCRIPTION": "",
+            "SHORT_DESCRIPTION": null,
             "PARENT_OBJECT": "",
             "DATA_ADDRESS_PROPS": "{\"response_data_path\":\"\",\"response_total_count_path\":\"\",\"request_limit_parameter\":\"\",\"request_offset_parameter\":\"\",\"uid_request_data_address\":\"repos\/[#FULL_NAME#]\",\"uid_response_data_path\":\"\"}",
             "DEFAULT_EDITOR_UXON": "",
@@ -98,8 +108,8 @@
             }
         ]
     },
-    "rows_on_page": null,
-    "row_offset": 0,
+    "rows_limit": null,
+    "rows_offset": 0,
     "sorters": [
         {
             "attribute_alias": "CREATED_ON",
