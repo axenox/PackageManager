@@ -342,6 +342,7 @@ class MetaModelInstaller extends AbstractAppInstaller
      */
     protected function readModelSheets($absolutePath) : array
     {
+        $this->getWorkbench()->model()->clearCache();
         $dataSheets = [];
         $folderSheets = $this->readDataSheetsFromFolder($absolutePath);
         
