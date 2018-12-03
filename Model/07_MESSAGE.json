@@ -38,18 +38,6 @@
             "attribute_alias": "DESCRIPTION"
         },
         {
-            "name": "hint",
-            "attribute_alias": "hint"
-        },
-        {
-            "name": "type",
-            "attribute_alias": "type"
-        },
-        {
-            "name": "docs_path",
-            "attribute_alias": "docs_path"
-        },
-        {
             "name": "HINT",
             "attribute_alias": "HINT"
         },
@@ -73,12 +61,9 @@
             "CODE": "6T5TRFE",
             "TITLE": "Wrong input object for package manager action",
             "DESCRIPTION": "",
-            "hint": null,
-            "type": "ERROR",
-            "docs_path": null,
-            "HINT": null,
+            "HINT": "",
             "TYPE": "ERROR",
-            "DOCS": null
+            "DOCS": ""
         },
         {
             "CREATED_ON": "2016-12-22 09:46:58",
@@ -90,12 +75,9 @@
             "CODE": "6T5TRR1",
             "TITLE": "Missing package name in input data",
             "DESCRIPTION": "",
-            "hint": null,
-            "type": "ERROR",
-            "docs_path": null,
-            "HINT": null,
+            "HINT": "",
             "TYPE": "ERROR",
-            "DOCS": null
+            "DOCS": ""
         },
         {
             "CREATED_ON": "2016-12-22 09:53:27",
@@ -107,12 +89,9 @@
             "CODE": "6T5TUR1",
             "TITLE": "Install\/Export actions can be performed on meta object exface.Core.OBJECT only",
             "DESCRIPTION": "",
-            "hint": null,
-            "type": "ERROR",
-            "docs_path": null,
-            "HINT": null,
+            "HINT": "",
             "TYPE": "ERROR",
-            "DOCS": null
+            "DOCS": ""
         },
         {
             "CREATED_ON": "2016-12-22 10:04:01",
@@ -124,12 +103,9 @@
             "CODE": "6T5TZN5",
             "TITLE": "No installable app found in path",
             "DESCRIPTION": "",
-            "hint": null,
-            "type": "ERROR",
-            "docs_path": null,
-            "HINT": null,
+            "HINT": "",
             "TYPE": "ERROR",
-            "DOCS": null
+            "DOCS": ""
         }
     ],
     "totals_rows": [],

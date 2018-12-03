@@ -73,7 +73,7 @@
             "CONFIG_UXON": "{\"widget\":{\"widget_type\":\"Dialog\",\"object_alias\":\"exface.Core.APP\",\"widgets\":[{\"attribute_alias\":\"ALIAS\"}],\"Buttons\":[{\"action_alias\":\"axenox.PackageManager.InstallApp\",\"align\":\"opposite\",\"visibility\":\"promoted\"}]}}",
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": "0",
-            "DOCS": null
+            "DOCS": ""
         }
     ],
     "totals_rows": [],
