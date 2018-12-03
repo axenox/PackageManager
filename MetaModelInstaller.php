@@ -20,6 +20,8 @@ use exface\Core\DataTypes\StringDataType;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\CommonLogic\QueryBuilder\RowDataArrayFilter;
 use exface\Core\Exceptions\Installers\InstallerRuntimeError;
+use exface\Core\CommonLogic\Workbench;
+use exface\Core\CommonLogic\Selectors\AppSelector;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -35,7 +37,16 @@ class MetaModelInstaller extends AbstractAppInstaller
      */
     public function install($source_absolute_path) 
     {
-        return $this->installModel($this->getSelectorInstalling(), $source_absolute_path);
+        $wb = Workbench::startNewInstance();
+        $selector = new AppSelector($wb, $this->getSelectorInstalling()->toString());
+        $installer = new self($selector);
+        
+        $result = $installer->installModel($selector, $source_absolute_path);
+        
+        $wb->stop();
+        unset($wb);
+        
+        return $result;
     }
 
     /**
@@ -264,7 +275,7 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @param string $source_absolute_path            
      * @return string
      */
-    protected function installModel(AppSelectorInterface $app_selector, $source_absolute_path) : string
+    public function installModel(AppSelectorInterface $app_selector, $source_absolute_path) : string
     {
         $result = '';
         $model_source = $source_absolute_path . DIRECTORY_SEPARATOR . self::FOLDER_NAME_MODEL;
@@ -342,7 +353,6 @@ class MetaModelInstaller extends AbstractAppInstaller
      */
     protected function readModelSheets($absolutePath) : array
     {
-        $this->getWorkbench()->model()->clearCache();
         $dataSheets = [];
         $folderSheets = $this->readDataSheetsFromFolder($absolutePath);
         
