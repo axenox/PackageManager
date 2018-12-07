@@ -4,8 +4,8 @@
     "menu_parent_page_alias": "exface.core.administration",
     "menu_index": "4",
     "menu_visible": true,
-    "name": "PackageManager",
-    "description": "View installed packages",
+    "name": "Package Manager",
+    "description": "View all installed packages",
     "intro": "",
     "replaces_page_alias": null,
     "contents": {
