@@ -314,7 +314,7 @@ class MetaModelInstaller extends AbstractAppInstaller
                         $result .= ($result ? "; " : "") . $data_sheet->getMetaObject()->getName() . " - " . $counter;
                     }
                 } catch (\Throwable $e) {
-                    throw new InstallerRuntimeError($this, 'Failed to install model sheet for "' . $data_sheet->getMetaObject()->getAliasWithNamespace() . '": ' . $e->getMessage(), null, $e);
+                    throw new InstallerRuntimeError($this, 'Failed to install model sheet "' . $data_sheet->getMetaObject()->getAliasWithNamespace() . '": ' . $e->getMessage(), null, $e);
                 }
             }
             
