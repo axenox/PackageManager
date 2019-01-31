@@ -274,7 +274,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             $dataSheets = $this->readModelSheets($model_source);
             foreach ($dataSheets as $data_sheet) {
                 try {
-                
+                    
                     // Remove columns, that are not attributes. This is important to be able to import changes on the meta model itself.
                     // The trouble is, that after new properties of objects or attributes are added, the export will already contain them
                     // as columns, which would lead to an error because the model entities for these columns are not there yet.
@@ -314,7 +314,7 @@ class MetaModelInstaller extends AbstractAppInstaller
                         $result .= ($result ? "; " : "") . $data_sheet->getMetaObject()->getName() . " - " . $counter;
                     }
                 } catch (\Throwable $e) {
-                    throw new InstallerRuntimeError($this, 'Failed to install model sheet "' . $data_sheet->getMetaObject()->getAliasWithNamespace() . '": ' . $e->getMessage(), null, $e);
+                    throw new InstallerRuntimeError($this, 'Failed to install ' . $data_sheet->getMetaObject()->getAlias() . '-sheet: ' . $e->getMessage(), null, $e);
                 }
             }
             
@@ -387,9 +387,16 @@ class MetaModelInstaller extends AbstractAppInstaller
     protected function readDataSheetFromFile(string $path) : DataSheetInterface
     {
         $contents = file_get_contents($path);
+        $contents = $this->applyCompatibilityFixesToFileContent($path, $contents);
         
-        // Translate old error model to message model
-        if (mb_strtolower(basename($path)) === '07_error.json') {
+        return DataSheetFactory::createFromUxon($this->getWorkbench(), UxonObject::fromJson($contents));
+    }
+    
+    protected function applyCompatibilityFixesToFileContent(string $path, string $contents) : string
+    {
+        // upgrade to 0.28: Translate old error model to message model
+        $filename = mb_strtolower(basename($path));
+        if ($filename === '07_error.json') {
             $replaceFrom = [
                 'exface.Core.ERROR',
                 'ERROR_CODE',
@@ -403,7 +410,56 @@ class MetaModelInstaller extends AbstractAppInstaller
             $contents = str_replace($replaceFrom, $replaceTo, $contents);
         }
         
-        return DataSheetFactory::createFromUxon($this->getWorkbench(), UxonObject::fromJson($contents));
+        // upgrade to 0.29: The LABEL attribute of object and attributes was replaced by NAME.
+        if ($filename === '02_object.json' || $filename === '04_attribute.json') {
+            $objObject = $this->getWorkbench()->model()->getObject('exface.Core.OBJECT');
+            
+            // Make older model files work with new model (0.29+)
+            // If there is no NAME-column, rename the LABEL column to NAME.
+            if ($objObject->hasAttribute('NAME') === true && strpos($contents, '{
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        }') === false) {
+                
+                // Replace the columns entry
+                $contents = str_replace('{
+            "name": "LABEL",
+            "attribute_alias": "LABEL"
+        }', '{
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        }', $contents);
+                
+                // Replace the row data
+                $contents = str_replace('"LABEL": "', '"NAME": "', $contents);
+                
+            }
+            // Make older models work with new model files (needed to upagrade to new model)
+            // Replace things right the other way around.
+            elseif ($objObject->hasAttribute('NAME') === false) {
+                // If there is no NAME-column, rename the LABEL column to NAME.
+                if (strpos($contents, '{
+            "name": "LABEL",
+            "attribute_alias": "LABEL"
+        }') === false) {
+        
+                    // Replace the columns entry
+                    $contents = str_replace('{
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        }', '{
+            "name": "LABEL",
+            "attribute_alias": "LABEL"
+        }', $contents);
+                
+                    // Replace the row data
+                    $contents = str_replace('"NAME": "', '"LABEL": "', $contents);
+                
+                }
+            }
+        }
+        
+        return $contents;
     }
     
     protected function checkFiltersMatchModel(ConditionGroup $condition_group) : bool
