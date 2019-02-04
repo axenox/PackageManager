@@ -48,7 +48,7 @@ class UninstallApp extends InstallApp
             $message .= $app_alias . " successfully uninstalled.\n";
         }
         
-        $workbench->clearCache();
+        $workbench->getCache()->clear();
         
         return ResultFactory::createMessageResult($task, $message);
     }

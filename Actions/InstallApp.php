@@ -70,7 +70,7 @@ class InstallApp extends AbstractAction
             $message .= 'No apps have been installed';
         }
         
-        $this->getWorkbench()->clearCache();
+        $this->getWorkbench()->getCache()->clear();
         
         return ResultFactory::createMessageResult($task, $message);
     }

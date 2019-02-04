@@ -51,7 +51,7 @@ class ImportAppModel extends InstallApp
             $message .= "Importing meta model for " . $app_alias . ": " . $message;
         }
         
-        $workbench->clearCache();
+        $workbench->getCache()->clear();
         
         return ResultFactory::createMessageResult($task, $message);
     }
