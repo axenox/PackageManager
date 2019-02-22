@@ -80,20 +80,6 @@
             "DOCS": ""
         },
         {
-            "CREATED_ON": "2016-12-22 09:53:27",
-            "MODIFIED_ON": "2016-12-22 09:46:58",
-            "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
-            "UID": "0x11e6c82c7b0898e093cce4b318306b9a",
-            "APP": "0x31380000000000000000000000000000",
-            "CODE": "6T5TUR1",
-            "TITLE": "Install\/Export actions can be performed on meta object exface.Core.OBJECT only",
-            "DESCRIPTION": "",
-            "HINT": "",
-            "TYPE": "ERROR",
-            "DOCS": ""
-        },
-        {
             "CREATED_ON": "2016-12-22 10:04:01",
             "MODIFIED_ON": "2016-12-22 09:46:58",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
