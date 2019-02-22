@@ -74,8 +74,12 @@
             "attribute_alias": "COMMENTS"
         },
         {
-            "name": "LABEL",
-            "attribute_alias": "LABEL"
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "RELATION_CARDINALITY",
+            "attribute_alias": "RELATION_CARDINALITY"
         },
         {
             "name": "ALIAS",
@@ -178,7 +182,8 @@
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
             "COMMENTS": "",
-            "LABEL": "ID",
+            "NAME": "ID",
+            "RELATION_CARDINALITY": "",
             "ALIAS": "FULL_NAME",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "full_name",
@@ -219,7 +224,8 @@
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
             "COMMENTS": "",
-            "LABEL": "Name",
+            "NAME": "Name",
+            "RELATION_CARDINALITY": "",
             "ALIAS": "NAME",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "name",
@@ -260,7 +266,8 @@
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
             "COMMENTS": "",
-            "LABEL": "Description",
+            "NAME": "Description",
+            "RELATION_CARDINALITY": "",
             "ALIAS": "DESCRIPTION",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "description",
@@ -301,7 +308,8 @@
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
             "COMMENTS": "",
-            "LABEL": "Last update",
+            "NAME": "Last update",
+            "RELATION_CARDINALITY": "",
             "ALIAS": "UPDATED_AT",
             "DATATYPE": "0x33000000000000000000000000000000",
             "DATA_ADDRESS": "pushed_at",

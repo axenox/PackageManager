@@ -38,6 +38,10 @@
             "attribute_alias": "DOCS"
         },
         {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
             "name": "DATA_SOURCE",
             "attribute_alias": "DATA_SOURCE"
         },
@@ -62,10 +66,6 @@
             "attribute_alias": "DEFAULT_EDITOR_UXON"
         },
         {
-            "name": "LABEL",
-            "attribute_alias": "LABEL"
-        },
-        {
             "name": "ALIAS",
             "attribute_alias": "ALIAS"
         },
@@ -85,13 +85,13 @@
             "WRITABLE_FLAG": "1",
             "COMMENTS": "",
             "DOCS": "",
+            "NAME": "Package repository",
             "DATA_SOURCE": "0x32370000000000000000000000000000",
             "APP": "0x31380000000000000000000000000000",
             "SHORT_DESCRIPTION": "",
             "PARENT_OBJECT": "",
             "DATA_ADDRESS_PROPS": "{\"response_data_path\":\"\",\"response_total_count_path\":\"\",\"request_limit_parameter\":\"\",\"request_offset_parameter\":\"\",\"uid_request_data_address\":\"repos\/[#FULL_NAME#]\",\"uid_response_data_path\":\"\"}",
             "DEFAULT_EDITOR_UXON": null,
-            "LABEL": "Package repository",
             "ALIAS": "PKG_REPO",
             "DATA_ADDRESS": "users\/axenox\/repos"
         }
