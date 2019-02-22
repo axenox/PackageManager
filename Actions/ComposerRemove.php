@@ -21,6 +21,7 @@ class ComposerRemove extends AbstractComposerAction implements iModifyData
     {
         parent::init();
         $this->setIcon(Icons::UNINSTALL);
+        $this->setInputObjectAlias('axenox.PackageManager.PACKAGE_INSTALLED');
     }
 
     /**
@@ -32,10 +33,6 @@ class ComposerRemove extends AbstractComposerAction implements iModifyData
     protected function performComposerAction(ComposerAPI $composer, TaskInterface $task)
     {
         $input = $this->getInputDataPreset($task);
-        
-        if (! $input->getMetaObject()->isExactly('axenox.PackageManager.PACKAGE_INSTALLED')) {
-            throw new ActionInputInvalidObjectError($this, 'Wrong input object for action "' . $this->getAliasWithNamespace() . '" - "' . $input->getMetaObject()->getAliasWithNamespace() . '"! This action requires input data based based on "axenox.PackageManager.PACKAGE_INSTALLED"!', '6T5TRFE');
-        }
         
         $packages = array();
         foreach ($input->getRows() as $nr => $row) {

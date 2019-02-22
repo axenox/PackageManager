@@ -32,6 +32,7 @@ class ExportAppModel extends AbstractAction
         $this->setIcon(Icons::DOWNLOAD);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
+        $this->setInputObjectAlias('exface.Core.APP');
     }
 
     /**
@@ -73,9 +74,6 @@ class ExportAppModel extends AbstractAction
     protected function getInputAppsDataSheet(TaskInterface $task)
     {
         $input = $this->getInputDataSheet($task);
-        if (! $input->isEmpty() && ! $input->getMetaObject()->isExactly('exface.Core.APP')) {
-            throw new ActionInputInvalidObjectError($this, 'Action "' . $this->getAlias() . '" exprects an exface.Core.APP as input, "' . $input->getMetaObject()->getAliasWithNamespace() . '" given instead!', '6T5TUR1');
-        }
         
         $apps = $input;
         $apps->getColumns()->addFromExpression('ALIAS');
