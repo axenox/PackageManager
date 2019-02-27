@@ -20,6 +20,7 @@ use exface\Core\DataTypes\StringDataType;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\CommonLogic\QueryBuilder\RowDataArrayFilter;
 use exface\Core\Exceptions\Installers\InstallerRuntimeError;
+use exface\Core\Behaviors\ModelValidatingBehavior;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -295,6 +296,12 @@ class MetaModelInstaller extends AbstractAppInstaller
                     // model since the first install will set the update timestamp to something later than the
                     // timestamp saved in the model files
                     foreach ($data_sheet->getMetaObject()->getBehaviors()->getByPrototypeClass(TimeStampingBehavior::class) as $behavior) {
+                        $behavior->disable();
+                    }
+                    // Disable model validation because it would instantiate all objects when the object sheet is being saved,
+                    // which will attempt to load an inconsistent model (e.g. because the attributes were not yet updated
+                    // at this point.
+                    foreach ($data_sheet->getMetaObject()->getBehaviors()->getByPrototypeClass(ModelValidatingBehavior::class) as $behavior) {
                         $behavior->disable();
                     }
                     
