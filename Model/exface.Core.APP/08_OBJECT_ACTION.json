@@ -61,7 +61,7 @@
     "rows": [
         {
             "CREATED_ON": "2017-08-23 15:17:00",
-            "MODIFIED_ON": "2017-08-23 15:55:18",
+            "MODIFIED_ON": "2019-04-10 06:09:07",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e788161ac74b0abb5fe4b318306b9a",
@@ -70,7 +70,7 @@
             "ALIAS": "InstallAppFromVendorFolder",
             "NAME": "Install app",
             "SHORT_DESCRIPTION": "Installs an app from the vendor folder",
-            "CONFIG_UXON": "{\"widget\":{\"widget_type\":\"Dialog\",\"object_alias\":\"exface.Core.APP\",\"widgets\":[{\"attribute_alias\":\"ALIAS\"}],\"Buttons\":[{\"action_alias\":\"axenox.PackageManager.InstallApp\",\"align\":\"opposite\",\"visibility\":\"promoted\"}]}}",
+            "CONFIG_UXON": "{\"widget\":{\"widget_type\":\"Dialog\",\"object_alias\":\"exface.Core.APP\",\"width\":1,\"height\":\"auto\",\"widgets\":[{\"attribute_alias\":\"ALIAS\"}],\"Buttons\":[{\"action_alias\":\"axenox.PackageManager.InstallApp\",\"align\":\"opposite\",\"visibility\":\"promoted\"}]}}",
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": "0",
             "DOCS": ""
