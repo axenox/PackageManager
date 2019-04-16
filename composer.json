@@ -14,8 +14,8 @@
         "issues": "https://github.com/axenox/PackageManager/issues"
     },
     "require": {
-        "exface/core": "^0.1",
-        "kabachello/composerapi": "^0.1"
+        "exface/core": "~0.1",
+        "kabachello/composerapi": "~0.1"
     },
     "extra": {
         "app": {
