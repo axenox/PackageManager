@@ -396,7 +396,7 @@ class StaticInstaller
 
     protected static function printToStdout($text)
     {
-        if (is_resource(STDOUT)) {
+        if (defined('STDOUT') === true && is_resource(STDOUT) === true) {
             fwrite(STDOUT, $text . "\n");
             return true;
         }
