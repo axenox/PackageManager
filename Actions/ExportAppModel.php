@@ -1,7 +1,6 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
-use exface\Core\Exceptions\AppNotFoundError;
 use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\Interfaces\AppInterface;
@@ -13,7 +12,6 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Factories\ResultFactory;
-use exface\Core\CommonLogic\Filemanager;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
@@ -29,7 +27,7 @@ class ExportAppModel extends AbstractAction
 
     protected function init()
     {
-        $this->setIcon(Icons::DOWNLOAD);
+        $this->setIcon(Icons::HDD_O);
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
         $this->setInputObjectAlias('exface.Core.APP');
