@@ -64,22 +64,31 @@ class StaticInstaller
     public static function composerFinishInstall(Event $composer_event = null)
     {
         $text = '';
-        $processed_aliases = array();
-        $temp = self::getTempFile();
-        if (array_key_exists('install', $temp)) {
-            foreach ($temp['install'] as $app_alias) {
-                if (! in_array($app_alias, $processed_aliases)) {
-                    $processed_aliases[] = $app_alias;
-                } else {
-                    continue;
+        $installedAppAliases = [];
+        
+        $vendorBase = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..';
+        foreach (glob($vendorBase . '/*' , GLOB_ONLYDIR) as $vendorPath) {
+            foreach (glob($vendorPath . '/*' , GLOB_ONLYDIR) as $packagePath) {
+                if (file_exists($packagePath . DIRECTORY_SEPARATOR . 'composer.json')) {
+                    $composerJson = json_decode(file_get_contents($packagePath . DIRECTORY_SEPARATOR . 'composer.json'), true);
+                    if (is_array($composerJson) === false) {
+                        continue;
+                    }
+                    
+                    if (array_key_exists('extra', $composerJson) && array_key_exists('app', $composerJson['extra']) && $alias = $composerJson['extra']['app']['app_alias']) {
+                        $installedAppAliases[] = $alias;
+                    }
                 }
-                $result = self::install($app_alias);
-                $text .= '-> Installing app "' . $app_alias . '": ' . ($result ? trim($result, ".") : 'Nothing to do') . ".\n";
-                self::printToStdout($text);
             }
-            unset($temp['install']);
-            self::setTempFile($temp);
         }
+        $installedAppAliases = array_unique($installedAppAliases);
+        
+        foreach ($installedAppAliases as $app_alias) {
+            $result = self::install($app_alias);
+            $text .= '-> Installing app "' . $app_alias . '": ' . ($result ? trim($result, ".") : 'Nothing to do') . ".\n";
+            self::printToStdout($text);
+        }
+        
         return $text ? $text : 'No apps to install' . ".\n";
     }
 
