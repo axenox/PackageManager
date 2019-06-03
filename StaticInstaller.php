@@ -63,11 +63,11 @@ class StaticInstaller
      */
     public static function composerFinishInstall(Event $composer_event = null)
     {
-        $text = '';
+        $text = "Searching for apps in vendor-folder...\n";
         $installedAppAliases = [];
         
         $result = self::install(self::getCoreAppAlias());
-        $text .= '-> Updating app "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
+        $text .= '-> Installing "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
         
         $vendorBase = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..';
         foreach (glob($vendorBase . '/*' , GLOB_ONLYDIR) as $vendorPath) {
@@ -104,7 +104,7 @@ class StaticInstaller
      */
     public static function composerFinishUpdate(Event $composer_event = null)
     {
-        $text = '';
+        $text = "Running installers for newly installed and updated apps...\n";
         $processed_aliases = array();
         $temp = self::getTempFile();
         
