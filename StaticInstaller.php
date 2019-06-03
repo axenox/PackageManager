@@ -66,6 +66,9 @@ class StaticInstaller
         $text = '';
         $installedAppAliases = [];
         
+        $result = self::install(self::getCoreAppAlias());
+        $text .= '-> Updating app "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
+        
         $vendorBase = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..';
         foreach (glob($vendorBase . '/*' , GLOB_ONLYDIR) as $vendorPath) {
             foreach (glob($vendorPath . '/*' , GLOB_ONLYDIR) as $packagePath) {
@@ -89,6 +92,8 @@ class StaticInstaller
             self::printToStdout($text);
         }
         
+        self::setTempFile([]);
+        
         return $text ? $text : 'No apps to install' . ".\n";
     }
 
@@ -103,10 +108,15 @@ class StaticInstaller
         $processed_aliases = array();
         $temp = self::getTempFile();
         
+        $appAliases = array_key_exists('update', $temp) ? $temp['update'] : [];
+        if (array_key_exists('install', $temp)) {
+            $appAliases = array_merge($appAliases, $temp['install']);
+        }
+        
         // Run installers for updated apps
-        if (array_key_exists('update', $temp) && is_array($temp['update'])) {
+        if (empty($appAliases) === false) {
             // First of all check, if the core needs to be updated. If so, do that before updating other apps
-            if (in_array(self::getCoreAppAlias(), $temp['update'])) {
+            if (in_array(self::getCoreAppAlias(), $appAliases)) {
                 if (! in_array(self::getCoreAppAlias(), $processed_aliases)) {
                     $processed_aliases[] = self::getCoreAppAlias();
                     $result = self::install(self::getCoreAppAlias());
@@ -115,7 +125,7 @@ class StaticInstaller
                 }
             }
             // Now that the core is up to date, we can update the others
-            foreach ($temp['update'] as $app_alias) {
+            foreach ($appAliases as $app_alias) {
                 if (! in_array($app_alias, $processed_aliases)) {
                     $processed_aliases[] = $app_alias;
                 } else {
@@ -155,13 +165,8 @@ class StaticInstaller
         }
         
         unset($temp['update']);
+        unset($temp['install']);
         self::setTempFile($temp);
-        
-        // If composer is performing an update operation, it will install new packages, but will not trigger the post-install-cmd
-        // As a workaround, we just trigger finish_install() here by hand
-        if (array_key_exists('install', $temp)) {
-            $text .= self::composerFinishInstall();
-        }
 
         return $text ? $text : 'No apps to update' . ".\n";
     }
