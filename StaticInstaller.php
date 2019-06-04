@@ -418,8 +418,9 @@ class StaticInstaller
         if (defined('STDOUT') === true && is_resource(STDOUT) === true) {
             fwrite(STDOUT, $text . "\n");
             return true;
+        } else {
+            echo $text;
         }
-        return false;
     }
     
     protected static function printException(\Throwable $e, $prefix = 'ERROR ') 
