@@ -63,11 +63,11 @@ class StaticInstaller
      */
     public static function composerFinishInstall(Event $composer_event = null)
     {
-        $text = "Searching for apps in vendor-folder...\n";
+        self::printToStdout("Searching for apps in vendor-folder...\n");
         $installedAppAliases = [];
         
         $result = self::install(self::getCoreAppAlias());
-        $text .= '-> Installing "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
+        self::printToStdout('-> Installing "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
         
         $vendorBase = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..';
         foreach (glob($vendorBase . '/*' , GLOB_ONLYDIR) as $vendorPath) {
@@ -88,13 +88,12 @@ class StaticInstaller
         
         foreach ($installedAppAliases as $app_alias) {
             $result = self::install($app_alias);
-            $text .= '-> Installing app "' . $app_alias . '": ' . ($result ? trim($result, ".") : 'Nothing to do') . ".\n";
-            self::printToStdout($text);
+            self::printToStdout('-> Installing app "' . $app_alias . '": ' . ($result ? trim($result, ".") : 'Nothing to do') . ".\n");
         }
         
         self::setTempFile([]);
         
-        return $text ? $text : 'No apps to install' . ".\n";
+        return empty($installedAppAliases) === true ? "No apps to update.\n" : "Installed " . count($installedAppAliases) . " apps.\n";
     }
 
     /**
@@ -104,12 +103,16 @@ class StaticInstaller
      */
     public static function composerFinishUpdate(Event $composer_event = null)
     {
-        $text = "Running installers for newly installed and updated apps...\n";
+        self::printToStdout("Running installers for newly installed and updated apps...\n");
+        
         $processed_aliases = array();
         $temp = self::getTempFile();
         
         $appAliases = array_key_exists('update', $temp) ? $temp['update'] : [];
-        if (array_key_exists('install', $temp)) {
+        if (array_key_exists('install', $temp) && is_array($temp['install']) === true) {
+            if (in_array('axenox.PackageManager', $temp['install'])) {
+                return self::composerFinishInstall($composer_event);
+            }
             $appAliases = array_merge($appAliases, $temp['install']);
         }
         
@@ -120,8 +123,7 @@ class StaticInstaller
                 if (! in_array(self::getCoreAppAlias(), $processed_aliases)) {
                     $processed_aliases[] = self::getCoreAppAlias();
                     $result = self::install(self::getCoreAppAlias());
-                    $text .= '-> Updating app "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
-                    self::printToStdout($text);
+                    self::printToStdout('-> Updating app "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
                 }
             }
             // Now that the core is up to date, we can update the others
@@ -132,8 +134,7 @@ class StaticInstaller
                     continue;
                 }
                 $result = self::install($app_alias);
-                $text .= '-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n";
-                self::printToStdout($text);
+                self::printToStdout('-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
             }
         }
         if (array_key_exists('update', $temp) && is_array($temp['update'])){
@@ -168,7 +169,7 @@ class StaticInstaller
         unset($temp['install']);
         self::setTempFile($temp);
 
-        return $text ? $text : 'No apps to update' . ".\n";
+        return empty($processed_aliases) === true ? "No apps to update.\n" : "Updated/installed " . count($processed_aliases) . " apps.\n";
     }
     /**
      * Unlink backup from specified backup folder, folder name is defined by backupTime-String
