@@ -1,4 +1,4 @@
-<?php
+ <?php
 namespace axenox\PackageManager;
 
 use Composer\Installer\PackageEvent;
@@ -110,6 +110,8 @@ class StaticInstaller
         
         $appAliases = array_key_exists('update', $temp) ? $temp['update'] : [];
         if (array_key_exists('install', $temp) && is_array($temp['install']) === true) {
+            // If the package manager is being installed for the first time, run
+            // install instead of update
             if (in_array('axenox.PackageManager', $temp['install'])) {
                 return self::composerFinishInstall($composer_event);
             }
@@ -310,6 +312,7 @@ class StaticInstaller
             $action = ActionFactory::createFromString($exface, self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS);
             $result = $action->install($app_selector);
         } catch (\Throwable $e) {
+            $result = 'FAILED - ' . $e->getMessage() . '!';
             $this::printToStdout('FAILED installing ' . $app_alias . '!');
             $this::printException($e);
             $exface->getLogger()->logException($e);
@@ -326,6 +329,7 @@ class StaticInstaller
             $action = ActionFactory::createFromString($exface, self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS);
             $result = $action->uninstall($app_selector);
         } catch (\Throwable $e) {
+            $result = 'FAILED - ' . $e->getMessage() . '!';
             $this::printToStdout('FAILED uninstalling ' . $app_alias . '!');
             $this::printException($e);
             $exface->getLogger()->logException($e);
