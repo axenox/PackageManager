@@ -1,4 +1,4 @@
- <?php
+<?php
 namespace axenox\PackageManager;
 
 use Composer\Installer\PackageEvent;
