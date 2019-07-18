@@ -15,17 +15,48 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Factories\ResultFactory;
-use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
+use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
+use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\CommonLogic\UxonObject;
+use exface\Core\Exceptions\Actions\ActionConfigurationError;
+use exface\Core\Exceptions\Actions\ActionInputMissingError;
+use exface\Core\Factories\DataSheetFactory;
 
 /**
- * This action installs one or more apps including their meta model, custom installer, etc.
+ * Installs/updates one or more apps including their meta model, custom installer, etc.
+ * 
+ * **NOTE:** Any changes made to the model in the current installation, that were not previously
+ * exported via `ExportAppModel` will be overwritten by this action!
+ * 
+ * The action requires one or more apps to be explicitly selected for installing. This can
+ * be either done 
+ * 
+ * - by passing input data based on `exface.Core.APP` or `axenox.PackageManager.PACKAGE_INSTALLED`
+ * - or passing a comma-separated list of action aliases via the `apps` parameter
+ * - or by specifying a static alias list in the config of the action via `target_app_aliases`
+ * 
+ * ## Command line usage
+ * 
+ * Repair all apps currently installed
+ * 
+ * ```
+ * vendor/bin/console axenox.packagemanager:installapp *
+ * 
+ * ```
+ * 
+ * Install/repair selected apps (new apps will be installed, those alread installed - updated)
+ * 
+ * ```
+ * vendor/bin/console axenox.packagemanager:installapp exface.Core,axenox.PackageManager
+ * 
+ * ```
  *
  * @method PackageManagerApp getApp()
  *        
  * @author Andrej Kabachnik
  *        
  */
-class InstallApp extends AbstractAction
+class InstallApp extends AbstractAction implements iCanBeCalledFromCLI
 {
 
     private $target_app_aliases = [];
@@ -83,45 +114,77 @@ class InstallApp extends AbstractAction
      */
     protected function getTargetAppAliases(TaskInterface $task) : array
     {
-        $input = $this->getInputDataSheet($task);
-        if (empty($this->target_app_aliases) && $input) {
-            
-            if ($input->getMetaObject()->isExactly('exface.Core.APP')) {
-                $input->getColumns()->addFromExpression('ALIAS');
-                if (! $input->isEmpty()) {
-                    if (! $input->isFresh()) {
-                        $input->dataRead();
-                    }
-                } elseif (! $input->getFilters()->isEmpty()) {
-                    $input->dataRead();
-                }
-                $this->target_app_aliases = array_unique($input->getColumnValues('ALIAS', false));
-            } elseif ($input->getMetaObject()->isExactly('axenox.PackageManager.PACKAGE_INSTALLED')) {
-                $input->getColumns()->addFromExpression('app_alias');
-                if (! $input->isEmpty()) {
-                    if (! $input->isFresh()) {
-                        $input->dataRead();
-                    }
-                } elseif (! $input->getFilters()->isEmpty()) {
-                    $input->dataRead();
-                }
-                $this->target_app_aliases = array_filter(array_unique($input->getColumnValues('app_alias', false)));
+        if ($task->hasParameter('apps')) {
+            $this->setTargetAppAliases($task->getParameter('apps'));
+        }
+        
+        $getAll = false;
+        if (empty($this->target_app_aliases) === false) {
+            if (count($this->target_app_aliases) === 1 && $this->target_app_aliases[0] === '*') {
+                $getAll === true;
             } else {
-                throw new ActionInputInvalidObjectError($this, 'The action "' . $this->getAliasWithNamespace() . '" can only be called on the meta objects "exface.Core.App" or "axenox.PackageManager.PACKAGE_INSTALLED" - "' . $input->getMetaObject()->getAliasWithNamespace() . '" given instead!');
+                return $this->target_app_aliases;
             }
+        }
+        
+        try {
+            $input = $this->getInputDataSheet($task);
+        } catch (ActionInputMissingError $e) {
+            if ($getAll) {
+                $input = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.APP');
+            } else {
+                throw $e;
+            }
+        }
+            
+        if ($input->getMetaObject()->isExactly('exface.Core.APP')) {
+            $input->getColumns()->addFromExpression('ALIAS');
+            if (! $input->isEmpty()) {
+                if (! $input->isFresh()) {
+                    $input->dataRead();
+                }
+            } elseif ($getAll === true || ! $input->getFilters()->isEmpty()) {
+                $input->dataRead();
+            }
+            $this->target_app_aliases = array_unique($input->getColumnValues('ALIAS', false));
+        } elseif ($input->getMetaObject()->isExactly('axenox.PackageManager.PACKAGE_INSTALLED')) {
+            $input->getColumns()->addFromExpression('app_alias');
+            if (! $input->isEmpty()) {
+                if (! $input->isFresh()) {
+                    $input->dataRead();
+                }
+            } elseif (! $input->getFilters()->isEmpty()) {
+                $input->dataRead();
+            }
+            $this->target_app_aliases = array_filter(array_unique($input->getColumnValues('app_alias', false)));
+        } else {
+            throw new ActionInputInvalidObjectError($this, 'The action "' . $this->getAliasWithNamespace() . '" can only be called on the meta objects "exface.Core.App" or "axenox.PackageManager.PACKAGE_INSTALLED" - "' . $input->getMetaObject()->getAliasWithNamespace() . '" given instead!');
         }
         
         return $this->target_app_aliases;
     }
 
     /**
+     * Force to work with these apps instead of searching them in the input data.
      * 
-     * @param array $values
+     * @uxon-property target_app_aliases
+     * @uxon-type metamodel:app[]
+     * @uxon-template [""]
+     * 
+     * @param string|array|UxonObject $values
      * @return \axenox\PackageManager\Actions\InstallApp
      */
-    public function setTargetAppAliases(array $values)
+    public function setTargetAppAliases($values)
     {
-        $this->target_app_aliases = $values;
+        if ($values instanceof UxonObject) {
+            $this->target_app_aliases = $values->toArray();
+        } elseif (is_string($values)) {
+            $this->target_app_aliases = array_map('trim', explode(',', $values));
+        } elseif (is_array($values)) {
+            $this->target_app_aliases = $values;
+        } else {
+            throw new ActionConfigurationError($this, 'Invalid value for property "target_app_aliases" of action ' . $this->getAliasWithNamespace() . ': "' . $values . '". Expecting string, array or UXON');
+        }
         return $this;
     }
 
@@ -158,5 +221,26 @@ class InstallApp extends AbstractAction
         }
         return $app_path;
     }
+    
+    /**
+     * 
+     * {@inheritdoc}
+     * @see iCanBeCalledFromCLI::getCliArguments()
+     */
+    public function getCliArguments() : array
+    {
+        return [
+            (new ServiceParameter($this))->setName('apps')->setDescription('Comma-separated list of app aliases to install/update')
+        ];
+    }
+    
+    /**
+     * 
+     * {@inheritdoc}
+     * @see iCanBeCalledFromCLI::getCliOptions()
+     */
+   public function getCliOptions() : array
+   {
+       return [];
+   }
 }
-?>

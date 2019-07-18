@@ -14,8 +14,7 @@ use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Factories\ResultFactory;
 
 /**
- * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
- * installations folder of this app.
+ * Saves the metamodel for the selected apps as JSON files in the apps folder.
  *
  * @author Andrej Kabachnik
  *        
