@@ -40,14 +40,14 @@ use exface\Core\Factories\DataSheetFactory;
  * Repair all apps currently installed
  * 
  * ```
- * vendor/bin/console axenox.packagemanager:installapp *
+ * vendor/bin/action axenox.packagemanager:installapp *
  * 
  * ```
  * 
  * Install/repair selected apps (new apps will be installed, those alread installed - updated)
  * 
  * ```
- * vendor/bin/console axenox.packagemanager:installapp exface.Core,axenox.PackageManager
+ * vendor/bin/action axenox.packagemanager:installapp exface.Core,axenox.PackageManager
  * 
  * ```
  *
