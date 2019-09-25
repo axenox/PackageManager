@@ -230,7 +230,7 @@ class InstallApp extends AbstractAction implements iCanBeCalledFromCLI
     public function getCliArguments() : array
     {
         return [
-            (new ServiceParameter($this))->setName('apps')->setDescription('Comma-separated list of app aliases to install/update')
+            (new ServiceParameter($this))->setName('apps')->setDescription('Comma-separated list of app aliases to install/update. Use * for all apps.')
         ];
     }
     
