@@ -35,7 +35,7 @@ class PackageManagerApp extends App
     protected function createComposerJson(AppInterface $app)
     {
         $json = array(
-            "name" => $app->getVendor() . '/' . str_replace($app->getVendor() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '', $app->getAliasWithNamespace()),
+            "name" => mb_strtolower($app->getVendor() . '/' . str_replace($app->getVendor() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '', $app->getAliasWithNamespace())),
             "require" => array(
                 "exface/core" => '~0.1'
             ),
