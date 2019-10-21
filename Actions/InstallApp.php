@@ -2,7 +2,7 @@
 namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\PackageManagerApp;
-use exface\Core\CommonLogic\AbstractAction;
+use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
 use axenox\PackageManager\MetaModelInstaller;
@@ -21,6 +21,7 @@ use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
 use exface\Core\Exceptions\Actions\ActionInputMissingError;
 use exface\Core\Factories\DataSheetFactory;
+use exface\Core\CommonLogic\Tasks\ResultMessageStream;
 
 /**
  * Installs/updates one or more apps including their meta model, custom installer, etc.
@@ -56,7 +57,7 @@ use exface\Core\Factories\DataSheetFactory;
  * @author Andrej Kabachnik
  *        
  */
-class InstallApp extends AbstractAction implements iCanBeCalledFromCLI
+class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI
 {
 
     private $target_app_aliases = [];
@@ -76,34 +77,41 @@ class InstallApp extends AbstractAction implements iCanBeCalledFromCLI
     protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
         $exface = $this->getWorkbench();
-        $installed_counter = 0;
-        $message = '';
-        
         $aliases = $this->getTargetAppAliases($task);
+        $result = new ResultMessageStream($task);
         
-        foreach ($aliases as $app_alias) {
-            $message .= "Installing " . $app_alias . "...\n";
-            $app_selector = new AppSelector($exface, $app_alias);
-            try {
-                $installed_counter ++;
-                $message .= $this->install($app_selector);
-                $message .= "\n" . $app_alias . " successfully installed.\n";
-            } catch (\Exception $e) {
-                $installed_counter --;
-                $this->getWorkbench()->getLogger()->logException($e);
-                $message .= "\n" . $app_alias . " could not be installed" . ($e instanceof ExceptionInterface ? ' (see log ID ' . $e->getId() . ')' : '') . ".\n";
+        $generator = function() use ($aliases, $exface, $result, $transaction) {
+            $installed_counter = 0;
+            
+            foreach ($aliases as $app_alias) {
+                yield  "Installing " . $app_alias . "...";
+                $app_selector = new AppSelector($exface, $app_alias);
+                try {
+                    $installed_counter ++;
+                    yield from $this->install($app_selector);
+                    yield "..." . $app_alias . " successfully installed.";
+                } catch (\Exception $e) {
+                    $installed_counter --;
+                    $this->getWorkbench()->getLogger()->logException($e);
+                    yield "ERROR: " . ($e instanceof ExceptionInterface ? ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine());
+                    yield "...$app_alias installation failed!";
+                }
             }
-        }
+            
+            if (count($aliases) == 0) {
+                yield 'No installable apps had been selected!';
+            } elseif ($installed_counter == 0) {
+                yield  'No apps have been installed';
+            }
+            
+            $this->getWorkbench()->getCache()->clear();
+            
+            // Trigger regular action post-processing as required by AbstractActionDeferred.
+            $this->performAfterDeferred($result, $transaction);
+        };
         
-        if (count($aliases) == 0) {
-            $message .= 'No installable apps had been selected!';
-        } elseif ($installed_counter == 0) {
-            $message .= 'No apps have been installed';
-        }
-        
-        $this->getWorkbench()->getCache()->clear();
-        
-        return ResultFactory::createMessageResult($task, $message);
+        $result->setMessageStreamGeneratorFunction($generator);
+        return $result;
     }
 
     /**
@@ -193,17 +201,17 @@ class InstallApp extends AbstractAction implements iCanBeCalledFromCLI
      * @param AppSelectorInterface $app_selector            
      * @return string
      */
-    public function install(AppSelectorInterface $app_selector) : string
+    public function install(AppSelectorInterface $app_selector) : \Traversable
     {
-        $result = '';
-        
         $app = AppFactory::create($app_selector);
         $installer = $app->getInstaller(new MetaModelInstaller($app_selector));
         $installer_result = $installer->install($this->getAppAbsolutePath($app_selector));
-        $result .= $installer_result . (substr($installer_result, - 1) != '.' ? '.' : '');
+        if ($installer_result instanceof \Traversable) {
+            yield from $installer_result;
+        } else {
+            yield $installer_result . (substr($installer_result, - 1) != '.' ? '.' : '');
         
-        // Save the result
-        return $result;
+        }
     }
 
     /**

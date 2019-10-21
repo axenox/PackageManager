@@ -41,16 +41,6 @@ class MetaModelInstaller extends AbstractAppInstaller
 
     /**
      *
-     * @param string $source_absolute_path
-     * @return string
-     */
-    public function update($source_absolute_path)
-    {
-        return $this->installModel($this->getSelectorInstalling(), $source_absolute_path);
-    }
-
-    /**
-     *
      * @param string $destination_absolute_path
      *            Destination folder for meta model backup
      * @return string
@@ -266,9 +256,12 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @param string $source_absolute_path            
      * @return string
      */
-    protected function installModel(AppSelectorInterface $app_selector, $source_absolute_path) : string
+    protected function installModel(AppSelectorInterface $app_selector, $source_absolute_path) : \Traversable
     {
-        $result = '';
+        $modelChanged = false;
+        $indent = '  ';
+        yield $indent . 'Model changes:';
+        
         $model_source = $source_absolute_path . DIRECTORY_SEPARATOR . self::FOLDER_NAME_MODEL;
         
         if (is_dir($model_source)) {
@@ -319,28 +312,33 @@ class MetaModelInstaller extends AbstractAppInstaller
                     }
                     
                     if ($counter > 0) {
-                        $result .= ($result ? "; " : "") . $data_sheet->getMetaObject()->getName() . " - " . $counter;
+                        $modelChanged = true;
+                        yield $indent . $indent . $data_sheet->getMetaObject()->getName() . " - " . $counter;
                     }
                 } catch (\Throwable $e) {
                     throw new InstallerRuntimeError($this, 'Failed to install ' . $data_sheet->getMetaObject()->getAlias() . '-sheet: ' . $e->getMessage(), null, $e);
                 }
             }
             
-            if (! $result) {
-                $result .= 'No changes found';
+            if ($modelChanged === false) {
+                yield $indent.$indent.'No changes found';
             }
             
             // Install pages.
             $pageInstaller = new PageInstaller($this->getSelectorInstalling());
             $result_pages = $pageInstaller->install($source_absolute_path);
-            $result .= ($result && $result_pages ? '; ' : '') . $result_pages;
+            
+            if($result_pages instanceof \Traversable) {
+                yield from $result_pages;
+            } else {
+                yield $result_pages;
+            }
             
             // Commit the transaction
             $transaction->commit();
         } else {
-            $result .= 'No model files to install';
+            yield $indent . 'No model files to install';
         }
-        return "\nModel changes: " . $result;
     }
     
     /**

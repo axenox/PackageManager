@@ -310,7 +310,14 @@ class StaticInstaller
             $exface = $this->getWorkbench();
             $app_selector = new AppSelector($exface, $app_alias);
             $action = ActionFactory::createFromString($exface, self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS);
-            $result = $action->install($app_selector);
+            $installerResult = $action->install($app_selector);
+            if ($installerResult instanceof \Traversable) {
+                foreach ($installerResult as $msg) {
+                    $result .= $msg;
+                }
+            } else {
+                $result .$installerResult;
+            }
         } catch (\Throwable $e) {
             $result = 'FAILED - ' . $e->getMessage() . '!';
             $this::printToStdout('FAILED installing ' . $app_alias . '!');
