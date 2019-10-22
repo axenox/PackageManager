@@ -11,6 +11,7 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Factories\ResultFactory;
+use exface\Core\CommonLogic\Tasks\ResultMessageStream;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -39,31 +40,38 @@ class BackupApp extends InstallApp
     protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
         $exface = $this->getWorkbench();
-        $backup_counter = 0;
-        $messasge = '';
         $target_aliases = $this->getTargetAppAliases($task);
+        $result = new ResultMessageStream($task);
         
-        foreach ($target_aliases as $app_alias) {
-            $message .= "Creating Backup for " . $app_alias . "...\n";
-            $app_selector = new AppSelector($exface, $app_alias);
-            try {
-                $backup_counter ++;
-                $message .= $this->backup($app_selector);
-            } catch (\Exception $e) {
-                $backup_counter --;
-                // FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
-                throw $e;
+        
+        $generator = function() use ($target_aliases, $exface, $result, $transaction) {
+            $backup_counter = 0;
+            foreach ($target_aliases as $app_alias) {
+                yield "Creating Backup for " . $app_alias . "..." . PHP_EOL;
+                $app_selector = new AppSelector($exface, $app_alias);
+                try {
+                    $backup_counter ++;
+                    yield from $this->backup($app_selector);
+                } catch (\Exception $e) {
+                    $backup_counter --;
+                    // FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
+                    throw $e;
+                }
+                yield "... Sucessfully created backup for " . $app_alias . " ." . PHP_EOL;
             }
-            $message .= "\n Sucessfully created backup for " . $app_alias . " .\n";
-        }
+            
+            if (count($target_aliases) == 0) {
+                yield 'No apps had been selected for backup!';
+            } elseif ($backup_counter == 0) {
+                yield 'No backups have been created';
+            }
+            
+            // Trigger regular action post-processing as required by AbstractActionDeferred.
+            $this->performAfterDeferred($result, $transaction);
+        };
         
-        if (count($target_aliases) == 0) {
-            $message .= 'No apps had been selected for backup!';
-        } elseif ($backup_counter == 0) {
-            $message .= 'No backups have been created';
-        }
-        
-        return ResultFactory::createMessageResult($task, $message);
+        $result->setMessageStreamGeneratorFunction($generator);
+        return $result;
     }
 
     /**
@@ -71,10 +79,8 @@ class BackupApp extends InstallApp
      * @param AppSelectorInterface $appSelector            
      * @return string
      */
-    public function backup(AppSelectorInterface $appSelector) : string
+    public function backup(AppSelectorInterface $appSelector) : \Iterator
     {
-        $result = '';
-        
         $app = AppFactory::create($appSelector);
         
         $installer = $app->getInstaller(new MetaModelInstaller($appSelector));
@@ -89,11 +95,7 @@ class BackupApp extends InstallApp
         }
         $backupDir = $app->getWorkbench()->filemanager()->pathNormalize($backupDir, DIRECTORY_SEPARATOR);
         
-        $installer_result = $installer->backup($backupDir);
-        $result .= $installer_result . (substr($installer_result, - 1) != '.' ? '.' : '');
-        
-        // Save the result
-        return $result;
+        yield from $installer->backup($backupDir);
     }
 
     /**

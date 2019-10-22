@@ -2,7 +2,7 @@
 namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\PackageManagerApp;
-use exface\Core\CommonLogic\AbstractAction;
+use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use axenox\PackageManager\MetaModelInstaller;
@@ -12,6 +12,7 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Factories\ResultFactory;
+use exface\Core\CommonLogic\Tasks\ResultMessageStream;
 
 /**
  * Saves the metamodel for the selected apps as JSON files in the apps folder.
@@ -19,7 +20,7 @@ use exface\Core\Factories\ResultFactory;
  * @author Andrej Kabachnik
  *        
  */
-class ExportAppModel extends AbstractAction
+class ExportAppModel extends AbstractActionDeferred
 {
 
     private $export_to_path_relative = null;
@@ -40,27 +41,36 @@ class ExportAppModel extends AbstractAction
     protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
         $apps = $this->getInputAppsDataSheet($task);
-        
         $workbench = $this->getWorkbench();
-        $exported_counter = 0;
-        foreach ($apps->getRows() as $row) {
-            $app_selector = new AppSelector($workbench, $row['ALIAS']);
-            $app = $workbench->getApp($row['ALIAS']);
-            if (! file_exists($app->getDirectoryAbsolutePath())) {
-                $this->getApp()->createAppFolder($app);
+        $result = new ResultMessageStream($task);
+        
+        
+        $generator = function() use ($apps, $workbench, $result, $transaction) {
+            $exported_counter = 0;
+            foreach ($apps->getRows() as $row) {
+                yield 'Exporting app ' . $row['ALIAS'] . '...' . PHP_EOL;
+                
+                $app_selector = new AppSelector($workbench, $row['ALIAS']);
+                $app = $workbench->getApp($row['ALIAS']);
+                if (! file_exists($app->getDirectoryAbsolutePath())) {
+                    $this->getApp()->createAppFolder($app);
+                }
+                
+                $installer = new MetaModelInstaller($app_selector);
+                $backupDir = $this->getModelFolderPathAbsolute($app);
+                yield from $installer->backup($backupDir);
+                
+                $exported_counter ++;
+                
+                yield '... exported app ' . $row['ALIAS'] . ' into ' . ($this->getExportToPathRelative() ? '"' . $this->getExportToPathRelative() . '"' : ' the respective app folders') . '.' . PHP_EOL;
             }
             
-            $installer = new MetaModelInstaller($app_selector);
-            $backupDir = $this->getModelFolderPathAbsolute($app);
-            $installer->backup($backupDir);
-            
-            $exported_counter ++;
-        }
+            // Trigger regular action post-processing as required by AbstractActionDeferred.
+            $this->performAfterDeferred($result, $transaction);
+        };
         
-        // Save the result and output a message for the user
-        $message = 'Exported model files and pages for ' . $exported_counter . ' apps to app-folders into ' . ($this->getExportToPathRelative() ? '"' . $this->getExportToPathRelative() . '"' : ' the respective app folders') . '.';
-        
-        return ResultFactory::createMessageResult($task, $message);
+        $result->setMessageStreamGeneratorFunction($generator);
+        return $result;
     }
 
     /**
