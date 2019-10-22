@@ -78,7 +78,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         } else {
             $result .= 'Nothing to uninstall';
         }
-        return "\nModel changes: " . $result;
+        return "Model changes: " . $result;
     }
 
     /**
@@ -127,7 +127,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         $composer_json['extra']['app'] = $package_props;
         $packageManager->setComposerJson($app, $composer_json);
         
-        $result .= "\n" . 'Created meta model backup for "' . $app->getAliasWithNamespace() . '".';
+        $result .= 'Created meta model backup for "' . $app->getAliasWithNamespace() . '".';
         
         // Backup pages.
         $pageInstaller = new PageInstaller($this->getSelectorInstalling());
@@ -260,7 +260,7 @@ class MetaModelInstaller extends AbstractAppInstaller
     {
         $modelChanged = false;
         $indent = '  ';
-        yield $indent . 'Model changes:';
+        yield $indent . "Model changes:" . PHP_EOL;
         
         $model_source = $source_absolute_path . DIRECTORY_SEPARATOR . self::FOLDER_NAME_MODEL;
         
@@ -313,7 +313,7 @@ class MetaModelInstaller extends AbstractAppInstaller
                     
                     if ($counter > 0) {
                         $modelChanged = true;
-                        yield $indent . $indent . $data_sheet->getMetaObject()->getName() . " - " . $counter;
+                        yield $indent . $indent . $data_sheet->getMetaObject()->getName() . " - " . $counter . PHP_EOL;
                     }
                 } catch (\Throwable $e) {
                     throw new InstallerRuntimeError($this, 'Failed to install ' . $data_sheet->getMetaObject()->getAlias() . '-sheet: ' . $e->getMessage(), null, $e);
@@ -321,7 +321,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             }
             
             if ($modelChanged === false) {
-                yield $indent.$indent.'No changes found';
+                yield $indent.$indent."No changes found" . PHP_EOL;
             }
             
             // Install pages.
@@ -337,7 +337,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             // Commit the transaction
             $transaction->commit();
         } else {
-            yield $indent . 'No model files to install';
+            yield $indent . "No model files to install" . PHP_EOL;
         }
     }
     
