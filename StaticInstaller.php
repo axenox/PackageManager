@@ -88,7 +88,7 @@ class StaticInstaller
         
         foreach ($installedAppAliases as $app_alias) {
             $result = self::install($app_alias);
-            self::printToStdout('-> Installing app "' . $app_alias . '": ' . ($result ? trim($result, ".") : 'Nothing to do') . ".\n");
+            self::printToStdout('-> Installing app "' . $app_alias . '": ' . PHP_EOL . ($result ? trim($result, ".") : 'Nothing to do') . PHP_EOL);
         }
         
         self::setTempFile([]);
@@ -125,7 +125,7 @@ class StaticInstaller
                 if (! in_array(self::getCoreAppAlias(), $processed_aliases)) {
                     $processed_aliases[] = self::getCoreAppAlias();
                     $result = self::install(self::getCoreAppAlias());
-                    self::printToStdout('-> Updating app "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
+                    self::printToStdout('-> Updating app "' . self::getCoreAppAlias() . '": ' . PHP_EOL . ($result ? $result : 'Nothing to do') . PHP_EOL);
                 }
             }
             // Now that the core is up to date, we can update the others
@@ -423,7 +423,7 @@ class StaticInstaller
     protected static function printToStdout($text)
     {
         if (defined('STDOUT') === true && is_resource(STDOUT) === true) {
-            fwrite(STDOUT, $text . "\n");
+            fwrite(STDOUT, $text . PHP_EOL);
             return true;
         } else {
             echo $text;
@@ -435,7 +435,7 @@ class StaticInstaller
         if ($e instanceof ExceptionInterface){
             $log_hint = 'See log ID ' . $e->getId();
         }
-        static::printToStdout($e->__toString() . "\n-> " . $log_hint . "\n");
+        static::printToStdout($e->__toString() . "\n-> " . $log_hint . PHP_EOL);
         
         if ($p = $e->getPrevious()) {
             static::printException($p);
