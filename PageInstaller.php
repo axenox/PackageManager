@@ -34,18 +34,21 @@ class PageInstaller extends AbstractAppInstaller
      * {@inheritDoc}
      * @see \exface\Core\Interfaces\InstallerInterface::install()
      */
-    public function install($source_absolute_path)
+    public function install(string $source_absolute_path) : \Iterator
     {
+        $idt = $this->getOutputIndentation();
         $pagesFile = [];
         $workbench = $this->getWorkbench();
         $cms = $workbench->getCMS();
+        
+        yield $idt . 'Pages: ' . PHP_EOL;
         
         // FIXME make the installer get all languages instead of only the default one.
         $dir = $this->getPagesPathWithLanguage($source_absolute_path, $this->getDefaultLanguageCode());
         if (! $dir) {
             // Ist entsprechend der momentanen Sprache kein passender Ordner vorhanden, wird
             // nichts gemacht.
-            return;
+            yield $idt . 'No pages to install for language ' . $this->getDefaultLanguageCode() . PHP_EOL;
         }
         
         // Find pages files. 
@@ -114,8 +117,6 @@ class PageInstaller extends AbstractAppInstaller
             }
         }
         
-        $result = '';
-        
         // Pages erstellen.
         $pagesCreatedCounter = 0;
         $pagesCreatedErrorCounter = 0;
@@ -129,10 +130,10 @@ class PageInstaller extends AbstractAppInstaller
             }
         }
         if ($pagesCreatedCounter) {
-            $result .= ($result ? ', ' : '') . $pagesCreatedCounter . ' created';
+            yield $idt.$idt . $pagesCreatedCounter . ' created' . PHP_EOL;
         }
         if ($pagesCreatedErrorCounter) {
-            $result .= ($result ? ', ' : '') . $pagesCreatedErrorCounter . ' create errors';
+            yield $idt.$idt . $pagesCreatedErrorCounter . ' create errors' . PHP_EOL;
         }
         
         // Pages aktualisieren.
@@ -148,10 +149,10 @@ class PageInstaller extends AbstractAppInstaller
             }
         }
         if ($pagesUpdatedCounter) {
-            $result .= ($result ? ', ' : '') . $pagesUpdatedCounter . ' updated';
+            yield $idt.$idt . $pagesUpdatedCounter . ' updated' . PHP_EOL;
         }
         if ($pagesUpdatedErrorCounter) {
-            $result .= ($result ? ', ' : '') . $pagesUpdatedErrorCounter . ' update errors';
+            yield $idt.$idt . $pagesUpdatedErrorCounter . ' update errors' . PHP_EOL;
         }
         
         // Pages loeschen.
@@ -167,13 +168,15 @@ class PageInstaller extends AbstractAppInstaller
             }
         }
         if ($pagesDeletedCounter) {
-            $result .= ($result ? ', ' : '') . $pagesDeletedCounter . ' deleted';
+            yield $idt.$idt . $pagesDeletedCounter . ' deleted' . PHP_EOL;
         }
         if ($pagesDeletedErrorCounter) {
-            $result .= ($result ? ', ' : '') . $pagesDeletedErrorCounter . ' delete errors';
+            yield $idt.$idt . $pagesDeletedErrorCounter . ' delete errors' . PHP_EOL;
         }
         
-        return $result ? 'Pages: ' . $result : '';
+        if ($pagesCreatedCounter+$pagesCreatedErrorCounter+$pagesUpdatedCounter+$pagesUpdatedErrorCounter+$pagesDeletedErrorCounter+$pagesDeletedCounter === 0) {
+            yield $idt.$idt . 'No changes found' . PHP_EOL;
+        }
     }
 
     /**
@@ -286,11 +289,12 @@ class PageInstaller extends AbstractAppInstaller
      * {@inheritDoc}
      * @see \exface\Core\Interfaces\InstallerInterface::backup()
      */
-    public function backup($destination_absolute_path)
+    public function backup(string $destination_absolute_path) : \Iterator
     {
         /** @var Filemanager $fileManager */
         $fileManager = $this->getWorkbench()->filemanager();
         $cms = $this->getWorkbench()->getCMS();
+        $idt = $this->getOutputIndentation();
         
         // Empty pages folder in case it is an update
         try {
@@ -336,7 +340,7 @@ class PageInstaller extends AbstractAppInstaller
             }
         }
         
-        return count($pages) . ' pages for "' . $this->getApp()->getAliasWithNamespace() . '" exported.';
+        yield $idt . 'Exported ' . count($pages) . ' successfully.' . PHP_EOL;
     }
 
     /**
@@ -344,6 +348,8 @@ class PageInstaller extends AbstractAppInstaller
      * {@inheritDoc}
      * @see \exface\Core\Interfaces\InstallerInterface::uninstall()
      */
-    public function uninstall()
-    {}
+    public function uninstall() : \Iterator
+    {
+        return new \EmptyIterator();
+    }
 }

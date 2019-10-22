@@ -12,17 +12,20 @@ class PackageManagerInstaller extends AbstractAppInstaller
      * {@inheritDoc}
      * @see \exface\Core\Interfaces\InstallerInterface::install()
      */
-    public function install($source_absolute_path)
+    public function install(string $source_absolute_path) : \Iterator
     {
+        $idt = $this->getOutputIndentation();
+        
         $root_composer_json_path = $this->getWorkbench()->filemanager()->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.json';
         if (! file_exists($root_composer_json_path)) {
-            return "\n" . 'Root composer.json not found under "' . $root_composer_json_path . '" - automatic installation of apps will not work! See the package manager docs for solutions.';
+            yield $idt . 'Root composer.json not found under "' . $root_composer_json_path . '" - automatic installation of apps will not work! See the package manager docs for solutions.' . PHP_EOL;
+            return;
         }
         
         try {
             $root_composer_json = $this->parseComposerJson($root_composer_json_path);
         } catch (\Throwable $e) {
-            return "\n" . $e->getMessage() . ' - automatic installation of apps will not work! See the package manager docs for solutions.';
+            yield  $idt . 'ERROR: ' . $e->getMessage() . ' - automatic installation of apps will not work! See the package manager docs for solutions.';
         }
         
         $result = '';
@@ -55,12 +58,10 @@ class PackageManagerInstaller extends AbstractAppInstaller
         
         if ($changes > 0) {
             $this->getWorkbench()->filemanager()->dumpFile($root_composer_json_path, json_encode($root_composer_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            $result .= "\n Configured root composer.json for automatic app installation";
+            yield $idt . "Configured root composer.json for automatic app installation" . PHP_EOL;
         } else {
-            $result .= "\n Checked root composer.json";
+            yield $idt . "Checked root composer.json" . PHP_EOL;
         }
-        
-        return $result;
     }
 
     public function update($source_absolute_path)
@@ -68,7 +69,7 @@ class PackageManagerInstaller extends AbstractAppInstaller
         return $this->install();
     }
 
-    public function uninstall()
+    public function uninstall() : \Iterator
     {
         return 'Uninstall not implemented for' . $this->getSelectorInstalling()->getAliasWithNamespace() . '!';
     }
@@ -78,9 +79,9 @@ class PackageManagerInstaller extends AbstractAppInstaller
      * {@inheritDoc}
      * @see \exface\Core\Interfaces\InstallerInterface::backup()
      */
-    public function backup($destination_absolute_path)
+    public function backup(string $destination_absolute_path) : \Iterator
     {
-        return '';
+        return new \EmptyIterator();
     }
 
     protected function parseComposerJson($root_composer_json_path)

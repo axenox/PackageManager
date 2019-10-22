@@ -34,9 +34,9 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @param string $source_absolute_path
      * @return string
      */
-    public function install($source_absolute_path) 
+    public function install(string $source_absolute_path) : \Iterator 
     {
-        return $this->installModel($this->getSelectorInstalling(), $source_absolute_path);
+        yield from $this->installModel($this->getSelectorInstalling(), $source_absolute_path);
     }
 
     /**
@@ -45,19 +45,23 @@ class MetaModelInstaller extends AbstractAppInstaller
      *            Destination folder for meta model backup
      * @return string
      */
-    public function backup($destination_absolute_path)
+    public function backup(string $destination_absolute_path) : \Iterator
     {
-        return $this->backupModel($destination_absolute_path);
+        yield from $this->backupModel($destination_absolute_path);
     }
 
     /**
      *
      * @return string
      */
-    public function uninstall()
+    public function uninstall() : \Iterator
     {
-        $result = '';
+        $idt = $this->getOutputIndentation();
         $sheets = $this->getModelDataSheets();
+        $nothingToDo = true;
+        
+        yield $idt . 'Uninstalling model:' . PHP_EOL;
+        
         if (! empty($sheets)){
             array_reverse($sheets);
             
@@ -66,19 +70,19 @@ class MetaModelInstaller extends AbstractAppInstaller
             foreach ($sheets as $ds){
                 $counter = $ds->dataDelete($transaction);
                 if ($counter > 0) {
-                    $result .= ($result ? "; " : "") . $ds->getMetaObject()->getName() . " - " . $counter;
-                }
+                    $nothingToDo = false;
+                    yield $idt.$idt . $ds->getMetaObject()->getName() . " - " . $counter . PHP_EOL;
+                } 
             }
             
             $transaction->commit();
-            
-            if (! $result) {
-                $result .= 'Nothing to uninstall';
-            }
-        } else {
-            $result .= 'Nothing to uninstall';
+        } 
+        
+        // TODO add page installer!
+        
+        if ($nothingToDo === true) {
+            yield $idt . $idt . 'Nothing to do.' . PHP_EOL;
         }
-        return "Model changes: " . $result;
     }
 
     /**
@@ -87,9 +91,9 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @param string $destinationAbsolutePath
      * @return string
      */
-    protected function backupModel($destinationAbsolutePath) : string
+    protected function backupModel($destinationAbsolutePath) : \Iterator
     {
-        $result = '';
+        $idt = $this->getOutputIndentation();
         $app = $this->getApp();
         $dir = $destinationAbsolutePath . DIRECTORY_SEPARATOR . self::FOLDER_NAME_MODEL;
         
@@ -127,13 +131,12 @@ class MetaModelInstaller extends AbstractAppInstaller
         $composer_json['extra']['app'] = $package_props;
         $packageManager->setComposerJson($app, $composer_json);
         
-        $result .= 'Created meta model backup for "' . $app->getAliasWithNamespace() . '".';
+        yield $idt . 'Created meta model backup for "' . $app->getAliasWithNamespace() . '".' . PHP_EOL;
         
         // Backup pages.
         $pageInstaller = new PageInstaller($this->getSelectorInstalling());
-        $result .= '. ' . $pageInstaller->backup($destinationAbsolutePath);
-        
-        return $result;
+        $pageInstaller->setOutputIndentation($idt);
+        yield from $pageInstaller->backup($destinationAbsolutePath);
     }
 
     /**
@@ -256,10 +259,10 @@ class MetaModelInstaller extends AbstractAppInstaller
      * @param string $source_absolute_path            
      * @return string
      */
-    protected function installModel(AppSelectorInterface $app_selector, $source_absolute_path) : \Traversable
+    protected function installModel(AppSelectorInterface $app_selector, $source_absolute_path) : \Iterator
     {
         $modelChanged = false;
-        $indent = '  ';
+        $indent = $this->getOutputIndentation();
         yield $indent . "Model changes:" . PHP_EOL;
         
         $model_source = $source_absolute_path . DIRECTORY_SEPARATOR . self::FOLDER_NAME_MODEL;
@@ -326,13 +329,8 @@ class MetaModelInstaller extends AbstractAppInstaller
             
             // Install pages.
             $pageInstaller = new PageInstaller($this->getSelectorInstalling());
-            $result_pages = $pageInstaller->install($source_absolute_path);
-            
-            if($result_pages instanceof \Traversable) {
-                yield from $result_pages;
-            } else {
-                yield $result_pages;
-            }
+            $pageInstaller->setOutputIndentation($indent);
+            yield from $pageInstaller->install($source_absolute_path);
             
             // Commit the transaction
             $transaction->commit();
