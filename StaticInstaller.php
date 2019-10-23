@@ -352,7 +352,7 @@ class StaticInstaller
     {
         $this->importSources();
         if (is_null($this->workbench)) {
-            error_reporting(E_ALL ^ E_NOTICE);
+            error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
             try {
                 $this->workbench = Workbench::startNewInstance();
             } catch (\Throwable $e) {
