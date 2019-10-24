@@ -88,7 +88,7 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI
                 $app_selector = new AppSelector($exface, $app_alias);
                 try {
                     $installed_counter ++;
-                    yield from $this->install($app_selector);
+                    yield from $this->installApp($app_selector);
                     yield "..." . $app_alias . " successfully installed." . PHP_EOL;
                 } catch (\Exception $e) {
                     $installed_counter --;
@@ -195,13 +195,35 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI
         }
         return $this;
     }
+    
+    /**
+     * @deprecated use installApp() instead!
+     * 
+     * This method ensures backwards compatibility with older versions of the StaticInstaller, which
+     * cannot work with generators. If updating from an old version of the package manager, the
+     * StaticInstaller old StaticInstaller attempts to call newer versions of this action. This
+     * is why the install() method still returns a string and ensures the generator is iterade over,
+     * while newer versions of StaticInstaller call installApp() as does the perform() method of the
+     * action.
+     * 
+     * @param AppSelectorInterface $app_selector
+     * @return string
+     */
+    public function install(AppSelectorInterface $app_selector) : string
+    {
+        $result = '';
+        foreach ($this->installApp($app_selector) as $msg) {
+            $result .= $msg;
+        }
+        return $result;
+    }
 
     /**
      *
      * @param AppSelectorInterface $app_selector            
      * @return string
      */
-    public function install(AppSelectorInterface $app_selector) : \Traversable
+    public function installApp(AppSelectorInterface $app_selector) : \Traversable
     {
         $app = AppFactory::create($app_selector);
         $installer = $app->getInstaller(new MetaModelInstaller($app_selector));

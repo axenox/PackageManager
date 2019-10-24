@@ -310,13 +310,9 @@ class StaticInstaller
             $exface = $this->getWorkbench();
             $app_selector = new AppSelector($exface, $app_alias);
             $action = ActionFactory::createFromString($exface, self::PACKAGE_MANAGER_INSTALL_ACTION_ALIAS);
-            $installerResult = $action->install($app_selector);
-            if ($installerResult instanceof \Traversable) {
-                foreach ($installerResult as $msg) {
-                    $result .= $msg;
-                }
-            } else {
-                $result .$installerResult;
+            $installerResult = $action->installApp($app_selector);
+            foreach ($installerResult as $msg) {
+                $result .= $msg;
             }
         } catch (\Throwable $e) {
             $result = 'FAILED - ' . $e->getMessage() . '!';
@@ -435,7 +431,7 @@ class StaticInstaller
         if ($e instanceof ExceptionInterface){
             $log_hint = 'See log ID ' . $e->getId();
         }
-        static::printToStdout($e->__toString() . "\n-> " . $log_hint . PHP_EOL);
+        static::printToStdout($e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine() . PHP_EOL . "-> " . $log_hint . PHP_EOL);
         
         if ($p = $e->getPrevious()) {
             static::printException($p);
