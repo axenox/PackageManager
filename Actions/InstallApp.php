@@ -110,7 +110,7 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI
             $this->performAfterDeferred($result, $transaction);
         };
         
-        $result->setMessageStreamGeneratorFunction($generator);
+        $result->setMessageStreamGenerator($generator);
         return $result;
     }
 

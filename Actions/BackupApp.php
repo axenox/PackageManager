@@ -70,7 +70,7 @@ class BackupApp extends InstallApp
             $this->performAfterDeferred($result, $transaction);
         };
         
-        $result->setMessageStreamGeneratorFunction($generator);
+        $result->setMessageStreamGenerator($generator);
         return $result;
     }
 

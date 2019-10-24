@@ -69,7 +69,7 @@ class ExportAppModel extends AbstractActionDeferred
             $this->performAfterDeferred($result, $transaction);
         };
         
-        $result->setMessageStreamGeneratorFunction($generator);
+        $result->setMessageStreamGenerator($generator);
         return $result;
     }
 
