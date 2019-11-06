@@ -80,28 +80,42 @@ class PageInstaller extends AbstractAppInstaller
         
         // Pages vergleichen und bestimmen welche erstellt, aktualisiert oder geloescht werden muessen.
         $pagesCreate = [];
+        $pagesCreateErrors = [];
         $pagesUpdate = [];
+        $pagesUpdateErrors = [];
+        $pagesUpdateDisabled = [];
+        $pagesUpdateMoved = [];
         $pagesDelete = [];
+        $pagesDeleteErrors = [];
         
         foreach ($pagesFile as $pageFile) {
             try {
                 $pageDb = $cms->getPage(SelectorFactory::createPageSelector($workbench, $pageFile->getId()), true);
                 // Die Seite existiert bereits und wird aktualisiert.
-                if (! $pageDb->equals($pageFile) && $pageDb->isUpdateable()) {
+                if (! $pageDb->equals($pageFile)) {
                     // Irgendetwas hat sich an der Seite geaendert.
-                    if (! $pageDb->equals($pageFile, ['menuParentPageAlias', 'menuIndex'])) {
-                        // Der Inhalt der Seite (vlt. auch die Position) haben sich geaendert.
-                        if ($pageDb->isMoved()) {
-                            // Die Seite wurde manuell umgehaengt. Die menuDefaultPosition wird
-                            // aktualisiert, die Position im Baum wird nicht aktualisiert.
-                            $pageFile->setMenuIndex($pageDb->getMenuIndex());
-                            $pageFile->setMenuParentPageAlias($pageDb->getMenuParentPageAlias());
+                    if ($pageDb->isUpdateable() === true) {
+                        // Wenn Aenderungen nicht explizit ausgeschaltet sind, wird geprüft, ob die
+                        // Seite auf dieser Installation irgendwohin verschoben wurde.
+                        if (! $pageDb->equals($pageFile, ['menuParentPageAlias', 'menuIndex'])) {
+                            // Der Inhalt der Seite (vlt. auch die Position) haben sich geaendert.
+                            if ($pageDb->isMoved()) {
+                                // Die Seite wurde manuell umgehaengt. Die menuDefaultPosition wird
+                                // aktualisiert, die Position im Baum wird nicht aktualisiert.
+                                $pageFile->setMenuIndex($pageDb->getMenuIndex());
+                                $pageFile->setMenuParentPageAlias($pageDb->getMenuParentPageAlias());
+                                $pagesUpdateMoved[] = $pageFile;
+                            }
+                            $pagesUpdate[] = $pageFile;
+                        } elseif (! $pageDb->isMoved()) {
+                            // Die Position der Seite hat sich geaendert. Nur Aktualisieren wenn die
+                            // Seite nicht manuell umgehaengt wurde.
+                            $pagesUpdate[] = $pageFile;
+                        } else {
+                            $pagesUpdateMoved[] = $pageFile;
                         }
-                        $pagesUpdate[] = $pageFile;
-                    } elseif (! $pageDb->isMoved()) {
-                        // Die Position der Seite hat sich geaendert. Nur Aktualisieren wenn die
-                        // Seite nicht manuell umgehaengt wurde.
-                        $pagesUpdate[] = $pageFile;
+                    } else {
+                        $pagesUpdateDisabled[] = $pageFile;
                     }
                 }
             } catch (UiPageNotFoundError $upnfe) {
@@ -119,59 +133,80 @@ class PageInstaller extends AbstractAppInstaller
         
         // Pages erstellen.
         $pagesCreatedCounter = 0;
-        $pagesCreatedErrorCounter = 0;
         foreach ($pagesCreate as $page) {
             try {
                 $cms->createPage($page);
                 $pagesCreatedCounter ++;
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
-                $pagesCreatedErrorCounter ++;
+                $pagesCreateErrors[] = $page;
             }
         }
         if ($pagesCreatedCounter) {
-            yield $idt.$idt . $pagesCreatedCounter . ' created' . PHP_EOL;
+            yield $idt.$idt . 'Created - ' . $pagesCreatedCounter . PHP_EOL;
         }
-        if ($pagesCreatedErrorCounter) {
-            yield $idt.$idt . $pagesCreatedErrorCounter . ' create errors' . PHP_EOL;
+        $pagesCreatedErrorCounter = count($pagesCreateErrors);
+        if ($pagesCreatedErrorCounter > 0) {
+            yield $idt.$idt . 'Create errors:' . PHP_EOL;
+            foreach ($pagesCreateErrors as $pageFile) {
+                yield $idt.$idt.$idt . '- ' . $pageFile->getAliasWithNamespace() . ' (' . $pageFile->getId() . ')' . PHP_EOL;
+            }
         }
         
         // Pages aktualisieren.
         $pagesUpdatedCounter = 0;
-        $pagesUpdatedErrorCounter = 0;
         foreach ($pagesUpdate as $page) {
             try {
                 $cms->updatePage($page);
                 $pagesUpdatedCounter ++;
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
-                $pagesUpdatedErrorCounter ++;
+                $pagesUpdateErrors[] = $page;
             }
         }
         if ($pagesUpdatedCounter) {
-            yield $idt.$idt . $pagesUpdatedCounter . ' updated' . PHP_EOL;
+            yield $idt.$idt . 'Updated - ' . $pagesUpdatedCounter . PHP_EOL;
         }
+        if (empty($pagesUpdateDisabled) === false) {
+            yield $idt.$idt . 'Update disabled in page model:' . PHP_EOL;
+            foreach ($pagesUpdateDisabled as $pageFile) {
+                yield $idt.$idt.$idt . '- ' . $pageFile->getAliasWithNamespace() . ' (' . $pageFile->getId() . ')' . PHP_EOL;
+            }
+        }
+        if (empty($pagesUpdateMoved) === false) {
+            yield $idt.$idt . 'Updated partially because moved to another menu position:' . PHP_EOL;
+            foreach ($pagesUpdateMoved as $pageFile) {
+                yield $idt.$idt.$idt . '- ' . $pageFile->getAliasWithNamespace() . ' (' . $pageFile->getId() . ')' . PHP_EOL;
+            }
+        }
+        $pagesUpdatedErrorCounter = count($pagesUpdateErrors);
         if ($pagesUpdatedErrorCounter) {
-            yield $idt.$idt . $pagesUpdatedErrorCounter . ' update errors' . PHP_EOL;
+            yield $idt.$idt . 'Update errors:' . PHP_EOL;
+            foreach ($pagesUpdateErrors as $pageFile) {
+                yield $idt.$idt.$idt . '- ' . $pageFile->getAliasWithNamespace() . ' (' . $pageFile->getId() . ')' . PHP_EOL;
+            }
         }
         
         // Pages loeschen.
         $pagesDeletedCounter = 0;
-        $pagesDeletedErrorCounter = 0;
         foreach ($pagesDelete as $page) {
             try {
                 $cms->deletePage($page);
                 $pagesDeletedCounter ++;
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
-                $pagesDeletedErrorCounter ++;
+                $pagesDeleteErrors[] = $page;
             }
         }
         if ($pagesDeletedCounter) {
-            yield $idt.$idt . $pagesDeletedCounter . ' deleted' . PHP_EOL;
+            yield $idt.$idt . 'Deleted - ' . $pagesDeletedCounter . PHP_EOL;
         }
-        if ($pagesDeletedErrorCounter) {
-            yield $idt.$idt . $pagesDeletedErrorCounter . ' delete errors' . PHP_EOL;
+        $pagesDeletedErrorCounter = count($pagesDeleteErrors);
+        if ($pagesDeletedErrorCounter > 0) {
+            yield $idt.$idt . 'Delete errors:' . PHP_EOL;
+            foreach ($pagesDeleteErrors as $pageFile) {
+                yield $idt.$idt.$idt . '- ' . $pageFile->getAliasWithNamespace() . ' (' . $pageFile->getId() . ')' . PHP_EOL;
+            }
         }
         
         if ($pagesCreatedCounter+$pagesCreatedErrorCounter+$pagesUpdatedCounter+$pagesUpdatedErrorCounter+$pagesDeletedErrorCounter+$pagesDeletedCounter === 0) {
