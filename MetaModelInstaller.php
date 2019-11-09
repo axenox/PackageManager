@@ -62,23 +62,15 @@ class MetaModelInstaller extends AbstractAppInstaller
         
         yield $idt . 'Uninstalling model:' . PHP_EOL;
         
-        if (! empty($sheets)){
-            array_reverse($sheets);
-            
-            $transaction = $this->getWorkbench()->data()->startTransaction();
-            
-            foreach ($sheets as $ds){
-                $counter = $ds->dataDelete($transaction);
-                if ($counter > 0) {
-                    $nothingToDo = false;
-                    yield $idt.$idt . $ds->getMetaObject()->getName() . " - " . $counter . PHP_EOL;
-                } 
-            }
-            
-            $transaction->commit();
-        } 
+        $pageInstaller = $this->getPageInstaller();
+        $pageInstaller->setOutputIndentation($idt);
+        yield from $pageInstaller->uninstall();
         
-        // TODO add page installer!
+        if (! empty($sheets)){            
+            $appSheet = reset($sheets);
+            $counter = $appSheet->dataDelete();
+            yield ' deleted ' . $counter . ' model components';
+        } 
         
         if ($nothingToDo === true) {
             yield $idt . $idt . 'Nothing to do.' . PHP_EOL;
@@ -328,7 +320,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             }
             
             // Install pages.
-            $pageInstaller = new PageInstaller($this->getSelectorInstalling());
+            $pageInstaller = $this->getPageInstaller();
             $pageInstaller->setOutputIndentation($indent);
             yield from $pageInstaller->install($source_absolute_path);
             
@@ -337,6 +329,11 @@ class MetaModelInstaller extends AbstractAppInstaller
         } else {
             yield $indent . "No model files to install" . PHP_EOL;
         }
+    }
+    
+    protected function getPageInstaller() : PageInstaller
+    {
+        return new PageInstaller($this->getSelectorInstalling());
     }
     
     /**

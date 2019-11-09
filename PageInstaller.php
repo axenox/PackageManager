@@ -385,6 +385,28 @@ class PageInstaller extends AbstractAppInstaller
      */
     public function uninstall() : \Iterator
     {
-        return new \EmptyIterator();
+        $idt = $this->getOutputIndentation();
+        $cms = $this->getWorkbench()->getCMS();
+        $pages = $cms->getPagesForApp($this->getApp());
+        
+        yield $idt . 'Uninstalling pages...';
+        
+        if (empty($pages)) {
+            yield $idt . ' No pages to uninstall' . PHP_EOL;
+        }
+        
+        /** @var UiPage $page */
+        $counter = 0;
+        foreach ($pages as $page) {
+            try {
+                $cms->deletePage($page);
+                $counter++; 
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+                yield $idt . $idt . 'ERROR deleting page "' . $page->getName() . '" (' . $page->getAliasWithNamespace() . ')!';
+            }
+        }
+        
+        yield ' removed ' . $counter . ' pages successfully' . PHP_EOL;
     }
 }
