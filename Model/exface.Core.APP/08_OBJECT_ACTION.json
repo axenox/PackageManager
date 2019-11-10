@@ -106,6 +106,22 @@
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": "0",
             "DOCS": ""
+        },
+        {
+            "CREATED_ON": "2019-11-10 10:35:14",
+            "MODIFIED_ON": "2019-11-10 14:42:38",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11ea03a56e51344cb7580205857feb80",
+            "OBJECT": "0x35370000000000000000000000000000",
+            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
+            "ALIAS": "ShowPackageManagerConsole",
+            "NAME": "PackageManager Console",
+            "SHORT_DESCRIPTION": "",
+            "CONFIG_UXON": "{\"icon\":\"terminal\",\"widget\":{\"widgets\":[{\"widget_type\":\"Console\",\"start_commands\":[\"action list axenox.PackageManager\"],\"command_presets\":[{\"caption\":\"Install App(s)\",\"visibility\":\"promoted\",\"hint\":\"Install app(s) from package\",\"commands\":[\"action axenox.PackageManager:InstallApp <App aliases comma-separated>\"]},{\"caption\":\"Uninstall App(s)\",\"hint\":\"Uninstall app(s)\",\"commands\":[\"action axenox.PackageManager:UninstallApp <App aliases comma-separated>\"]},{\"caption\":\"Backup App(s)\",\"hint\":\"Backup app(s)\",\"commands\":[\"action axenox.PackageManager:BackupApp <App aliases comma-separated>\"]},{\"caption\":\"List apps\",\"hint\":\"List all apps in model and in packages\",\"commands\":[\"action axenox.PackageManager:ListApps\"]}],\"allowed_commands\":[\"\\\/action list axenox.PackageManager\\\/\",\"\\\/action axenox.PackageManager.*\\\/\"],\"working_directory_path\":\"vendor\\\/bin\"}]}}",
+            "APP": "0x31380000000000000000000000000000",
+            "USE_IN_OBJECT_BASKET_FLAG": "0",
+            "DOCS": ""
         }
     ],
     "totals_rows": [],
