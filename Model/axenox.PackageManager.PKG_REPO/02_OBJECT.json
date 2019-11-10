@@ -95,7 +95,7 @@
             "APP": "0x31380000000000000000000000000000",
             "SHORT_DESCRIPTION": "",
             "PARENT_OBJECT": "",
-            "DATA_ADDRESS_PROPS": "{\"response_data_path\":\"\",\"response_total_count_path\":\"\",\"request_limit_parameter\":\"\",\"request_offset_parameter\":\"\",\"uid_request_data_address\":\"repos\/[#FULL_NAME#]\",\"uid_response_data_path\":\"\"}",
+            "DATA_ADDRESS_PROPS": "{\"response_data_path\":\"\",\"response_total_count_path\":\"\",\"request_limit_parameter\":\"\",\"request_offset_parameter\":\"\",\"uid_request_data_address\":\"repos\\\/[#FULL_NAME#]\",\"uid_response_data_path\":\"\"}",
             "DEFAULT_EDITOR_UXON": null,
             "ALIAS": "PKG_REPO",
             "DATA_ADDRESS": "users\/axenox\/repos"

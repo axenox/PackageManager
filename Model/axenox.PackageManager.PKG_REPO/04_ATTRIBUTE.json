@@ -177,7 +177,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -203,7 +203,7 @@
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2007-01-01 00:00:00",
@@ -219,7 +219,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -245,7 +245,7 @@
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2007-01-01 00:00:00",
@@ -261,7 +261,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -287,7 +287,7 @@
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2016-03-30 11:18:29",
@@ -303,7 +303,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -329,7 +329,7 @@
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         }
     ],
     "totals_rows": [],

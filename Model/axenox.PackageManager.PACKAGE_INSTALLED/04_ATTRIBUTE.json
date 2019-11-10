@@ -177,7 +177,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -203,7 +203,7 @@
             "DATA_ADDRESS_PROPS": "{\"filter_locally\":\"1\"}",
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2016-07-18 22:06:21",
@@ -219,7 +219,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -245,7 +245,7 @@
             "DATA_ADDRESS_PROPS": "{\"filter_locally\":\"1\"}",
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2016-07-18 22:07:10",
@@ -261,7 +261,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -287,7 +287,7 @@
             "DATA_ADDRESS_PROPS": "{\"filter_locally\":\"1\"}",
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2016-07-18 22:07:49",
@@ -303,7 +303,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -329,7 +329,7 @@
             "DATA_ADDRESS_PROPS": "{\"filter_locally\":\"1\"}",
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2016-07-19 17:27:08",
@@ -345,7 +345,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -371,7 +371,7 @@
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2016-07-19 17:27:24",
@@ -387,7 +387,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -413,7 +413,7 @@
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "'vcs'",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2016-07-25 19:01:11",
@@ -429,7 +429,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -455,7 +455,7 @@
             "DATA_ADDRESS_PROPS": "{\"filter_locally\":\"1\"}",
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2016-09-26 10:04:21",
@@ -471,7 +471,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": "0",
             "DEFAULT_DISPLAY_UXON": null,
@@ -497,7 +497,7 @@
             "DATA_ADDRESS_PROPS": "{\"filter_locally\":\"1\"}",
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2016-09-26 10:06:34",
@@ -513,7 +513,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -539,7 +539,7 @@
             "DATA_ADDRESS_PROPS": "{\"filter_locally\":\"1\"}",
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "CREATED_ON": "2016-09-26 10:07:43",
@@ -555,7 +555,7 @@
             "READABLEFLAG": "1",
             "WRITABLEFLAG": "1",
             "SYSTEMFLAG": "0",
-            "DEFAULT_EDITOR_UXON": "",
+            "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": null,
             "DELETE_WITH_RELATED_OBJECT": null,
             "DEFAULT_DISPLAY_UXON": null,
@@ -581,7 +581,7 @@
             "DATA_ADDRESS_PROPS": "{\"filter_locally\":\"1\"}",
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": ""
+            "CUSTOM_DATA_TYPE": null
         }
     ],
     "totals_rows": [],
