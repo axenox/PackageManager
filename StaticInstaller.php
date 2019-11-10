@@ -8,6 +8,7 @@ use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\ActionFactory;
+use axenox\PackageManager\Actions\ListApps;
 
 /**
  * The app installer is a simplified wrapper for the package manager actions, which simplifies installing apps from outside of
@@ -64,27 +65,12 @@ class StaticInstaller
     public static function composerFinishInstall(Event $composer_event = null)
     {
         self::printToStdout("Searching for apps in vendor-folder...\n");
-        $installedAppAliases = [];
         
         $result = self::install(self::getCoreAppAlias());
         self::printToStdout('-> Installing "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
         
         $vendorBase = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..';
-        foreach (glob($vendorBase . '/*' , GLOB_ONLYDIR) as $vendorPath) {
-            foreach (glob($vendorPath . '/*' , GLOB_ONLYDIR) as $packagePath) {
-                if (file_exists($packagePath . DIRECTORY_SEPARATOR . 'composer.json')) {
-                    $composerJson = json_decode(file_get_contents($packagePath . DIRECTORY_SEPARATOR . 'composer.json'), true);
-                    if (is_array($composerJson) === false) {
-                        continue;
-                    }
-                    
-                    if (array_key_exists('extra', $composerJson) && array_key_exists('app', $composerJson['extra']) && $alias = $composerJson['extra']['app']['app_alias']) {
-                        $installedAppAliases[] = $alias;
-                    }
-                }
-            }
-        }
-        $installedAppAliases = array_unique($installedAppAliases);
+        $installedAppAliases = ListApps::findAppAliasesInVendorFolders($vendorBase);
         
         foreach ($installedAppAliases as $app_alias) {
             $result = self::install($app_alias);
@@ -149,7 +135,7 @@ class StaticInstaller
         if (array_key_exists('backupTime', $temp)) {
             self::printToStdout("Delete unused backup components:\n");
             $installer = new self();
-            $apps = $installer->getAllApps();
+            $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());
             $backupTime = $temp['backupTime'];
             $unlinkResult = array();
     
@@ -217,7 +203,7 @@ class StaticInstaller
      */
     public static function composerBackupEverything(Event $composer_event = null){
         $installer = new self();
-        $apps = $installer->getAllApps();
+        $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());
         //write consistent backuptime to delete excess data after update run
         $backupTime = date('Y_m_d_H_i');
         $temp = self::getTempFile();
@@ -231,19 +217,7 @@ class StaticInstaller
         }
         return $backupPath;
     }
-
-    public function getAllApps(){
-        $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.APP');
-        $ds->getColumns()->addFromExpression('ALIAS');
-        $ds->dataRead();
-        $row = $ds->getRows();
-        $apps = array();
-
-        foreach ($row as $val) {
-            $apps[] =  $val['ALIAS'];
-        }
-        return $apps;
-    }
+    
     /**
      * Call backup function on app, install at specified backup folder, folder name is defined by backupTime-String
      * @param string $app_alias

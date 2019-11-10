@@ -4,5 +4,6 @@
 	"ACTION.EXPORTAPPMODEL.NAME": "Modell exportieren",
 	"ACTION.INSTALLAPP.NAME": "Installieren",
 	"ACTION.IMPORTAPPMODEL.NAME": "Modell reparieren",
-	"ACTION.UNINSTALLAPP.NAME": "Deinstallieren"
+	"ACTION.UNINSTALLAPP.NAME": "Deinstallieren",
+	"ACTION.LISTAPPS.NAME": "Apps listen"
 }
