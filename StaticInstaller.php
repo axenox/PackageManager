@@ -318,7 +318,7 @@ class StaticInstaller
      *
      * @return Workbench
      */
-    protected function getWorkbench()
+    public function getWorkbench()
     {
         $this->importSources();
         if (is_null($this->workbench)) {
