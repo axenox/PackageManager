@@ -67,7 +67,13 @@ class MetaModelInstaller extends AbstractAppInstaller
         yield from $pageInstaller->uninstall();
         
         if (! empty($sheets)){            
-            $appSheet = reset($sheets);
+            foreach ($sheets as $sheet) {
+                if ($sheet->getMetaObject()->is('exface.Core.APP') === true) {
+                    $appSheet = $sheet;
+                    break;
+                }
+            }
+            $appSheet->getFilters()->removeAll();
             $counter = $appSheet->dataDelete();
             yield ' deleted ' . $counter . ' model components';
         } 
