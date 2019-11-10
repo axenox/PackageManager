@@ -104,7 +104,7 @@ class UninstallApp extends InstallApp
     {
         $app = AppFactory::create($app_selector);
         $installer = $app->getInstaller(new MetaModelInstaller($app_selector));
-        $installer_result = $installer->uninstall($this->getAppAbsolutePath($app_selector));
+        $installer_result = $installer->uninstall();
         if ($installer_result instanceof \Traversable) {
             yield from $installer_result;
         } else {
