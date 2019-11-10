@@ -58,14 +58,14 @@ class MetaModelInstaller extends AbstractAppInstaller
     {
         $idt = $this->getOutputIndentation();
         $sheets = $this->getModelDataSheets();
-        $nothingToDo = true;
         
-        yield $idt . 'Uninstalling model:' . PHP_EOL;
+        yield $idt . 'Uninstalling model:';
         
         $pageInstaller = $this->getPageInstaller();
         $pageInstaller->setOutputIndentation($idt);
         yield from $pageInstaller->uninstall();
         
+        $counter = 0;
         if (! empty($sheets)){            
             foreach ($sheets as $sheet) {
                 if ($sheet->getMetaObject()->is('exface.Core.APP') === true) {
@@ -73,13 +73,17 @@ class MetaModelInstaller extends AbstractAppInstaller
                     break;
                 }
             }
+            
             $appSheet->getFilters()->removeAll();
             $counter = $appSheet->dataDelete();
-            yield ' deleted ' . $counter . ' model components';
-        } 
-        
-        if ($nothingToDo === true) {
-            yield $idt . $idt . 'Nothing to do.' . PHP_EOL;
+            
+            if ($counter === 0) {
+                yield ' Nnothing to do.' . PHP_EOL;
+            } else {
+                yield ' success.' . PHP_EOL; 
+            }
+        } else {
+            yield ' app model not found!' . PHP_EOL;  
         }
     }
 
