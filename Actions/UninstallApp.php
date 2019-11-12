@@ -58,9 +58,9 @@ class UninstallApp extends InstallApp
             }
             
             if (count($aliases) == 0) {
-                yield 'No installable apps had been selected!';
+                yield 'No uninstallable apps had been selected!';
             } elseif ($installed_counter == 0) {
-                yield  'No apps have been installed';
+                yield  'No apps have been uninstalled';
             }
             
             $this->getWorkbench()->getCache()->clear();
