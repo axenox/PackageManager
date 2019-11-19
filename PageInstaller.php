@@ -333,7 +333,7 @@ class PageInstaller extends AbstractAppInstaller
         
         // Empty pages folder in case it is an update
         try {
-            $fileManager->emptyDir($this->getPagePath($destination_absolute_path));
+            $fileManager::emptyDir($this->getPagePath($destination_absolute_path));
         } catch (\Throwable $e) {
             $this->getWorkbench()->getLogger()->logException($e);
         }

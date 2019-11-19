@@ -107,7 +107,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         $app->getWorkbench()->filemanager()->pathConstruct($dir);
         // Remove any old files AFTER the data sheets were read successfully
         // in order to keep old data on errors.
-        $app->getWorkbench()->filemanager()->emptyDir($dir);
+        Filemanager::emptyDir($dir);
         
         // Save each data sheet as a file and additionally compute the modification date of the last modified model instance and
         // the MD5-hash of the entire model definition (concatennated contents of all files). This data will be stored in the composer.json
