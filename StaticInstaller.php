@@ -64,17 +64,26 @@ class StaticInstaller
      */
     public static function composerFinishInstall(Event $composer_event = null)
     {
-        self::printToStdout("Searching for apps in vendor-folder...\n");
+        self::printToStdout("Searching for apps in vendor-folder...");
         
-        $result = self::install(self::getCoreAppAlias());
-        self::printToStdout('-> Installing "' . self::getCoreAppAlias() . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
+        try {
+            self::printToStdout('-> Installing "' . self::getCoreAppAlias() . '": ');
+            $result = self::install(self::getCoreAppAlias());
+            self::printToStdout(($result ? $result : 'Nothing to do') . "." . PHP_EOL);
+        } catch (\Throwable $e) {
+            self::printToStdout('-> Failed to install "' . self::getCoreAppAlias() . '": ' . $result . "." . PHP_EOL);
+            self::printException($e);
+        }
         
         $vendorBase = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..';
         $installedAppAliases = ListApps::findAppAliasesInVendorFolders($vendorBase);
         
+        self::printToStdout("found " . count($installedAppAliases) . " apps" . PHP_EOL);
+        
         foreach ($installedAppAliases as $app_alias) {
+            self::printToStdout('-> Installing app "' . $app_alias . '": ' . PHP_EOL);
             $result = self::install($app_alias);
-            self::printToStdout('-> Installing app "' . $app_alias . '": ' . PHP_EOL . ($result ? trim($result, ".") : 'Nothing to do') . PHP_EOL);
+            self::printToStdout(($result ? trim($result, ".") : 'Nothing to do') . PHP_EOL);
         }
         
         self::setTempFile([]);
@@ -110,8 +119,9 @@ class StaticInstaller
             if (in_array(self::getCoreAppAlias(), $appAliases)) {
                 if (! in_array(self::getCoreAppAlias(), $processed_aliases)) {
                     $processed_aliases[] = self::getCoreAppAlias();
+                    self::printToStdout('-> Updating app "' . self::getCoreAppAlias() . '": ' . PHP_EOL);
                     $result = self::install(self::getCoreAppAlias());
-                    self::printToStdout('-> Updating app "' . self::getCoreAppAlias() . '": ' . PHP_EOL . ($result ? $result : 'Nothing to do') . PHP_EOL);
+                    self::printToStdout('-> Installing "'($result ? $result : 'Nothing to do') . PHP_EOL);
                 }
             }
             // Now that the core is up to date, we can update the others
@@ -121,8 +131,9 @@ class StaticInstaller
                 } else {
                     continue;
                 }
+                self::printToStdout('-> Updating app "' . $app_alias . '": ' . PHP_EOL);
                 $result = self::install($app_alias);
-                self::printToStdout('-> Updating app "' . $app_alias . '": ' . ($result ? $result : 'Nothing to do') . ".\n");
+                self::printToStdout(($result ? $result : 'Nothing to do') . ".\n" . PHP_EOL);
             }
         }
         if (array_key_exists('update', $temp) && is_array($temp['update'])){
@@ -133,7 +144,7 @@ class StaticInstaller
         
         // Cleanup backup
         if (array_key_exists('backupTime', $temp)) {
-            self::printToStdout("Delete unused backup components:\n");
+            self::printToStdout("Delete unused backup components:" . PHP_EOL);
             $installer = new self();
             $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());
             $backupTime = $temp['backupTime'];
@@ -147,9 +158,9 @@ class StaticInstaller
             }
             $installer->copyTempFile($backupTime);
             if (!in_array(false,$unlinkResult)){
-                self::printToStdout("Cleared backup from excess data.\n");
+                self::printToStdout("Cleared backup from excess data." . PHP_EOL);
             } else {
-                self::printToStdout("Could not clear backup.\n");
+                self::printToStdout("Could not clear backup." . PHP_EOL);
             }
         }
         
@@ -179,7 +190,7 @@ class StaticInstaller
                 if ($exface->filemanager()->isDirEmpty($parentLink)){
                     $exface->filemanager()->deleteDir($parentLink);
                 }
-                self::printToStdout('-> '.$app_alias. "Delete unused backup\n");
+                self::printToStdout('-> '.$app_alias. "Delete unused backups" . PHP_EOL);
             }
             else {
 
@@ -393,7 +404,7 @@ class StaticInstaller
     protected static function printToStdout($text)
     {
         if (defined('STDOUT') === true && is_resource(STDOUT) === true) {
-            fwrite(STDOUT, $text . PHP_EOL);
+            fwrite(STDOUT, $text);
             return true;
         } else {
             echo $text;
@@ -405,10 +416,10 @@ class StaticInstaller
         if ($e instanceof ExceptionInterface){
             $log_hint = 'See log ID ' . $e->getId();
         }
-        static::printToStdout($e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine() . PHP_EOL . "-> " . $log_hint . PHP_EOL);
+        self::printToStdout(PHP_EOL . PHP_EOL . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine() . PHP_EOL . "-> " . $log_hint . PHP_EOL);
         
         if ($p = $e->getPrevious()) {
-            static::printException($p);
+            self::printException($p);
         }
     }
 
