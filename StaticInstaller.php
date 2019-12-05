@@ -64,8 +64,6 @@ class StaticInstaller
      */
     public static function composerFinishInstall(Event $composer_event = null)
     {
-        self::printToStdout("Searching for apps in vendor-folder...");
-        
         try {
             self::printToStdout('-> Installing "' . self::getCoreAppAlias() . '": ' . PHP_EOL . PHP_EOL);
             $result = self::install(self::getCoreAppAlias());
@@ -75,9 +73,9 @@ class StaticInstaller
             self::printException($e);
         }
         
+        self::printToStdout("Searching for apps in vendor-folder...");
         $vendorBase = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..';
         $installedAppAliases = ListApps::findAppAliasesInVendorFolders($vendorBase);
-        
         self::printToStdout("found " . count($installedAppAliases) . " apps" . PHP_EOL);
         
         foreach ($installedAppAliases as $app_alias) {
