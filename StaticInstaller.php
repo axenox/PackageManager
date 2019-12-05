@@ -121,7 +121,7 @@ class StaticInstaller
                     $processed_aliases[] = self::getCoreAppAlias();
                     self::printToStdout('-> Updating app "' . self::getCoreAppAlias() . '": ' . PHP_EOL . PHP_EOL);
                     $result = self::install(self::getCoreAppAlias());
-                    self::printToStdout('-> Installing "' . ($result ? $result : 'Nothing to do') . PHP_EOL);
+                    self::printToStdout(($result ? $result : 'Nothing to do') . PHP_EOL);
                 }
             }
             // Now that the core is up to date, we can update the others
