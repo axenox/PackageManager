@@ -67,7 +67,7 @@ class StaticInstaller
         self::printToStdout("Searching for apps in vendor-folder...");
         
         try {
-            self::printToStdout('-> Installing "' . self::getCoreAppAlias() . '": ');
+            self::printToStdout('-> Installing "' . self::getCoreAppAlias() . '": ' . PHP_EOL . PHP_EOL);
             $result = self::install(self::getCoreAppAlias());
             self::printToStdout(($result ? $result : 'Nothing to do') . "." . PHP_EOL);
         } catch (\Throwable $e) {
@@ -81,7 +81,7 @@ class StaticInstaller
         self::printToStdout("found " . count($installedAppAliases) . " apps" . PHP_EOL);
         
         foreach ($installedAppAliases as $app_alias) {
-            self::printToStdout('-> Installing app "' . $app_alias . '": ' . PHP_EOL);
+            self::printToStdout('-> Installing app "' . $app_alias . '": ' . PHP_EOL . PHP_EOL);
             $result = self::install($app_alias);
             self::printToStdout(($result ? trim($result, ".") : 'Nothing to do') . PHP_EOL);
         }
@@ -119,7 +119,7 @@ class StaticInstaller
             if (in_array(self::getCoreAppAlias(), $appAliases)) {
                 if (! in_array(self::getCoreAppAlias(), $processed_aliases)) {
                     $processed_aliases[] = self::getCoreAppAlias();
-                    self::printToStdout('-> Updating app "' . self::getCoreAppAlias() . '": ' . PHP_EOL);
+                    self::printToStdout('-> Updating app "' . self::getCoreAppAlias() . '": ' . PHP_EOL . PHP_EOL);
                     $result = self::install(self::getCoreAppAlias());
                     self::printToStdout('-> Installing "'($result ? $result : 'Nothing to do') . PHP_EOL);
                 }
@@ -131,9 +131,9 @@ class StaticInstaller
                 } else {
                     continue;
                 }
-                self::printToStdout('-> Updating app "' . $app_alias . '": ' . PHP_EOL);
+                self::printToStdout('-> Updating app "' . $app_alias . '": ' . PHP_EOL . PHP_EOL);
                 $result = self::install($app_alias);
-                self::printToStdout(($result ? $result : 'Nothing to do') . ".\n" . PHP_EOL);
+                self::printToStdout(($result ? $result : 'Nothing to do') . "." . PHP_EOL);
             }
         }
         if (array_key_exists('update', $temp) && is_array($temp['update'])){
