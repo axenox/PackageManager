@@ -71,7 +71,7 @@ class StaticInstaller
             $result = self::install(self::getCoreAppAlias());
             self::printToStdout(($result ? $result : 'Nothing to do') . "." . PHP_EOL);
         } catch (\Throwable $e) {
-            self::printToStdout('-> Failed to install "' . self::getCoreAppAlias() . '": ' . $result . "." . PHP_EOL);
+            self::printToStdout('FAILED to install "' . self::getCoreAppAlias() . '": ' . $result . "." . PHP_EOL);
             self::printException($e);
         }
         
