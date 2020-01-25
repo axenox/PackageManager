@@ -249,7 +249,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             }
             $ds->getColumns()->addFromExpression($attr->getAlias());
         }
-        $ds->addFilterFromString($app_filter_attribute_alias, $app->getUid());
+        $ds->getFilters()->addConditionFromString($app_filter_attribute_alias, $app->getUid());
         $ds->getSorters()->addFromString('CREATED_ON', 'ASC');
         $ds->getSorters()->addFromString($object->getUidAttributeAlias(), 'ASC');
         $ds->dataRead();

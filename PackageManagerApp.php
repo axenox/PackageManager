@@ -113,7 +113,7 @@ class PackageManagerApp extends App
         $package_object = $this->getWorkbench()->model()->getObject('axenox.PackageManager.PACKAGE_INSTALLED');
         $data_sheet = DataSheetFactory::createFromObject($package_object);
         $data_sheet->getColumns()->addFromExpression('version');
-        $data_sheet->addFilterFromString('name', $this->getPackageNameFromAppAlias($app_alias));
+        $data_sheet->getFilters()->addConditionFromString('name', $this->getPackageNameFromAppAlias($app_alias));
         $data_sheet->dataRead();
         return $data_sheet->getCellValue('version', 0);
     }
@@ -132,7 +132,7 @@ class PackageManagerApp extends App
     {
         $exface = $this->getWorkbench();
         $ds = DataSheetFactory::createFromObjectIdOrAlias($exface, 'Axenox.PackageManager.PACKAGE_INSTALLED');
-        $ds->getFilters()->addConditionsFromString($ds->getMetaObject(), 'name', $this->getPackageNameFromAppAlias($app_alias));
+        $ds->getFilters()->addConditionFromString('name', $this->getPackageNameFromAppAlias($app_alias));
         $ds->getColumns()->addFromExpression('version');
         $ds->dataRead();
         return $ds->getCellValue('version', 0);

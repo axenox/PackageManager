@@ -86,7 +86,7 @@ class ExportAppModel extends AbstractActionDeferred
         $apps->getColumns()->addFromExpression('ALIAS');
         if (! $apps->isFresh()) {
             if (! $apps->isEmpty()) {
-                $apps->addFilterFromColumnValues($apps->getUidColumn());
+                $apps->getFilters()->addConditionFromColumnValues($apps->getUidColumn());
             }
             $apps->dataRead();
         }
