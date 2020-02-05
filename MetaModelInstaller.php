@@ -160,18 +160,25 @@ class MetaModelInstaller extends AbstractAppInstaller
         }
         
         if ($split_by_object === true) {
-            if ($data_sheet->getMetaObject()->isExactly('exface.Core.OBJECT')) {
-                $col = $data_sheet->getUidColumn();
-                $objectUids = $col->getValues(false);
-            } else {
-                foreach ($data_sheet->getColumns() as $col) {
-                    if ($attr = $col->getAttribute()) {
-                        if ($attr->isRelation() && $attr->getRelation()->getRightObject()->isExactly('exface.Core.OBJECT') && $attr->isRequired()) {
-                            $objectUids = array_unique($col->getValues(false));
-                            break;
+            switch (true) {
+                case $data_sheet->getMetaObject()->isExactly('exface.Core.OBJECT'): 
+                    $col = $data_sheet->getUidColumn();
+                    $objectUids = $col->getValues(false);
+                    break;
+                case $data_sheet->getMetaObject()->isExactly('exface.Core.ATTRIBUTE_COMPOUND'):
+                    $col = $data_sheet->getColumns()->addFromExpression('COMPOUND_ATTRIBUTE__OBJECT');
+                    $data_sheet->dataRead();
+                    $objectUids = $col->getValues(false);
+                    break;
+                default: 
+                    foreach ($data_sheet->getColumns() as $col) {
+                        if ($attr = $col->getAttribute()) {
+                            if ($attr->isRelation() && $attr->getRelation()->getRightObject()->isExactly('exface.Core.OBJECT') && $attr->isRequired()) {
+                                $objectUids = array_unique($col->getValues(false));
+                                break;
+                            }
                         }
                     }
-                }
             }
         }
         
@@ -228,6 +235,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT_ACTION'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.UXON_PRESET'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.PAGE_TEMPLATE'), 'APP');
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.ATTRIBUTE_COMPOUND'), 'COMPOUND_ATTRIBUTE__OBJECT__APP');
         
         return $sheets;
     }
