@@ -167,8 +167,9 @@ class MetaModelInstaller extends AbstractAppInstaller
                     break;
                 case $data_sheet->getMetaObject()->isExactly('exface.Core.ATTRIBUTE_COMPOUND'):
                     $col = $data_sheet->getColumns()->addFromExpression('COMPOUND_ATTRIBUTE__OBJECT');
+                    $removeObjectCol = true;
                     $data_sheet->dataRead();
-                    $objectUids = $col->getValues(false);
+                    $objectUids = array_unique($col->getValues(false));
                     break;
                 default: 
                     foreach ($data_sheet->getColumns() as $col) {
@@ -186,10 +187,19 @@ class MetaModelInstaller extends AbstractAppInstaller
         $fileName = $filename_prefix . $data_sheet->getMetaObject()->getAlias() . '.json';
         if (! empty($objectUids)) {
             $rows = $data_sheet->getRows();
+            if ($removeObjectCol === true) {
+                $data_sheet->getColumns()->remove($col);
+            }
             $uxon = $data_sheet->exportUxonObject();
             $objectColumnName = $col->getName();
             foreach ($objectUids as $objectUid) {
-                $uxon->setProperty('rows', array_values($this->filterRows($rows, $objectColumnName, $objectUid)));
+                $filteredRows = array_values($this->filterRows($rows, $objectColumnName, $objectUid));
+                if ($removeObjectCol === true) {
+                    for ($i = 0; $i < count($filteredRows); $i++) {
+                        unset($filteredRows[$i][$objectColumnName]);
+                    }
+                }
+                $uxon->setProperty('rows', $filteredRows);
                 $subfolder = $backupDir . DIRECTORY_SEPARATOR . $this->getObjectSubfolder($objectUid);
                 $fileManager->dumpFile($subfolder . DIRECTORY_SEPARATOR . $fileName, $uxon->toJson(true));
             }
