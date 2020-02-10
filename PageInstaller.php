@@ -13,6 +13,11 @@ use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 use exface\Core\Exceptions\InvalidArgumentException;
 use exface\Core\Interfaces\Selectors\UiPageSelectorInterface;
 use exface\Core\Factories\SelectorFactory;
+use exface\Core\Interfaces\AppInterface;
+use exface\Core\Factories\DataSheetFactory;
+use exface\Core\DataTypes\ComparatorDataType;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 
 class PageInstaller extends AbstractAppInstaller
 {
@@ -39,7 +44,6 @@ class PageInstaller extends AbstractAppInstaller
         $idt = $this->getOutputIndentation();
         $pagesFile = [];
         $workbench = $this->getWorkbench();
-        $cms = $workbench->getCMS();
         
         yield $idt . 'Pages: ' . PHP_EOL;
         
@@ -67,7 +71,8 @@ class PageInstaller extends AbstractAppInstaller
                 $page->setApp($this->getApp()->getSelector());
                 // Wird eine Seite neu hinzugefuegt ist die menuDefaultPosition gleich der
                 // gesetzen Position.
-                $page->setMenuDefaultPosition($page->getMenuPosition());
+                $page->setMenuParentPageSelectorDefault($page->getMenuParentPageSelector());
+                $page->setMenuIndexDefault($page->getMenuIndex());
                 $pagesFile[] = $page;
             } catch (\Throwable $e) {
                 throw new InstallerRuntimeError($this, 'Cannot load page model from file "' . $file . '": corrupted UXON?', null, $e);
@@ -76,7 +81,7 @@ class PageInstaller extends AbstractAppInstaller
         $pagesFile = $this->sortPages($pagesFile);
         
         // Pages aus der Datenbank laden.
-        $pagesDb = $cms->getPagesForApp($this->getApp());
+        $pagesDb = $this->getPagesForApp($this->getApp());
         
         // Pages vergleichen und bestimmen welche erstellt, aktualisiert oder geloescht werden muessen.
         $pagesCreate = [];
@@ -90,7 +95,7 @@ class PageInstaller extends AbstractAppInstaller
         
         foreach ($pagesFile as $pageFile) {
             try {
-                $pageDb = $cms->getPage(SelectorFactory::createPageSelector($workbench, $pageFile->getId()), true);
+                $pageDb = UiPageFactory::createFromModel($this->getWorkbench(), $pageFile->getId(), true);
                 // Die Seite existiert bereits und wird aktualisiert.
                 if (! $pageDb->equals($pageFile)) {
                     // Irgendetwas hat sich an der Seite geaendert.
@@ -103,7 +108,7 @@ class PageInstaller extends AbstractAppInstaller
                                 // Die Seite wurde manuell umgehaengt. Die menuDefaultPosition wird
                                 // aktualisiert, die Position im Baum wird nicht aktualisiert.
                                 $pageFile->setMenuIndex($pageDb->getMenuIndex());
-                                $pageFile->setMenuParentPageAlias($pageDb->getMenuParentPageAlias());
+                                $pageFile->setMenuParentPageSelector($pageDb->getMenuParentPageSelector());
                                 $pagesUpdateMoved[] = $pageFile;
                             }
                             $pagesUpdate[] = $pageFile;
@@ -135,7 +140,7 @@ class PageInstaller extends AbstractAppInstaller
         $pagesCreatedCounter = 0;
         foreach ($pagesCreate as $page) {
             try {
-                $cms->createPage($page);
+                $this->createPage($page);
                 $pagesCreatedCounter ++;
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
@@ -157,7 +162,7 @@ class PageInstaller extends AbstractAppInstaller
         $pagesUpdatedCounter = 0;
         foreach ($pagesUpdate as $page) {
             try {
-                $cms->updatePage($page);
+                $this->updatePage($page);
                 $pagesUpdatedCounter ++;
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
@@ -191,7 +196,7 @@ class PageInstaller extends AbstractAppInstaller
         $pagesDeletedCounter = 0;
         foreach ($pagesDelete as $page) {
             try {
-                $cms->deletePage($page);
+                $this->deletePage($page);
                 $pagesDeletedCounter ++;
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
@@ -212,6 +217,27 @@ class PageInstaller extends AbstractAppInstaller
         if ($pagesCreatedCounter+$pagesCreatedErrorCounter+$pagesUpdatedCounter+$pagesUpdatedErrorCounter+$pagesDeletedErrorCounter+$pagesDeletedCounter === 0) {
             yield $idt.$idt . 'No changes found' . PHP_EOL;
         }
+    }
+    
+    protected function getPagesForApp(AppInterface $app) : array
+    {
+        $pageObj = $this->getWorkbench()->model()->getObject('exface.Core.PAGE');
+        $pagesDs = DataSheetFactory::createFromObject($pageObj);
+        $pagesDs->getColumns()->addFromUidAttribute();
+        $pagesDs->getFilters()->addConditionFromString('APP__ALIAS', $app->getAliasWithNamespace(), ComparatorDataType::EQUALS);
+        $pagesDs->dataRead();
+        
+        $pages = [];
+        foreach ($pagesDs->getUidColumn()->getValues() as $pageUid) {
+            $pages[] = UiPageFactory::createFromModel($this->getWorkbench(), $pageUid, true);
+        }
+        
+        return $pages;
+    }
+    
+    protected function addPageToDataSheet(DataSheetInterface $sheet, UiPageInterface $page) : DataSheetInterface
+    {
+        return $sheet;
     }
 
     /**
@@ -235,7 +261,7 @@ class PageInstaller extends AbstractAppInstaller
      * Ein Array von UiPages wird sortiert und zurueckgegeben. Die Sortierung erfolgt so, dass
      * Seiten ohne Parent im uebergebenen Array, ganz nach oben sortiert werden. Hat die Seite
      * einen Parent im Array, so wird sie nach diesem Parent einsortiert. Werden die Seiten
-     * in der zurueckgegebenen Reihenfolge im CMS aktualisiert, ist sichergestellt, dass der
+     * in der zurueckgegebenen Reihenfolge im Modell aktualisiert, ist sichergestellt, dass der
      * Seitenbaum des Arrays intakt bleibt, egal wo er dann in den existierenden Baum
      * eingehaengt wird.
      * 
@@ -254,11 +280,11 @@ class PageInstaller extends AbstractAppInstaller
             $pagePos = 0;
             do {
                 $page = $inputPages[$pagePos];
-                $parentAlias = $page->getMenuParentPageAlias();
+                $parentSelector = $page->getMenuParentPageSelector();
                 $parentFound = false;
                 // Hat die Seite einen Parent im inputArray?
                 foreach ($inputPages as $parentPagePos => $parentPage) {
-                    if ($parentPage->isExactly($parentAlias)) {
+                    if ($parentPage->isExactly($parentSelector)) {
                         $parentFound = true;
                         break;
                     }
@@ -267,7 +293,7 @@ class PageInstaller extends AbstractAppInstaller
                     // Wenn die Seite keinen Parent im inputArray hat, hat sie einen im
                     // outputArray?
                     foreach ($sortedPages as $parentPagePos => $parentPage) {
-                        if ($parentPage->isExactly($parentAlias)) {
+                        if ($parentPage->isExactly($parentSelector)) {
                             $parentFound = true;
                             break;
                         }
@@ -328,7 +354,6 @@ class PageInstaller extends AbstractAppInstaller
     {
         /** @var Filemanager $fileManager */
         $fileManager = $this->getWorkbench()->filemanager();
-        $cms = $this->getWorkbench()->getCMS();
         $idt = $this->getOutputIndentation();
         
         // Empty pages folder in case it is an update
@@ -339,7 +364,7 @@ class PageInstaller extends AbstractAppInstaller
         }
         
         // Dann alle Dialoge der App als Dateien in den Ordner schreiben.
-        $pages = $cms->getPagesForApp($this->getApp());
+        $pages = $this->getPagesForApp($this->getApp());
         
         if (! empty($pages)) {
             $dir = $this->getPagesPathWithLanguage($destination_absolute_path, $this->getDefaultLanguageCode());
@@ -349,13 +374,6 @@ class PageInstaller extends AbstractAppInstaller
         /** @var UiPage $page */
         foreach ($pages as $page) {
             try {
-                // Ist die parent-Seite der Root, dann wird ein leerer MenuParentPageAlias gespeichert.
-                // Dadurch wird die Seite beim Hinzufuegen auf einem anderen System automatisch im Root
-                // eingehaengt, auch wenn der an einer anderen Stelle ist als auf diesem System.
-                if ($page->getMenuParentPageAlias() === null || ($cms->getPageIdInCms($page->getMenuParentPage(true)) == $cms->getPageIdRoot())) {
-                    $page->setMenuParentPageAlias("");
-                }
-                
                 // Hat die Seite keine UID wird ein Fehler geworfen. Ohne UID kann die Seite nicht
                 // manipuliert werden, da beim Aktualisieren oder Loeschen die UID benoetigt wird.
                 if (! $page->getId()) {
@@ -364,7 +382,7 @@ class PageInstaller extends AbstractAppInstaller
                 // Hat die Seite keinen Alias wird ein Alias gesetzt und die Seite wird aktualisiert.
                 if (! $page->getAliasWithNamespace()) {
                     $page = $page->copy(UiPage::generateAlias($page->getApp()->getAliasWithNamespace() . '.'));
-                    $cms->updatePage($page);
+                    $this->updatePage($page);
                 }
                 
                 // Exportieren der Seite
@@ -386,8 +404,7 @@ class PageInstaller extends AbstractAppInstaller
     public function uninstall() : \Iterator
     {
         $idt = $this->getOutputIndentation();
-        $cms = $this->getWorkbench()->getCMS();
-        $pages = $cms->getPagesForApp($this->getApp());
+        $pages = $this->getPagesForApp($this->getApp());
         
         yield $idt . 'Uninstalling pages...';
         
@@ -399,7 +416,7 @@ class PageInstaller extends AbstractAppInstaller
         $counter = 0;
         foreach ($pages as $page) {
             try {
-                $cms->deletePage($page);
+                $this->deletePage($page);
                 $counter++; 
             } catch (\Throwable $e) {
                 $this->getWorkbench()->getLogger()->logException($e);
@@ -408,5 +425,29 @@ class PageInstaller extends AbstractAppInstaller
         }
         
         yield ' removed ' . $counter . ' pages successfully' . PHP_EOL;
+    }
+    
+    protected function createPage(UiPageInterface $page, DataTransactionInterface $transaction)
+    {
+        $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.PAGE');
+        $this->addPageToDataSheet($ds);
+        $ds->dataCreate(false, $transaction);
+        return;
+    }
+    
+    protected function updatePage(UiPageInterface $page, DataTransactionInterface $transaction)
+    {
+        $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.PAGE');
+        $this->addPageToDataSheet($ds);
+        $ds->dataCreate(false, $transaction);
+        return;
+    }
+    
+    protected function deletePage(UiPageInterface $page, DataTransactionInterface $transaction)
+    {
+        $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.PAGE');
+        $this->addPageToDataSheet($ds);
+        $ds->dataDelete($transaction);
+        return;
     }
 }
