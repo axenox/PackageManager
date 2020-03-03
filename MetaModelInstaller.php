@@ -61,8 +61,11 @@ class MetaModelInstaller extends AbstractAppInstaller
         
         yield $idt . 'Uninstalling model:';
         
+        $transaction = $this->getWorkbench()->data()->startTransaction();
+        
         $pageInstaller = $this->getPageInstaller();
         $pageInstaller->setOutputIndentation($idt);
+        $pageInstaller->setTransaction($transaction);
         yield from $pageInstaller->uninstall();
         
         $counter = 0;
@@ -75,7 +78,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             }
             
             $appSheet->getFilters()->removeAll();
-            $counter = $appSheet->dataDelete();
+            $counter = $appSheet->dataDelete($transaction);
             
             if ($counter === 0) {
                 yield ' Nnothing to do.' . PHP_EOL;
@@ -351,6 +354,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             // Install pages.
             $pageInstaller = $this->getPageInstaller();
             $pageInstaller->setOutputIndentation($indent);
+            $pageInstaller->setTransaction($transaction);
             yield from $pageInstaller->install($source_absolute_path);
             
             // Commit the transaction

@@ -18,11 +18,15 @@ use exface\Core\Factories\DataSheetFactory;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
+use exface\Core\Behaviors\TimeStampingBehavior;
+use exface\Core\Interfaces\Model\MetaObjectInterface;
 
 class PageInstaller extends AbstractAppInstaller
 {
 
     const FOLDER_NAME_PAGES = 'Install\\Pages';
+    
+    private $transaction = null;
 
     protected function getPagesPathWithLanguage($source_path, $languageCode)
     {
@@ -32,6 +36,19 @@ class PageInstaller extends AbstractAppInstaller
     protected function getPagePath($source_path)
     {
         return $source_path . DIRECTORY_SEPARATOR . $this::FOLDER_NAME_PAGES;
+    }
+    
+    protected function disableTimestampintBehavior(MetaObjectInterface $object)
+    {
+        // Disable timestamping behavior because it will prevent multiple installations of the same
+        // model since the first install will set the update timestamp to something later than the
+        // timestamp saved in the model files
+        foreach ($object->getBehaviors()->getByPrototypeClass(TimeStampingBehavior::class) as $behavior) {
+            $behavior->disable();
+        }
+        
+        $object->getAttribute('MODIFIED_BY_USER')->setFixedValue(null);
+        $object->getAttribute('MODIFIED_ON')->setFixedValue(null);
     }
 
     /**
@@ -44,6 +61,8 @@ class PageInstaller extends AbstractAppInstaller
         $idt = $this->getOutputIndentation();
         $pagesFile = [];
         $workbench = $this->getWorkbench();
+        
+        $this->disableTimestampintBehavior($this->getWorkbench()->model()->getObject('exface.Core.PAGE'));
         
         yield $idt . 'Pages: ' . PHP_EOL;
         
@@ -144,7 +163,7 @@ class PageInstaller extends AbstractAppInstaller
                 $pagesCreatedCounter ++;
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
-                $pagesCreateErrors[] = $page;
+                $pagesCreateErrors[] = ['page' => $page, 'exception' => $e];
             }
         }
         if ($pagesCreatedCounter) {
@@ -153,8 +172,10 @@ class PageInstaller extends AbstractAppInstaller
         $pagesCreatedErrorCounter = count($pagesCreateErrors);
         if ($pagesCreatedErrorCounter > 0) {
             yield $idt.$idt . 'Create errors:' . PHP_EOL;
-            foreach ($pagesCreateErrors as $pageFile) {
-                yield $idt.$idt.$idt . '- ' . $pageFile->getAliasWithNamespace() . ' (' . $pageFile->getId() . ')' . PHP_EOL;
+            foreach ($pagesCreateErrors as $err) {
+                $pageFile = $err['page'];
+                $exception = $err['exception'];
+                yield $idt.$idt.$idt . '- ' . $pageFile->getAliasWithNamespace() . ' (' . $pageFile->getId() . '): ' . $exception->getMessage() . ' in ' . $exception->getFile() . ' on ' . $exception->getLine(). PHP_EOL;
             }
         }
         
@@ -166,7 +187,7 @@ class PageInstaller extends AbstractAppInstaller
                 $pagesUpdatedCounter ++;
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
-                $pagesUpdateErrors[] = $page;
+                $pagesUpdateErrors[] = ['page' => $page, 'exception' => $e];
             }
         }
         if ($pagesUpdatedCounter) {
@@ -187,8 +208,10 @@ class PageInstaller extends AbstractAppInstaller
         $pagesUpdatedErrorCounter = count($pagesUpdateErrors);
         if ($pagesUpdatedErrorCounter) {
             yield $idt.$idt . 'Update errors:' . PHP_EOL;
-            foreach ($pagesUpdateErrors as $pageFile) {
-                yield $idt.$idt.$idt . '- ' . $pageFile->getAliasWithNamespace() . ' (' . $pageFile->getId() . ')' . PHP_EOL;
+            foreach ($pagesUpdateErrors as $err) {
+                $pageFile = $err['page'];
+                $exception = $err['exception'];
+                yield $idt.$idt.$idt . '- ' . $pageFile->getAliasWithNamespace() . ' (' . $pageFile->getId() . '): ' . $exception->getMessage() . ' in ' . $exception->getFile() . ' on ' . $exception->getLine(). PHP_EOL;
             }
         }
         
@@ -233,11 +256,6 @@ class PageInstaller extends AbstractAppInstaller
         }
         
         return $pages;
-    }
-    
-    protected function addPageToDataSheet(DataSheetInterface $sheet, UiPageInterface $page) : DataSheetInterface
-    {
-        return $sheet;
     }
 
     /**
@@ -427,27 +445,50 @@ class PageInstaller extends AbstractAppInstaller
         yield ' removed ' . $counter . ' pages successfully' . PHP_EOL;
     }
     
-    protected function createPage(UiPageInterface $page, DataTransactionInterface $transaction)
+    protected function createPage(UiPageInterface $page, DataTransactionInterface $transaction = null)
     {
-        $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.PAGE');
-        $this->addPageToDataSheet($ds);
+        $transaction = $transaction ?? $this->getTransaction();
+        $ds = $this->createPageDataSheet();
+        $page->exportDataRow($ds);
         $ds->dataCreate(false, $transaction);
         return;
     }
     
-    protected function updatePage(UiPageInterface $page, DataTransactionInterface $transaction)
+    protected function updatePage(UiPageInterface $page, DataTransactionInterface $transaction = null)
     {
-        $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.PAGE');
-        $this->addPageToDataSheet($ds);
-        $ds->dataCreate(false, $transaction);
+        $transaction = $transaction ?? $this->getTransaction();
+        $ds = $this->createPageDataSheet();
+        $page->exportDataRow($ds);
+        $ds->dataUpdate(false, $transaction);
         return;
     }
     
-    protected function deletePage(UiPageInterface $page, DataTransactionInterface $transaction)
+    protected function deletePage(UiPageInterface $page, DataTransactionInterface $transaction = null)
     {
-        $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.PAGE');
-        $this->addPageToDataSheet($ds);
+        $transaction = $transaction ?? $this->getTransaction();
+        $ds = $this->createPageDataSheet();
+        $page->exportDataRow($ds);
         $ds->dataDelete($transaction);
         return;
+    }
+    
+    protected function createPageDataSheet() : DataSheetInterface
+    {
+        $data_sheet = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.PAGE');        
+        return $data_sheet;
+    }
+    
+    public function getTransaction() : DataTransactionInterface
+    {
+        if ($this->transaction === null) {
+            $this->transaction = $this->getWorkbench()->data()->startTransaction();
+        }
+        return $this->transaction;
+    }
+    
+    public function setTransaction(DataTransactionInterface $transaction) : PageInstaller
+    {
+        $this->transaction = $transaction;
+        return $this;
     }
 }
