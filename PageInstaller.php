@@ -449,6 +449,16 @@ class PageInstaller extends AbstractAppInstaller
     {
         $transaction = $transaction ?? $this->getTransaction();
         $ds = $this->createPageDataSheet();
+        if (! $createdByCol = $ds->getColumns()->get('CREATED_BY')){
+            $ds->getColumns()->addFromExpression('CREATED_BY')->setValueOnAllRows('0x00000000000000000000000000000000');
+        } elseif ($createdByCol->hasEmptyValues()) {
+            $createdByCol->setValueOnAllRows('0x00000000000000000000000000000000');
+        }
+        if (! $modifiedByCol = $ds->getColumns()->get('MODIFIED_BY')){
+            $ds->getColumns()->addFromExpression('MODIFIED_BY')->setValueOnAllRows('0x00000000000000000000000000000000');
+        } elseif ($modifiedByCol->hasEmptyValues()) {
+            $modifiedByCol->setValueOnAllRows('0x00000000000000000000000000000000');
+        }
         $page->exportDataRow($ds);
         $ds->dataCreate(false, $transaction);
         return;
