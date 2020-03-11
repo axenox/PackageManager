@@ -20,6 +20,7 @@ use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Behaviors\TimeStampingBehavior;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
+use exface\Core\Factories\ExpressionFactory;
 
 class PageInstaller extends AbstractAppInstaller
 {
@@ -449,6 +450,7 @@ class PageInstaller extends AbstractAppInstaller
     {
         $transaction = $transaction ?? $this->getTransaction();
         $ds = $this->createPageDataSheet();
+        $page->exportDataRow($ds);
         if (! $createdByCol = $ds->getColumns()->get('CREATED_BY')){
             $ds->getColumns()->addFromExpression('CREATED_BY')->setValueOnAllRows('0x00000000000000000000000000000000');
         } elseif ($createdByCol->hasEmptyValues()) {
@@ -459,7 +461,16 @@ class PageInstaller extends AbstractAppInstaller
         } elseif ($modifiedByCol->hasEmptyValues()) {
             $modifiedByCol->setValueOnAllRows('0x00000000000000000000000000000000');
         }
-        $page->exportDataRow($ds);
+        if (! $createdOnCol = $ds->getColumns()->get('CREATED_ON')){
+            $ds->getColumns()->addFromExpression('CREATED_ON')->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
+        } elseif ($createdByCol->hasEmptyValues()) {
+            $createdOnCol->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
+        }
+        if (! $updatedOnCol = $ds->getColumns()->get('MODIFIED_ON')){
+            $ds->getColumns()->addFromExpression('MODIFIED_ON')->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
+        } elseif ($createdByCol->hasEmptyValues()) {
+            $updatedOnCol->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
+        }
         $ds->dataCreate(false, $transaction);
         return;
     }
