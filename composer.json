@@ -1,38 +1,37 @@
 {
-    "name": "axenox/PackageManager",
-    "description": "Composer-based package manager for the ExFace business web application plattform",
-    "type": "library",
-    "license": "GPL-3.0+",
-    "authors": [
-        {
-            "name": "Andrej Kabachnik",
-            "email": "kabachnik@gmail.com",
-            "role": "Creator"
-        }
-    ],
-    "support": {
-        "issues": "https://github.com/axenox/PackageManager/issues"
-    },
-    "require": {
-        "exface/core": "~0.1",
-        "kabachello/composerapi": "~0.1"
-    },
-    "extra": {
-        "app": {
-            "app_uid": "0x31380000000000000000000000000000",
-            "app_alias": "axenox.PackageManager",
-            "model_md5": "8a3051922c1018332a60fa761bbb018d",
-            "model_timestamp": "2019-11-10 14:42:38"
-        }
-    },
-    "autoload": {
-        "psr-4": {
-            "axenox\\PackageManager\\": ""
-        },
-        "exclude-from-classmap": [
-            "/Config/",
-            "/Translations/",
-            "/Model/"
-        ]
-    }
+	"name" : "axenox/PackageManager",
+	"description" : "Composer-based package manager for the ExFace business web application plattform",
+	"type" : "library",
+	"license" : "GPL-3.0+",
+	"authors" : [{
+			"name" : "Andrej Kabachnik",
+			"email" : "kabachnik@gmail.com",
+			"role" : "Creator"
+		}
+	],
+	"support" : {
+		"issues" : "https://github.com/axenox/PackageManager/issues"
+	},
+	"require" : {
+		"exface/core" : "^1.0",
+		"kabachello/composerapi" : "~0.3.2"
+	},
+	"extra" : {
+		"app" : {
+			"app_uid" : "0x31380000000000000000000000000000",
+			"app_alias" : "axenox.PackageManager",
+			"model_md5" : "8a3051922c1018332a60fa761bbb018d",
+			"model_timestamp" : "2019-11-10 14:42:38"
+		}
+	},
+	"autoload" : {
+		"psr-4" : {
+			"axenox\\PackageManager\\" : ""
+		},
+		"exclude-from-classmap" : [
+			"/Config/",
+			"/Translations/",
+			"/Model/"
+		]
+	}
 }
