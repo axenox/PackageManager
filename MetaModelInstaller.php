@@ -298,8 +298,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         
         if (is_dir($model_source)) {
             $transaction = $this->getWorkbench()->data()->startTransaction();
-            $dataSheets = $this->readModelSheets($model_source);
-            foreach ($dataSheets as $data_sheet) {
+            foreach ($this->readModelSheets($model_source) as $data_sheet) {
                 try {
                     
                     // Remove columns, that are not attributes. This is important to be able to import changes on the meta model itself.
@@ -375,38 +374,54 @@ class MetaModelInstaller extends AbstractAppInstaller
     }
     
     /**
+     * Generates data sheets from the Model folder.
+     * 
+     * It is important, that this is a generator as there are sheets for things like page groups,
+     * where the meta object may not even exist at the time of reading - the objects and attributes
+     * sheets must be read and processed first to read the other sheets.
      * 
      * @param string $absolutePath
      * @return DataSheetInterface[]
      */
-    protected function readModelSheets($absolutePath) : array
+    protected function readModelSheets($absolutePath) : \Generator
     {
-        $dataSheets = [];
-        $folderSheets = $this->readDataSheetsFromFolder($absolutePath);
+        $uxons = [];
+        $folderSheetUxons = $this->readDataSheetUxonsFromFolder($absolutePath);
         
-        ksort($folderSheets);
+        ksort($folderSheetUxons);
         
-        foreach ($folderSheets as $key => $sheet) {
+        foreach ($folderSheetUxons as $key => $uxon) {
             $type = StringDataType::substringBefore($key, '@');
-            if ($dataSheets[$type] === null) {
-                $dataSheets[$type] = $sheet;
-            } else {
-                $baseSheet = $dataSheets[$type];
-                if (! $baseSheet->getMetaObject()->isExactly($sheet->getMetaObject())) {
-                    throw new RuntimeException('Model sheet type mismatch: model sheets with same name must have the same structure in all subfolders of the model!');
-                }
-                $dataSheets[$type]->addRows($sheet->getRows());
-            }
+            $uxons[$type][] = $uxon;
         }
         
-        return $dataSheets;
+        foreach ($uxons as $array) {
+            $cnt = count($array);
+            if ($cnt === 1) {
+                yield DataSheetFactory::createFromUxon($this->getWorkbench(), $array[0]);
+            } else {
+                $baseSheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $array[0]);
+                for ($i = 1; $i < $cnt; $i++) {
+                    $sheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $array[$i]);
+                    if (! $baseSheet->getMetaObject()->isExactly($sheet->getMetaObject())) {
+                        throw new RuntimeException('Model sheet type mismatch: model sheets with same name must have the same structure in all subfolders of the model!');
+                    }
+                    $baseSheet->addRows($sheet->getRows());
+                }
+                yield $baseSheet;
+            }
+        }
     }
     
-    protected function readDataSheetsFromFolder(string $absolutePath) : array
+    /**
+     * 
+     * @param string $absolutePath
+     * @return UxonObject[]
+     */
+    protected function readDataSheetUxonsFromFolder(string $absolutePath) : array
     {
-        $folderSheets = [];
+        $folderUxons = [];
         
-        $exface = $this->getWorkbench();
         foreach (scandir($absolutePath) as $file) {
             if ($file == '.' || $file == '..') {
                 continue;
@@ -414,23 +429,34 @@ class MetaModelInstaller extends AbstractAppInstaller
             $path = $absolutePath . DIRECTORY_SEPARATOR . $file;
             $key = $file . '@' . $absolutePath;
             if (is_dir($path)) {
-                $folderSheets = array_merge($folderSheets, $this->readDataSheetsFromFolder($path));
+                $folderUxons = array_merge($folderUxons, $this->readDataSheetUxonsFromFolder($path));
             } else {
-                $folderSheets[$key] = $this->readDataSheetFromFile($path);
+                $folderUxons[$key] = $this->readDataSheetUxonFromFile($path);
             }
         }
         
-        return $folderSheets;
+        return $folderUxons;
     }
     
-    protected function readDataSheetFromFile(string $path) : DataSheetInterface
+    /**
+     * 
+     * @param string $path
+     * @return UxonObject
+     */
+    protected function readDataSheetUxonFromFile(string $path) : UxonObject
     {
         $contents = file_get_contents($path);
         $contents = $this->applyCompatibilityFixesToFileContent($path, $contents);
         
-        return DataSheetFactory::createFromUxon($this->getWorkbench(), UxonObject::fromJson($contents));
+        return UxonObject::fromJson($contents);
     }
     
+    /**
+     * 
+     * @param string $path
+     * @param string $contents
+     * @return string
+     */
     protected function applyCompatibilityFixesToFileContent(string $path, string $contents) : string
     {
         // upgrade to 0.28: Translate old error model to message model
