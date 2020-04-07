@@ -237,12 +237,12 @@ class MetaModelInstaller extends AbstractAppInstaller
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT_BEHAVIORS'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.ATTRIBUTE'), 'OBJECT__APP');
-        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.DATASRC'), 'APP', array(
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.DATASRC'), 'APP', [
             'CONNECTION',
             'CUSTOM_CONNECTION',
             'QUERYBUILDER',
             'CUSTOM_QUERY_BUILDER'
-        ));
+        ]);
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.CONNECTION'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.MESSAGE'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.OBJECT_ACTION'), 'APP');
@@ -252,8 +252,16 @@ class MetaModelInstaller extends AbstractAppInstaller
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.PAGE_GROUP'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.PAGE_GROUP_PAGES'), 'PAGE__APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.USER_ROLE'), 'APP');
-        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.AUTHORIZATION_POINT'), 'APP');
-        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.AUTHORIZATION_POLICY'), 'APP');
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.AUTHORIZATION_POINT'), 'APP', [
+            'DEFAULT_EFFECT',
+            'DEFAULT_EFFECT_LOCAL',
+            'COMBINING_ALGORITHM',
+            'COMBINING_ALGORITHM_LOCAL',
+            'DISABLED_FLAG'
+        ]);
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.AUTHORIZATION_POLICY'), 'APP', [
+            'DISABLED_FLAG'
+        ]);
         
         return $sheets;
     }
