@@ -451,26 +451,7 @@ class PageInstaller extends AbstractAppInstaller
         $transaction = $transaction ?? $this->getTransaction();
         $ds = $this->createPageDataSheet();
         $page->exportDataRow($ds);
-        if (! $createdByCol = $ds->getColumns()->get('CREATED_BY')){
-            $ds->getColumns()->addFromExpression('CREATED_BY')->setValueOnAllRows('0x00000000000000000000000000000000');
-        } elseif ($createdByCol->hasEmptyValues()) {
-            $createdByCol->setValueOnAllRows('0x00000000000000000000000000000000');
-        }
-        if (! $modifiedByCol = $ds->getColumns()->get('MODIFIED_BY')){
-            $ds->getColumns()->addFromExpression('MODIFIED_BY')->setValueOnAllRows('0x00000000000000000000000000000000');
-        } elseif ($modifiedByCol->hasEmptyValues()) {
-            $modifiedByCol->setValueOnAllRows('0x00000000000000000000000000000000');
-        }
-        if (! $createdOnCol = $ds->getColumns()->get('CREATED_ON')){
-            $ds->getColumns()->addFromExpression('CREATED_ON')->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
-        } elseif ($createdByCol->hasEmptyValues()) {
-            $createdOnCol->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
-        }
-        if (! $updatedOnCol = $ds->getColumns()->get('MODIFIED_ON')){
-            $ds->getColumns()->addFromExpression('MODIFIED_ON')->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
-        } elseif ($createdByCol->hasEmptyValues()) {
-            $updatedOnCol->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
-        }
+        $ds = $this->addDataSheetDefaultValues($ds);
         $ds->dataCreate(false, $transaction);
         return;
     }
@@ -480,6 +461,7 @@ class PageInstaller extends AbstractAppInstaller
         $transaction = $transaction ?? $this->getTransaction();
         $ds = $this->createPageDataSheet();
         $page->exportDataRow($ds);
+        $ds = $this->addDataSheetDefaultValues($ds);
         $ds->dataUpdate(false, $transaction);
         return;
     }
@@ -489,6 +471,7 @@ class PageInstaller extends AbstractAppInstaller
         $transaction = $transaction ?? $this->getTransaction();
         $ds = $this->createPageDataSheet();
         $page->exportDataRow($ds);
+        $ds = $this->addDataSheetDefaultValues($ds);
         $ds->dataDelete($transaction);
         return;
     }
@@ -511,5 +494,30 @@ class PageInstaller extends AbstractAppInstaller
     {
         $this->transaction = $transaction;
         return $this;
+    }
+    
+    protected function addDataSheetDefaultValues(DataSheetInterface $ds) : DataSheetInterface
+    {
+        if (! $createdByCol = $ds->getColumns()->get('CREATED_BY_USER')){
+            $ds->getColumns()->addFromExpression('CREATED_BY_USER')->setValueOnAllRows('0x00000000000000000000000000000000');
+        } elseif ($createdByCol->hasEmptyValues()) {
+            $createdByCol->setValueOnAllRows('0x00000000000000000000000000000000');
+        }
+        if (! $modifiedByCol = $ds->getColumns()->get('MODIFIED_BY_USER')){
+            $ds->getColumns()->addFromExpression('MODIFIED_BY_USER')->setValueOnAllRows('0x00000000000000000000000000000000');
+        } elseif ($modifiedByCol->hasEmptyValues()) {
+            $modifiedByCol->setValueOnAllRows('0x00000000000000000000000000000000');
+        }
+        if (! $createdOnCol = $ds->getColumns()->get('CREATED_ON')){
+            $ds->getColumns()->addFromExpression('CREATED_ON')->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
+        } elseif ($createdOnCol->hasEmptyValues()) {
+            $createdOnCol->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
+        }
+        if (! $updatedOnCol = $ds->getColumns()->get('MODIFIED_ON')){
+            $ds->getColumns()->addFromExpression('MODIFIED_ON')->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
+        } elseif ($updatedOnCol->hasEmptyValues()) {
+            $updatedOnCol->setValuesByExpression(ExpressionFactory::createFromString($this->getWorkbench(), '=NOW()'));
+        }
+        return $ds;
     }
 }
