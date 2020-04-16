@@ -91,7 +91,7 @@ class PageInstaller extends AbstractAppInstaller
                 $page->setApp($this->getApp()->getSelector());
                 // Wird eine Seite neu hinzugefuegt ist die menuDefaultPosition gleich der
                 // gesetzen Position.
-                $page->setMenuParentPageSelectorDefault($page->getMenuParentPageSelector());
+                $page->setParentPageSelectorDefault($page->getParentPageSelector());
                 $page->setMenuIndexDefault($page->getMenuIndex());
                 $pagesFile[] = $page;
             } catch (\Throwable $e) {
@@ -128,7 +128,7 @@ class PageInstaller extends AbstractAppInstaller
                                 // Die Seite wurde manuell umgehaengt. Die menuDefaultPosition wird
                                 // aktualisiert, die Position im Baum wird nicht aktualisiert.
                                 $pageFile->setMenuIndex($pageDb->getMenuIndex());
-                                $pageFile->setMenuParentPageSelector($pageDb->getMenuParentPageSelector());
+                                $pageFile->setParentPageSelector($pageDb->getParentPageSelector());
                                 $pagesUpdateMoved[] = $pageFile;
                             }
                             $pagesUpdate[] = $pageFile;
@@ -299,7 +299,7 @@ class PageInstaller extends AbstractAppInstaller
             $pagePos = 0;
             do {
                 $page = $inputPages[$pagePos];
-                $parentSelector = $page->getMenuParentPageSelector();
+                $parentSelector = $page->getParentPageSelector();
                 $parentFound = false;
                 // Hat die Seite einen Parent im inputArray?
                 foreach ($inputPages as $parentPagePos => $parentPage) {
@@ -395,7 +395,7 @@ class PageInstaller extends AbstractAppInstaller
             try {
                 // Hat die Seite keine UID wird ein Fehler geworfen. Ohne UID kann die Seite nicht
                 // manipuliert werden, da beim Aktualisieren oder Loeschen die UID benoetigt wird.
-                if (! $page->getId()) {
+                if (! $page->getUid()) {
                     throw new UiPageIdMissingError('The UiPage "' . $page->getAliasWithNamespace() . '" has no UID.');
                 }
                 // Hat die Seite keinen Alias wird ein Alias gesetzt und die Seite wird aktualisiert.
