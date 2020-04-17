@@ -82,6 +82,10 @@
             "attribute_alias": "RELATION_CARDINALITY"
         },
         {
+            "name": "TYPE",
+            "attribute_alias": "TYPE"
+        },
+        {
             "name": "ALIAS",
             "attribute_alias": "ALIAS"
         },
@@ -184,6 +188,7 @@
             "COMMENTS": "",
             "NAME": "Version",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "VERSION_NO",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "tag_name",
@@ -226,6 +231,7 @@
             "COMMENTS": "",
             "NAME": "Name",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "NAME",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "name",
@@ -268,6 +274,7 @@
             "COMMENTS": "",
             "NAME": "Description",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "DESCRIPTION",
             "DATATYPE": "0x31310000000000000000000000000000",
             "DATA_ADDRESS": "body",
@@ -310,6 +317,7 @@
             "COMMENTS": "",
             "NAME": "ID",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "id",
             "DATATYPE": "0x31000000000000000000000000000000",
             "DATA_ADDRESS": "id",
@@ -352,6 +360,7 @@
             "COMMENTS": "",
             "NAME": "Package Repository",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "PKG_REPO",
             "DATATYPE": "0x31320000000000000000000000000000",
             "DATA_ADDRESS": "repo",
@@ -394,6 +403,7 @@
             "COMMENTS": "",
             "NAME": "Prerelease",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "PRERELEASE",
             "DATATYPE": "0x37000000000000000000000000000000",
             "DATA_ADDRESS": "prerelease",
@@ -436,6 +446,7 @@
             "COMMENTS": "",
             "NAME": "Published at",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "PUBLISHED_AT",
             "DATATYPE": "0x32000000000000000000000000000000",
             "DATA_ADDRESS": "published_at",
@@ -461,6 +472,7 @@
     "totals_rows": [],
     "filters": {
         "operator": "AND",
+        "base_object_alias": "exface.Core.ATTRIBUTE",
         "conditions": [
             {
                 "expression": "OBJECT__APP",

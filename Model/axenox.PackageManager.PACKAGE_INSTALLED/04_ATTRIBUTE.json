@@ -82,6 +82,10 @@
             "attribute_alias": "RELATION_CARDINALITY"
         },
         {
+            "name": "TYPE",
+            "attribute_alias": "TYPE"
+        },
+        {
             "name": "ALIAS",
             "attribute_alias": "ALIAS"
         },
@@ -184,6 +188,7 @@
             "COMMENTS": "",
             "NAME": "Package",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "name",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "name",
@@ -226,6 +231,7 @@
             "COMMENTS": "",
             "NAME": "Version",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "version",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "version",
@@ -268,6 +274,7 @@
             "COMMENTS": "",
             "NAME": "Description",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "description",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "description",
@@ -310,6 +317,7 @@
             "COMMENTS": "",
             "NAME": "License",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "license",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "license",
@@ -352,6 +360,7 @@
             "COMMENTS": "",
             "NAME": "Custom repository URL",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "repository_url",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "",
@@ -394,6 +403,7 @@
             "COMMENTS": "",
             "NAME": "Custom repository type",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "repository_type",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "",
@@ -436,6 +446,7 @@
             "COMMENTS": "",
             "NAME": "Install time",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "time",
             "DATATYPE": "0x33000000000000000000000000000000",
             "DATA_ADDRESS": "time",
@@ -478,6 +489,7 @@
             "COMMENTS": "",
             "NAME": "App",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "app",
             "DATATYPE": "0x11e7b0277435425e98350205857feb80",
             "DATA_ADDRESS": "extra\/app\/app_uid",
@@ -520,6 +532,7 @@
             "COMMENTS": "",
             "NAME": "App alias",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "app_alias",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "extra\/app\/app_alias",
@@ -562,6 +575,7 @@
             "COMMENTS": "",
             "NAME": "Model packaged on",
             "RELATION_CARDINALITY": "",
+            "TYPE": "D",
             "ALIAS": "model_timestamp",
             "DATATYPE": "0x33000000000000000000000000000000",
             "DATA_ADDRESS": "extra\/app\/model_timestamp",
@@ -587,6 +601,7 @@
     "totals_rows": [],
     "filters": {
         "operator": "AND",
+        "base_object_alias": "exface.Core.ATTRIBUTE",
         "conditions": [
             {
                 "expression": "OBJECT__APP",
