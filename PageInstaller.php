@@ -17,7 +17,6 @@ use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Behaviors\TimeStampingBehavior;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
-use exface\Core\Factories\ExpressionFactory;
 
 class PageInstaller extends AbstractAppInstaller
 {
@@ -112,7 +111,7 @@ class PageInstaller extends AbstractAppInstaller
         
         foreach ($pagesFile as $pageFile) {
             try {
-                $pageDb = UiPageFactory::createFromModel($this->getWorkbench(), $pageFile->getId(), true);
+                $pageDb = UiPageFactory::createFromModel($this->getWorkbench(), $pageFile->getUid(), true);
                 // Die Seite existiert bereits und wird aktualisiert.
                 if (! $pageDb->equals($pageFile)) {
                     // Irgendetwas hat sich an der Seite geaendert.
