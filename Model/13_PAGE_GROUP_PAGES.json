@@ -1,0 +1,69 @@
+{
+    "object_alias": "exface.Core.PAGE_GROUP_PAGES",
+    "columns": [
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "PAGE",
+            "attribute_alias": "PAGE"
+        },
+        {
+            "name": "PAGE_GROUP",
+            "attribute_alias": "PAGE_GROUP"
+        }
+    ],
+    "rows": [
+        {
+            "CREATED_ON": "2020-05-11 13:03:57",
+            "MODIFIED_ON": "2020-05-11 13:03:57",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11ea9387df59c5eca9d10205857feb80",
+            "PAGE": "0xf83142f5ba2c11e7895fe4b318306b9a",
+            "PAGE_GROUP": "0x11ea9387d32552e1a9d10205857feb80"
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "exface.Core.PAGE_GROUP_PAGES",
+        "conditions": [
+            {
+                "expression": "PAGE__APP",
+                "comparator": "=",
+                "value": "0x31380000000000000000000000000000",
+                "object_alias": "exface.Core.PAGE_GROUP_PAGES"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}
