@@ -343,7 +343,7 @@ class PageInstaller extends AbstractAppInstaller
     {
         $languageCode = $this->getApp()->getLanguageDefault();
         if (! $languageCode) {
-            $defaultLocale = $this->getWorkbench()->getConfig()->getOption("LOCALE.DEFAULT");
+            $defaultLocale = $this->getWorkbench()->getConfig()->getOption("SERVER.DEFAULT_LOCALE");
             $languageCode = substr($defaultLocale, 0, strpos($defaultLocale, '_'));
         }
         
