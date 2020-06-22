@@ -155,6 +155,25 @@ class PageInstaller extends AbstractAppInstaller
         // Pages erstellen.
         $pagesCreatedCounter = 0;
         foreach ($pagesCreate as $page) {
+            // Check if the installaed page has a parent and that parent page exists.
+            if ($page->hasParent()) {
+                try {
+                    $page->getParentPage(true);
+                } catch (UiPageNotFoundError $eParent) {
+                    // If the parent selector is as UID, we can still leave it in place,
+                    // so the parent page may be installed afterwards. However, if it's not
+                    // a UID, there is no place to get the UID from and, thus, we don't have
+                    // anything to save. In this case, we 
+                    if (! $page->getParentPageSelector()->isUid()) {
+                        $pagesCreateErrors[] = ['page' => $page, 'exception' => new InstallerRuntimeError($this, 'Parent page "' . $page->getParentPageSelector()->__toString() . '" of page "' . $page->getAliasWithNamespace() . '" not found! The parent-relationship will be lost!')];
+                        $page->setParentPageSelector(null);
+                    } else {
+                        $pagesCreateErrors[] = ['page' => $page, 'exception' => new InstallerRuntimeError($this, 'Parent page "' . $page->getParentPageSelector()->__toString() . '" of page "' . $page->getAliasWithNamespace() . '" not found! The parent-relationship will be restored once the parent page ist installed.')];
+                    }
+                    $page->setPublished(false);
+                }
+            }
+            // Now create the page in the model
             try {
                 $this->createPage($page);
                 $pagesCreatedCounter ++;
