@@ -59,14 +59,14 @@ class MetaModelInstaller extends AbstractAppInstaller
         $idt = $this->getOutputIndentation();
         $sheets = $this->getModelDataSheets();
         
-        yield $idt . 'Uninstalling model:';
-        
         $transaction = $this->getWorkbench()->data()->startTransaction();
         
         $pageInstaller = $this->getPageInstaller();
         $pageInstaller->setOutputIndentation($idt);
         $pageInstaller->setTransaction($transaction);
         yield from $pageInstaller->uninstall();
+        
+        yield $idt . 'Uninstalling model:' . PHP_EOL;
         
         $counter = 0;
         if (! empty($sheets)){            
@@ -79,14 +79,15 @@ class MetaModelInstaller extends AbstractAppInstaller
             
             $appSheet->getFilters()->removeAll();
             $counter = $appSheet->dataDelete($transaction);
+            $transaction->commit();
             
             if ($counter === 0) {
-                yield ' Nnothing to do.' . PHP_EOL;
+                yield $idt.$idt . 'Nothing to do.' . PHP_EOL;
             } else {
-                yield ' success.' . PHP_EOL; 
+                yield $idt.$idt . 'Removed app model successfully!' . PHP_EOL; 
             }
         } else {
-            yield ' app model not found!' . PHP_EOL;  
+            yield $idt.$idt . 'App model not found!' . PHP_EOL;  
         }
     }
 
