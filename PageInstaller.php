@@ -17,6 +17,7 @@ use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Behaviors\TimeStampingBehavior;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
+use exface\Core\Exceptions\RuntimeException;
 
 class PageInstaller extends AbstractAppInstaller
 {
@@ -156,7 +157,7 @@ class PageInstaller extends AbstractAppInstaller
         $pagesCreatedCounter = 0;
         foreach ($pagesCreate as $page) {
             // Check if the installaed page has a parent and that parent page exists.
-            if ($page->hasParent()) {
+            if ($page->getParentPageSelector() !== null) {
                 try {
                     $page->getParentPage(true);
                 } catch (UiPageNotFoundError $eParent) {
@@ -165,10 +166,11 @@ class PageInstaller extends AbstractAppInstaller
                     // a UID, there is no place to get the UID from and, thus, we don't have
                     // anything to save. In this case, we 
                     if (! $page->getParentPageSelector()->isUid()) {
-                        $pagesCreateErrors[] = ['page' => $page, 'exception' => new InstallerRuntimeError($this, 'Parent page "' . $page->getParentPageSelector()->__toString() . '" of page "' . $page->getAliasWithNamespace() . '" not found! The parent-relationship will be lost!')];
+                        $pagesCreateErrors[] = ['page' => $page, 'exception' => new RuntimeException('Parent page "' . $page->getParentPageSelector()->__toString() . '" of page "' . $page->getAliasWithNamespace() . '" not found! The parent-relationship will be lost!')];
                         $page->setParentPageSelector(null);
+                        $page->setParentPageSelectorDefault(null);
                     } else {
-                        $pagesCreateErrors[] = ['page' => $page, 'exception' => new InstallerRuntimeError($this, 'Parent page "' . $page->getParentPageSelector()->__toString() . '" of page "' . $page->getAliasWithNamespace() . '" not found! The parent-relationship will be restored once the parent page ist installed.')];
+                        $pagesCreateErrors[] = ['page' => $page, 'exception' => new RuntimeException('Parent page "' . $page->getParentPageSelector()->__toString() . '" of page "' . $page->getAliasWithNamespace() . '" not found! The parent-relationship will be restored once the parent page ist installed.')];
                     }
                     $page->setPublished(false);
                 }
