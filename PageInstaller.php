@@ -134,6 +134,9 @@ class PageInstaller extends AbstractAppInstaller
                             // Seite nicht manuell umgehaengt wurde.
                             $pagesUpdate[] = $pageFile;
                         } else {
+                            $pageFile->setMenuIndex($pageDb->getMenuIndex());
+                            $pageFile->setParentPageSelector($pageDb->getParentPageSelector());
+                            $pagesUpdate[] = $pageFile;
                             $pagesUpdateMoved[] = $pageFile;
                         }
                     } else {
