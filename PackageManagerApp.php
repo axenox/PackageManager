@@ -37,7 +37,7 @@ class PackageManagerApp extends App
         $json = array(
             "name" => mb_strtolower($app->getVendor() . '/' . str_replace($app->getVendor() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '', $app->getAliasWithNamespace())),
             "require" => array(
-                "exface/core" => '^1.1'
+                "exface/core" => '^1.0'
             ),
             "autoload" => [
                 "psr-4" => [
