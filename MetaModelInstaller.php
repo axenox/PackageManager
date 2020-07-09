@@ -13,8 +13,6 @@ use exface\Core\DataTypes\AggregatorFunctionsDataType;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\Behaviors\TimeStampingBehavior;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
-use exface\Core\Factories\ConditionFactory;
-use exface\Core\Factories\ConditionGroupFactory;
 use exface\Core\CommonLogic\Filemanager;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Exceptions\RuntimeException;
@@ -251,7 +249,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.PAGE_TEMPLATE'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.ATTRIBUTE_COMPOUND'), 'COMPOUND_ATTRIBUTE__OBJECT__APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.PAGE_GROUP'), 'APP');
-        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.PAGE_GROUP_PAGES'), 'PAGE__APP');
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.PAGE_GROUP_PAGES'), ['PAGE__APP', 'PAGE_GROUP__APP']);
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.USER_ROLE'), 'APP');
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.AUTHORIZATION_POINT'), 'APP', [
             'DEFAULT_EFFECT',
@@ -271,7 +269,7 @@ class MetaModelInstaller extends AbstractAppInstaller
      *
      * @param AppInterface $app            
      * @param MetaObjectInterface $object            
-     * @param string $app_filter_attribute_alias   
+     * @param string|string[] $app_filter_attribute_alias   
      * @param array $exclude_attribute_aliases         
      * @return DataSheetInterface
      */
@@ -284,9 +282,16 @@ class MetaModelInstaller extends AbstractAppInstaller
             }
             $ds->getColumns()->addFromExpression($attr->getAlias());
         }
-        $ds->getFilters()->addConditionFromString($app_filter_attribute_alias, $app->getUid());
+        
+        $filterAttrs = is_array($app_filter_attribute_alias) ? $app_filter_attribute_alias : [$app_filter_attribute_alias];
+        
+        foreach ($filterAttrs as $filterAttr) {
+            $ds->getFilters()->addConditionFromString($filterAttr, $app->getUid());
+        }
+        
         $ds->getSorters()->addFromString('CREATED_ON', 'ASC');
         $ds->getSorters()->addFromString($object->getUidAttributeAlias(), 'ASC');
+        
         $ds->dataRead();
         return $ds;
     }
