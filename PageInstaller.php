@@ -18,6 +18,9 @@ use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Behaviors\TimeStampingBehavior;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\Exceptions\RuntimeException;
+use exface\Core\Behaviors\TranslatableBehavior;
+use exface\Core\CommonLogic\Workbench;
+use exface\Core\DataTypes\StringDataType;
 
 class PageInstaller extends AbstractAppInstaller
 {
@@ -265,7 +268,7 @@ class PageInstaller extends AbstractAppInstaller
     
     protected function getPagesForApp(AppInterface $app) : array
     {
-        $pageObj = $this->getWorkbench()->model()->getObject('exface.Core.PAGE');
+        $pageObj = $app->getWorkbench()->model()->getObject('exface.Core.PAGE');
         $pagesDs = DataSheetFactory::createFromObject($pageObj);
         $pagesDs->getColumns()->addFromUidAttribute();
         $pagesDs->getFilters()->addConditionFromString('APP__ALIAS', $app->getAliasWithNamespace(), ComparatorDataType::EQUALS);
@@ -273,7 +276,7 @@ class PageInstaller extends AbstractAppInstaller
         
         $pages = [];
         foreach ($pagesDs->getUidColumn()->getValues() as $pageUid) {
-            $pages[] = UiPageFactory::createFromModel($this->getWorkbench(), $pageUid, true);
+            $pages[] = UiPageFactory::createFromModel($app->getWorkbench(), $pageUid, true);
         }
         
         return $pages;
@@ -402,8 +405,24 @@ class PageInstaller extends AbstractAppInstaller
             $this->getWorkbench()->getLogger()->logException($e);
         }
         
+        // Start a new workbench with a custom config. Remove all static listeners 
+        // of the TranslatableBehavior from that config to ensure, that page properties
+        // do not get translated when being loaded.
+        $exportConfig = [
+            'EVENTS.STATIC_LISTENERS' => $this->getWorkbench()->getConfig()->getOption('EVENTS.STATIC_LISTENERS')->toArray()
+        ];
+        foreach ($exportConfig['EVENTS.STATIC_LISTENERS'] as $eventName => $listeners) {
+            foreach ($listeners as $idx => $listener) {
+                if (StringDataType::startsWith($listener, '\\' . TranslatableBehavior::class . '::')) {
+                    unset($exportConfig['EVENTS.STATIC_LISTENERS'][$eventName][$idx]);
+                }
+            }
+        }
+        $exportWb = Workbench::startNewInstance($exportConfig);
+        $exportApp = $exportWb->getApp($this->getApp()->getSelector());
+        
         // Dann alle Dialoge der App als Dateien in den Ordner schreiben.
-        $pages = $this->getPagesForApp($this->getApp());
+        $pages = $this->getPagesForApp($exportApp);
         
         if (! empty($pages)) {
             $dir = $this->getPagesPathWithLanguage($destination_absolute_path, $this->getDefaultLanguageCode());
@@ -417,11 +436,6 @@ class PageInstaller extends AbstractAppInstaller
                 // manipuliert werden, da beim Aktualisieren oder Loeschen die UID benoetigt wird.
                 if (! $page->getUid()) {
                     throw new UiPageIdMissingError('The UiPage "' . $page->getAliasWithNamespace() . '" has no UID.');
-                }
-                // Hat die Seite keinen Alias wird ein Alias gesetzt und die Seite wird aktualisiert.
-                if (! $page->getAliasWithNamespace()) {
-                    $page = $page->copy(UiPage::generateAlias($page->getApp()->getAliasWithNamespace() . '.'));
-                    $this->updatePage($page);
                 }
                 
                 // Exportieren der Seite

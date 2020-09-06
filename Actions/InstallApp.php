@@ -14,7 +14,6 @@ use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
-use exface\Core\Factories\ResultFactory;
 use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
