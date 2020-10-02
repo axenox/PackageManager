@@ -261,6 +261,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.AUTHORIZATION_POLICY'), 'APP', [
             'DISABLED_FLAG'
         ]);
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.QUEUE'), 'APP');
         
         return $sheets;
     }
