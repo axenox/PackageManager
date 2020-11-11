@@ -1,38 +1,41 @@
 {
-    "name": "axenox/PackageManager",
-    "description": "Composer-based package manager for the ExFace business web application plattform",
-    "type": "library",
-    "license": "GPL-3.0+",
-    "authors": [
-        {
-            "name": "Andrej Kabachnik",
-            "email": "kabachnik@gmail.com",
-            "role": "Creator"
-        }
-    ],
-    "support": {
-        "issues": "https://github.com/axenox/PackageManager/issues"
-    },
-    "require": {
-        "exface/core": "^1.0",
-        "kabachello/composerapi": "~0.3.2"
-    },
-    "extra": {
-        "app": {
-            "app_uid": "0x31380000000000000000000000000000",
-            "app_alias": "axenox.PackageManager",
-            "model_md5": "a224f9a4b1d0eb6e7140fe6c3e68d068",
-            "model_timestamp": "2020-05-11 13:05:05"
-        }
-    },
-    "autoload": {
-        "psr-4": {
-            "axenox\\PackageManager\\": ""
-        },
-        "exclude-from-classmap": [
-            "/Config/",
-            "/Translations/",
-            "/Model/"
-        ]
-    }
+	"name" : "axenox/packagemanager",
+	"description" : "Composer-based package manager for the ExFace business web application plattform",
+	"type" : "library",
+	"license" : [
+		"GPL-3.0+",
+		"proprietary"
+	],
+	"authors" : [{
+			"name" : "Andrej Kabachnik",
+			"email" : "kabachnik@gmail.com",
+			"role" : "Creator"
+		}
+	],
+	"support" : {
+		"source" : "https://github.com/exface/PackageManager",
+		"issues" : "https://github.com/axenox/PackageManager/issues"
+	},
+	"require" : {
+		"exface/core" : "^1.0",
+		"kabachello/composerapi" : "~0.3.2"
+	},
+	"extra" : {
+		"app" : {
+			"app_uid" : "0x31380000000000000000000000000000",
+			"app_alias" : "axenox.PackageManager",
+			"model_md5" : "a224f9a4b1d0eb6e7140fe6c3e68d068",
+			"model_timestamp" : "2020-05-11 13:05:05"
+		}
+	},
+	"autoload" : {
+		"psr-4" : {
+			"axenox\\PackageManager\\" : ""
+		},
+		"exclude-from-classmap" : [
+			"/Config/",
+			"/Translations/",
+			"/Model/"
+		]
+	}
 }
