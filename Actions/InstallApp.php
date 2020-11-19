@@ -127,7 +127,7 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI
         
         $getAll = false;
         if (empty($this->target_app_aliases) === false) {
-            if (count($this->target_app_aliases) === 1 && $this->target_app_aliases[0] === '*') {
+            if (count($this->target_app_aliases) === 1 && ($this->target_app_aliases[0] === '*' || strcasecmp($this->target_app_aliases[0], 'all') === 0)) {
                 $getAll === true;
             } else {
                 return $this->target_app_aliases;
