@@ -60,7 +60,9 @@
             "APP": "0x31380000000000000000000000000000",
             "LABEL": "GitHub",
             "CONNECTOR": "exface\/UrlDataConnector\/DataConnectors\/HttpConnector.php",
-            "CONFIG": "{\"URL\":\"https:\\\/\\\/api.github.com\\\/\"}",
+            "CONFIG": {
+                "URL": "https:\/\/api.github.com\/"
+            },
             "READONLY": "0",
             "ALIAS": "GITHUB",
             "FILTER_CONTEXT": null

@@ -70,7 +70,26 @@
             "ALIAS": "InstallAppFromVendorFolder",
             "NAME": "Install app from package",
             "SHORT_DESCRIPTION": "Installs an app from the vendor folder",
-            "CONFIG_UXON": "{\"widget\":{\"widget_type\":\"Dialog\",\"object_alias\":\"exface.Core.APP\",\"width\":1,\"height\":\"auto\",\"widgets\":[{\"attribute_alias\":\"ALIAS\"}],\"Buttons\":[{\"action_alias\":\"axenox.PackageManager.InstallApp\",\"align\":\"opposite\",\"visibility\":\"promoted\"}]}}",
+            "CONFIG_UXON": {
+                "widget": {
+                    "widget_type": "Dialog",
+                    "object_alias": "exface.Core.APP",
+                    "width": 1,
+                    "height": "auto",
+                    "widgets": [
+                        {
+                            "attribute_alias": "ALIAS"
+                        }
+                    ],
+                    "Buttons": [
+                        {
+                            "action_alias": "axenox.PackageManager.InstallApp",
+                            "align": "opposite",
+                            "visibility": "promoted"
+                        }
+                    ]
+                }
+            },
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": "0",
             "DOCS": ""
@@ -86,7 +105,24 @@
             "ALIAS": "ShowAppRepairConsole",
             "NAME": "Repair",
             "SHORT_DESCRIPTION": "",
-            "CONFIG_UXON": "{\"prefill_with_input_data\":true,\"input_rows_min\":1,\"icon\":\"wrench\",\"widget\":{\"widgets\":[{\"disabled\":true,\"widget_type\":\"Console\",\"command_placeholder_value_list_delimiter\":\",\",\"start_commands\":[\"action axenox.PackageManager:InstallApp [#ALIAS#]\"],\"working_directory_path\":\"vendor\\\/bin\"}]}}",
+            "CONFIG_UXON": {
+                "prefill_with_input_data": true,
+                "input_rows_min": 1,
+                "icon": "wrench",
+                "widget": {
+                    "widgets": [
+                        {
+                            "disabled": true,
+                            "widget_type": "Console",
+                            "command_placeholder_value_list_delimiter": ",",
+                            "start_commands": [
+                                "action axenox.PackageManager:InstallApp [#ALIAS#]"
+                            ],
+                            "working_directory_path": "vendor\/bin"
+                        }
+                    ]
+                }
+            },
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": "0",
             "DOCS": ""
@@ -102,7 +138,24 @@
             "ALIAS": "ShowAppUninstallConsole",
             "NAME": "Uninstall",
             "SHORT_DESCRIPTION": "",
-            "CONFIG_UXON": "{\"prefill_with_input_data\":true,\"input_rows_min\":1,\"icon\":\"trash-o\",\"widget\":{\"widgets\":[{\"disabled\":true,\"widget_type\":\"Console\",\"command_placeholder_value_list_delimiter\":\",\",\"start_commands\":[\"action axenox.PackageManager:UninstallApp [#ALIAS#]\"],\"working_directory_path\":\"vendor\\\/bin\"}]}}",
+            "CONFIG_UXON": {
+                "prefill_with_input_data": true,
+                "input_rows_min": 1,
+                "icon": "trash-o",
+                "widget": {
+                    "widgets": [
+                        {
+                            "disabled": true,
+                            "widget_type": "Console",
+                            "command_placeholder_value_list_delimiter": ",",
+                            "start_commands": [
+                                "action axenox.PackageManager:UninstallApp [#ALIAS#]"
+                            ],
+                            "working_directory_path": "vendor\/bin"
+                        }
+                    ]
+                }
+            },
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": "0",
             "DOCS": ""
@@ -118,7 +171,55 @@
             "ALIAS": "ShowPackageManagerConsole",
             "NAME": "PackageManager Console",
             "SHORT_DESCRIPTION": "",
-            "CONFIG_UXON": "{\"icon\":\"terminal\",\"widget\":{\"widgets\":[{\"widget_type\":\"Console\",\"start_commands\":[\"action list axenox.PackageManager\"],\"command_presets\":[{\"caption\":\"Install App(s)\",\"visibility\":\"promoted\",\"hint\":\"Install app(s) from package\",\"commands\":[\"action axenox.PackageManager:InstallApp <App aliases comma-separated>\"]},{\"caption\":\"Uninstall App(s)\",\"hint\":\"Uninstall app(s)\",\"commands\":[\"action axenox.PackageManager:UninstallApp <App aliases comma-separated>\"]},{\"caption\":\"Backup App(s)\",\"hint\":\"Backup app(s)\",\"commands\":[\"action axenox.PackageManager:BackupApp <App aliases comma-separated>\"]},{\"caption\":\"List apps\",\"hint\":\"List all apps in model and in packages\",\"commands\":[\"action axenox.PackageManager:ListApps\"]}],\"allowed_commands\":[\"\\\/action list axenox.PackageManager\\\/\",\"\\\/action axenox.PackageManager.*\\\/\"],\"working_directory_path\":\"vendor\\\/bin\"}]}}",
+            "CONFIG_UXON": {
+                "icon": "terminal",
+                "widget": {
+                    "widgets": [
+                        {
+                            "widget_type": "Console",
+                            "start_commands": [
+                                "action list axenox.PackageManager"
+                            ],
+                            "command_presets": [
+                                {
+                                    "caption": "Install App(s)",
+                                    "visibility": "promoted",
+                                    "hint": "Install app(s) from package",
+                                    "commands": [
+                                        "action axenox.PackageManager:InstallApp <App aliases comma-separated>"
+                                    ]
+                                },
+                                {
+                                    "caption": "Uninstall App(s)",
+                                    "hint": "Uninstall app(s)",
+                                    "commands": [
+                                        "action axenox.PackageManager:UninstallApp <App aliases comma-separated>"
+                                    ]
+                                },
+                                {
+                                    "caption": "Backup App(s)",
+                                    "hint": "Backup app(s)",
+                                    "commands": [
+                                        "action axenox.PackageManager:BackupApp <App aliases comma-separated>"
+                                    ]
+                                },
+                                {
+                                    "caption": "List apps",
+                                    "hint": "List all apps in model and in packages",
+                                    "commands": [
+                                        "action axenox.PackageManager:ListApps"
+                                    ]
+                                }
+                            ],
+                            "allowed_commands": [
+                                "\/action list axenox.PackageManager\/",
+                                "\/action axenox.PackageManager.*\/"
+                            ],
+                            "working_directory_path": "vendor\/bin"
+                        }
+                    ]
+                }
+            },
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": "0",
             "DOCS": ""

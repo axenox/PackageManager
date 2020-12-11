@@ -19,6 +19,7 @@ use exface\Core\Exceptions\RuntimeException;
 use exface\Core\CommonLogic\QueryBuilder\RowDataArrayFilter;
 use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 use exface\Core\Behaviors\ModelValidatingBehavior;
+use exface\Core\DataTypes\UxonDataType;
 
 class MetaModelInstaller extends AbstractAppInstaller
 {
@@ -201,17 +202,41 @@ class MetaModelInstaller extends AbstractAppInstaller
                         unset($filteredRows[$i][$objectColumnName]);
                     }
                 }
-                $uxon->setProperty('rows', $filteredRows);
+                $uxon->setProperty('rows', $this->exportModelRowsPrettified($data_sheet, $filteredRows));
                 $subfolder = $backupDir . DIRECTORY_SEPARATOR . $this->getObjectSubfolder($objectUid);
                 $fileManager->dumpFile($subfolder . DIRECTORY_SEPARATOR . $fileName, $uxon->toJson(true));
             }
         } else {
-            $contents = $data_sheet->exportUxonObject()->toJson(true);
+            $uxon = $data_sheet->exportUxonObject();
+            $uxon->setProperty('rows', $this->exportModelRowsPrettified($data_sheet));
+            $contents = $uxon->toJson(true);
             $fileManager->dumpFile($backupDir . DIRECTORY_SEPARATOR . $fileName, $contents);
             return $contents;
         }
         
         return '';
+    }
+    
+    protected function exportModelRowsPrettified(DataSheetInterface $sheet, array $rows = null) : array
+    {
+        $rows = $rows ?? $sheet->getRows();
+        foreach ($sheet->getColumns() as $col) {
+            if ($col->getDataType() instanceof UxonDataType) {
+                $colName = $col->getName();
+                foreach ($rows as $i => $row) {
+                    $val = $row[$colName];
+                    if ($val !== null && $val !== '') {
+                        try {
+                            $valUxon = UxonObject::fromAnything($val);
+                            $rows[$i][$colName] = $valUxon->toArray();
+                        } catch (\Throwable $e) {
+                            // Ignore errors
+                        }
+                    }
+                }
+            }
+        }
+        return $rows;
     }
     
     protected function filterRows(array $rows, string $filterRowName, string $filterRowValue)
@@ -405,26 +430,60 @@ class MetaModelInstaller extends AbstractAppInstaller
         
         ksort($folderSheetUxons);
         
+        // Organize the UXON objects in an array like [object_alias => [uxon1, uxon2, ...]]
         foreach ($folderSheetUxons as $key => $uxon) {
             $type = StringDataType::substringBefore($key, '@');
             $uxons[$type][] = $uxon;
         }
         
+        // For each object, combine it's UXONs into a single data sheet
         foreach ($uxons as $array) {
             $cnt = count($array);
-            if ($cnt === 1) {
-                yield DataSheetFactory::createFromUxon($this->getWorkbench(), $array[0]);
-            } else {
-                $baseSheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $array[0]);
+            // Init the data sheet from the first UXON, but without any rows. We will preprocess
+            // the rows later and transform expanded UXON values into strings.
+            $baseUxon = $array[0];
+            // Save the rows for later processing
+            $rows = $baseUxon->getProperty('rows')->toArray();
+            $baseUxon->unsetProperty('rows');
+            $baseSheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $baseUxon);
+            $baseColCount = $baseSheet->getColumns()->count();
+            // Add rows from all the other UXONs
+            if ($cnt > 1) {
                 for ($i = 1; $i < $cnt; $i++) {
-                    $sheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $array[$i]);
+                    $partUxon = $array[$i];
+                    $partRows = $partUxon->hasProperty('rows') ? $partUxon->getProperty('rows')->toArray() : [];
+                    $partUxon->unsetProperty('rows');
+                    // Instantiate an empty data sheet to check, if it's compatible!
+                    $sheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $partUxon);
                     if (! $baseSheet->getMetaObject()->isExactly($sheet->getMetaObject())) {
-                        throw new RuntimeException('Model sheet type mismatch: model sheets with same name must have the same structure in all subfolders of the model!');
+                        throw new InstallerRuntimeError($this, 'Model sheet type mismatch: model sheets with same name must have the same structure in all subfolders of the model!');
                     }
-                    $baseSheet->addRows($sheet->getRows());
+                    if ($sheet->getColumns()->count() !== $baseColCount) {
+                        throw new InstallerRuntimeError($this, 'Corrupted model data: all model sheets of the same type must have the same columns!');
+                    }
+                    $rows = array_merge($rows, $partRows);
                 }
-                yield $baseSheet;
             }
+            
+            // Preprocess row values
+            foreach ($baseSheet->getColumns() as $col) {
+                // UXON values are normally transformed into JSON when exporting the model to
+                // increase readability of diffs. Need to transform them back to strings here.
+                if ($col->getDataType() instanceof UxonDataType) {
+                    $colName = $col->getName();
+                    foreach ($rows as $i => $row) {
+                        $val = $row[$colName];
+                        if (is_array($val)) {
+                            $rows[$i][$colName] = (UxonObject::fromArray($val))->toJson();
+                        }
+                    }
+                }
+            }
+            
+            // Add all the rows to the sheet.
+            $baseSheet->addRows($rows, false, false);
+            
+            yield $baseSheet;
         }
     }
     

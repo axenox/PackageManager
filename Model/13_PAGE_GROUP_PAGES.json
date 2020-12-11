@@ -51,6 +51,12 @@
                 "comparator": "=",
                 "value": "0x31380000000000000000000000000000",
                 "object_alias": "exface.Core.PAGE_GROUP_PAGES"
+            },
+            {
+                "expression": "PAGE_GROUP__APP",
+                "comparator": "=",
+                "value": "0x31380000000000000000000000000000",
+                "object_alias": "exface.Core.PAGE_GROUP_PAGES"
             }
         ]
     },
