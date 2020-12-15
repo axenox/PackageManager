@@ -21,25 +21,55 @@ use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Behaviors\TranslatableBehavior;
 use exface\Core\CommonLogic\Workbench;
 use exface\Core\DataTypes\StringDataType;
+use exface\Core\Interfaces\Selectors\SelectorInterface;
+use exface\Core\DataTypes\FilePathDataType;
 
+/**
+ * Saves pages as UXON (JSON) files and imports these files back into model when needed.
+ * 
+ * Each page is stored as a separate JSON file using it's `UiPageInterface::exportUxonObject()`.
+ * All pages are stored in a single folder. The path to that folder can be passed to the
+ * installer's constructor.
+ * 
+ * NOTE: The `TimeStampingBehavior` of the model objects is disabled before install, so the
+ * create/update stamps of the exported model are saved correctly.
+ * 
+ * @author Andrej Kabachnik
+ *
+ */
 class PageInstaller extends AbstractAppInstaller
 {
-
-    const FOLDER_NAME_PAGES = 'Install\\Pages';
-    
     private $transaction = null;
-
-    protected function getPagesPathWithLanguage($source_path, $languageCode)
+    
+    private $path = null;
+    
+    /**
+     * 
+     * @param SelectorInterface $selectorToInstall
+     * @param string $pathRelativeToAppFolder
+     */
+    public function __construct(SelectorInterface $selectorToInstall, string $pathRelativeToAppFolder = 'Model'.DIRECTORY_SEPARATOR.'Pages')
     {
-        return $this->getPagePath($source_path) . DIRECTORY_SEPARATOR . $languageCode;
+        parent::__construct($selectorToInstall);
+        $this->path = $pathRelativeToAppFolder;
     }
 
-    protected function getPagePath($source_path)
+    /**
+     * 
+     * @param string $source_path
+     * @return string
+     */
+    protected function getPagesPathAbsolute(string $source_path) : string
     {
-        return $source_path . DIRECTORY_SEPARATOR . $this::FOLDER_NAME_PAGES;
+        return $source_path . DIRECTORY_SEPARATOR . $this->path;
     }
     
-    protected function disableTimestampintBehavior(MetaObjectInterface $object)
+    /**
+     * 
+     * @param MetaObjectInterface $object
+     * @return void
+     */
+    protected function disableTimestampingBehavior(MetaObjectInterface $object)
     {
         // Disable timestamping behavior because it will prevent multiple installations of the same
         // model since the first install will set the update timestamp to something later than the
@@ -63,16 +93,18 @@ class PageInstaller extends AbstractAppInstaller
         $pagesFile = [];
         $workbench = $this->getWorkbench();
         
-        $this->disableTimestampintBehavior($this->getWorkbench()->model()->getObject('exface.Core.PAGE'));
+        $this->disableTimestampingBehavior($this->getWorkbench()->model()->getObject('exface.Core.PAGE'));
         
         yield $idt . 'Pages: ' . PHP_EOL;
         
-        // FIXME make the installer get all languages instead of only the default one.
-        $dir = $this->getPagesPathWithLanguage($source_absolute_path, $this->getDefaultLanguageCode());
-        if (! $dir) {
-            // Ist entsprechend der momentanen Sprache kein passender Ordner vorhanden, wird
-            // nichts gemacht.
-            yield $idt . 'No pages to install for language ' . $this->getDefaultLanguageCode() . PHP_EOL;
+        $dir = $this->getPagesPathAbsolute($source_absolute_path);
+        if (! is_dir($dir)) {
+            $formerDir = $this->getPagesPathOld($source_absolute_path);
+            if (is_dir($formerDir)) {
+                $dir = $formerDir;
+            } else {
+                yield $idt . 'No pages to install' . PHP_EOL;
+            }
         }
         
         // Find pages files. 
@@ -114,48 +146,34 @@ class PageInstaller extends AbstractAppInstaller
         $pagesDeleteErrors = [];
         
         foreach ($pagesFile as $pageFile) {
+            // Try to load the local copy of the page
             try {
-                $pageDb = UiPageFactory::createFromModel($this->getWorkbench(), $pageFile->getUid(), true);
-                // Die Seite existiert bereits und wird aktualisiert.
-                if (! $pageDb->equals($pageFile)) {
-                    // Irgendetwas hat sich an der Seite geaendert.
-                    if ($pageDb->isUpdateable() === true) {
-                        // Wenn Aenderungen nicht explizit ausgeschaltet sind, wird geprüft, ob die
-                        // Seite auf dieser Installation irgendwohin verschoben wurde.
-                        if (! $pageDb->equals($pageFile, ['menu_parent_page_selector', 'menu_index'])) {
-                            // Der Inhalt der Seite (vlt. auch die Position) haben sich geaendert.
-                            if ($pageDb->isMoved()) {
-                                // Die Seite wurde manuell umgehaengt. Die menuDefaultPosition wird
-                                // aktualisiert, die Position im Baum wird nicht aktualisiert.
-                                $pageFile->setMenuIndex($pageDb->getMenuIndex());
-                                $pageFile->setParentPageSelector($pageDb->getParentPageSelector());
-                                $pagesUpdateMoved[] = $pageFile;
-                            }
-                            $pagesUpdate[] = $pageFile;
-                        } elseif (! $pageDb->isMoved()) {
-                            // Die Position der Seite hat sich geaendert. Nur Aktualisieren wenn die
-                            // Seite nicht manuell umgehaengt wurde.
-                            $pagesUpdate[] = $pageFile;
-                        } else {
-                            $pageFile->setMenuIndex($pageDb->getMenuIndex());
-                            $pageFile->setParentPageSelector($pageDb->getParentPageSelector());
-                            $pagesUpdate[] = $pageFile;
-                            $pagesUpdateMoved[] = $pageFile;
-                        }
+                $pageExisting = UiPageFactory::createFromModel($this->getWorkbench(), $pageFile->getUid(), true);
+                // Only update things, if updates are not explicitly disabled for the page
+                if ($pageExisting->isUpdateable() === true) {
+                    // If the page was moved elsewhere on the local system, keep it's position,
+                    // but update the rest of it.
+                    if ($pageExisting->isMoved()) {
+                        $pageFile->setMenuIndex($pageExisting->getMenuIndex());
+                        $pageFile->setParentPageSelector($pageExisting->getParentPageSelector());
+                        $pagesUpdateMoved[] = $pageFile;
                     } else {
-                        $pagesUpdateDisabled[] = $pageFile;
+                        // If not moved, update everything
+                        $pagesUpdate[] = $pageFile;
                     }
+                } else {
+                    $pagesUpdateDisabled[] = $pageFile;
                 }
             } catch (UiPageNotFoundError $upnfe) {
-                // Die Seite existiert noch nicht und muss erstellt werden.
+                // If no local page was found, it obviously needs to be created.
                 $pagesCreate[] = $pageFile;
             }
         }
         
-        foreach ($pagesDb as $pageDb) {
-            if (! $this->hasPage($pageDb, $pagesFile) && $pageDb->isUpdateable()) {
+        foreach ($pagesDb as $pageExisting) {
+            if (! $this->hasPage($pageExisting, $pagesFile) && $pageExisting->isUpdateable()) {
                 // Die Seite existiert nicht mehr und wird geloescht.
-                $pagesDelete[] = $pageDb;
+                $pagesDelete[] = $pageExisting;
             }
         }
         
@@ -183,8 +201,7 @@ class PageInstaller extends AbstractAppInstaller
             }
             // Now create the page in the model
             try {
-                $this->createPage($page);
-                $pagesCreatedCounter ++;
+                $pagesCreatedCounter += $this->createPage($page);
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
                 $pagesCreateErrors[] = ['page' => $page, 'exception' => $e];
@@ -207,8 +224,7 @@ class PageInstaller extends AbstractAppInstaller
         $pagesUpdatedCounter = 0;
         foreach ($pagesUpdate as $page) {
             try {
-                $this->updatePage($page);
-                $pagesUpdatedCounter ++;
+                $pagesUpdatedCounter += $this->updatePage($page);
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
                 $pagesUpdateErrors[] = ['page' => $page, 'exception' => $e];
@@ -243,8 +259,7 @@ class PageInstaller extends AbstractAppInstaller
         $pagesDeletedCounter = 0;
         foreach ($pagesDelete as $page) {
             try {
-                $this->deletePage($page);
-                $pagesDeletedCounter ++;
+                $pagesDeletedCounter += $this->deletePage($page);
             } catch (\Throwable $e) {
                 $workbench->getLogger()->logException($e);
                 $pagesDeleteErrors[] = $page;
@@ -266,6 +281,11 @@ class PageInstaller extends AbstractAppInstaller
         }
     }
     
+    /**
+     * 
+     * @param AppInterface $app
+     * @return UiPageInterface[]
+     */
     protected function getPagesForApp(AppInterface $app) : array
     {
         $pageObj = $app->getWorkbench()->model()->getObject('exface.Core.PAGE');
@@ -287,9 +307,9 @@ class PageInstaller extends AbstractAppInstaller
      * 
      * @param UiPageInterface $page
      * @param UiPageInterface[] $pageArray
-     * @return boolean
+     * @return bool
      */
-    protected function hasPage(UiPageInterface $page, $pageArray)
+    protected function hasPage(UiPageInterface $page, array $pageArray) : bool
     {
         foreach ($pageArray as $arrayPage) {
             if ($page->isExactly($arrayPage)) {
@@ -308,8 +328,9 @@ class PageInstaller extends AbstractAppInstaller
      * eingehaengt wird.
      * 
      * @param UiPageInterface[] $pages
+     * @return UiPageInterface[]
      */
-    protected function sortPages($pages)
+    protected function sortPages(array $pages) : array
     {
         if (empty($pages)) {
             return $pages;
@@ -366,27 +387,6 @@ class PageInstaller extends AbstractAppInstaller
         }
     }
 
-    protected function getDefaultLanguageCode()
-    {
-        $languageCode = $this->getApp()->getLanguageDefault();
-        if (! $languageCode) {
-            $defaultLocale = $this->getWorkbench()->getConfig()->getOption("SERVER.DEFAULT_LOCALE");
-            $languageCode = substr($defaultLocale, 0, strpos($defaultLocale, '_'));
-        }
-        
-        return $languageCode;
-    }
-
-    /**
-     *
-     * {@inheritDoc}
-     * @see \exface\Core\Interfaces\InstallerInterface::update()
-     */
-    public function update($source_absolute_path)
-    {
-        $this->install($source_absolute_path);
-    }
-
     /**
      *
      * {@inheritDoc}
@@ -397,12 +397,18 @@ class PageInstaller extends AbstractAppInstaller
         /** @var Filemanager $fileManager */
         $fileManager = $this->getWorkbench()->filemanager();
         $idt = $this->getOutputIndentation();
+        $path = $this->getPagesPathAbsolute($destination_absolute_path);
         
         // Empty pages folder in case it is an update
         try {
-            $fileManager::emptyDir($this->getPagePath($destination_absolute_path));
+            if (is_dir($path)) {
+                $fileManager::emptyDir($this->getPagesPathAbsolute($destination_absolute_path));
+            }
         } catch (\Throwable $e) {
             $this->getWorkbench()->getLogger()->logException($e);
+        }
+        if (is_dir($this->getPagesPathOld($destination_absolute_path))) {
+            $fileManager::deleteDir(FilePathDataType::findFolderPath($this->getPagesPathOld($destination_absolute_path)));
         }
         
         // Start a new workbench with a custom config. Remove all static listeners 
@@ -425,8 +431,7 @@ class PageInstaller extends AbstractAppInstaller
         $pages = $this->getPagesForApp($exportApp);
         
         if (! empty($pages)) {
-            $dir = $this->getPagesPathWithLanguage($destination_absolute_path, $this->getDefaultLanguageCode());
-            $fileManager->pathConstruct($dir);
+            $fileManager->pathConstruct($path);
         }
         
         /** @var UiPage $page */
@@ -440,7 +445,7 @@ class PageInstaller extends AbstractAppInstaller
                 
                 // Exportieren der Seite
                 $contents = $page->exportUxonObject()->toJson(true);
-                $fileManager->dumpFile($dir . DIRECTORY_SEPARATOR . $page->getAliasWithNamespace() . '.json', $contents);
+                $fileManager->dumpFile($path . DIRECTORY_SEPARATOR . $page->getAliasWithNamespace() . '.json', $contents);
             } catch (\Throwable $e) {
                 throw new InstallerRuntimeError($this, 'Unknown error while backing up page "' . $page->getAliasWithNamespace() . '"!', null, $e);
             }
@@ -480,39 +485,62 @@ class PageInstaller extends AbstractAppInstaller
         yield ' removed ' . $counter . ' pages successfully' . PHP_EOL;
     }
     
-    protected function createPage(UiPageInterface $page, DataTransactionInterface $transaction = null)
+    /**
+     * 
+     * @param UiPageInterface $page
+     * @param DataTransactionInterface $transaction
+     * @return int
+     */
+    protected function createPage(UiPageInterface $page, DataTransactionInterface $transaction = null) : int
     {
         $transaction = $transaction ?? $this->getTransaction();
         $ds = $this->createPageDataSheet();
         $page->exportDataRow($ds);
-        $ds->dataCreate(false, $transaction);
-        return;
+        return $ds->dataCreate(false, $transaction);
     }
     
-    protected function updatePage(UiPageInterface $page, DataTransactionInterface $transaction = null)
+    /**
+     * 
+     * @param UiPageInterface $page
+     * @param DataTransactionInterface $transaction
+     * @return int
+     */
+    protected function updatePage(UiPageInterface $page, DataTransactionInterface $transaction = null) : int
     {
         $transaction = $transaction ?? $this->getTransaction();
         $ds = $this->createPageDataSheet();
         $page->exportDataRow($ds);
-        $ds->dataUpdate(false, $transaction);
-        return;
+        return $ds->dataUpdate(false, $transaction);
     }
     
-    protected function deletePage(UiPageInterface $page, DataTransactionInterface $transaction = null)
+    /**
+     * 
+     * @param UiPageInterface $page
+     * @param DataTransactionInterface $transaction
+     * @return int
+     */
+    protected function deletePage(UiPageInterface $page, DataTransactionInterface $transaction = null) : int
     {
         $transaction = $transaction ?? $this->getTransaction();
         $ds = $this->createPageDataSheet();
         $page->exportDataRow($ds);
-        $ds->dataDelete($transaction);
-        return;
+        return $ds->dataDelete($transaction);
     }
     
+    /**
+     * 
+     * @return DataSheetInterface
+     */
     protected function createPageDataSheet() : DataSheetInterface
     {
         $data_sheet = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.PAGE');        
         return $data_sheet;
     }
     
+    /**
+     * 
+     * @return DataTransactionInterface
+     */
     public function getTransaction() : DataTransactionInterface
     {
         if ($this->transaction === null) {
@@ -521,9 +549,32 @@ class PageInstaller extends AbstractAppInstaller
         return $this->transaction;
     }
     
+    /**
+     * 
+     * @param DataTransactionInterface $transaction
+     * @return PageInstaller
+     */
     public function setTransaction(DataTransactionInterface $transaction) : PageInstaller
     {
         $this->transaction = $transaction;
         return $this;
+    }
+    
+    /**
+     * Returns the old (0.x) path to pages to support older app exports.
+     * 
+     * In the 0.x version of the workbench the pages were stored in `Install/Pages/{lang}`.
+     * 
+     * @param string $source_absolute_path
+     * @return string
+     */
+    private function getPagesPathOld(string $source_absolute_path) : string
+    {
+        $languageCode = $this->getApp()->getLanguageDefault();
+        if (! $languageCode) {
+            $defaultLocale = $this->getWorkbench()->getConfig()->getOption("SERVER.DEFAULT_LOCALE");
+            $languageCode = substr($defaultLocale, 0, strpos($defaultLocale, '_'));
+        }
+        return $source_absolute_path . DIRECTORY_SEPARATOR . 'Install' . DIRECTORY_SEPARATOR . 'Pages' . DIRECTORY_SEPARATOR . $languageCode;
     }
 }

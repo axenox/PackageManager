@@ -15,16 +15,64 @@ use exface\Core\Behaviors\TimeStampingBehavior;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\CommonLogic\Filemanager;
 use exface\Core\DataTypes\StringDataType;
-use exface\Core\Exceptions\RuntimeException;
 use exface\Core\CommonLogic\QueryBuilder\RowDataArrayFilter;
 use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 use exface\Core\Behaviors\ModelValidatingBehavior;
 use exface\Core\DataTypes\UxonDataType;
 
+/**
+ * Saves all model entities as JSON files in the `Model` subfolder of the app.
+ * 
+ * The folder structure is outlined below. Each file is a data sheet UXON containing
+ * all the model entities of it's type except for pages. Since the page installer logic
+ * is more complex than simple replacement (and also for historical reasons), each page 
+ * is stored in a separate file as it's UXON-export.
+ * 
+ * - app.alias.object_alias_1 <- object-bound model entities are saved in subfolder per object
+ *      - 02_OBJECT.json
+ *      - 03_OBJECT_BEHAVIORS.json
+ *      - 04_ATTRIBUTE.json
+ *      - 08_OBJECT_ACTION.json
+ * - app.alias.object_alias_2
+ * - ...
+ * - 00_APP.json <- entities without an object binding are stored as data sheet UXON
+ * - 01_DATATYPE.json
+ * - ...
+ * - 99_PAGES
+ *      - app.alias.page_alias_1.json
+ *      - app.alias.page_alias_2.json
+ *      - ... 
+ * 
+ * In contrast to the regular UXON-export of a data sheet where the value of each column is
+ * stored as a string, the model sheet columns containing UXON have prettyprinted JSON values.
+ * This makes it easier to identify changes in larger UXON objects like default editors, aciton
+ * configurations, etc.
+ * 
+ * Object-bound entities like attributes, behaviors, etc. are saved per object in subfolders.
+ * This simplifies change management greatly as it is difficult to diff large JSON files properly.
+ * 
+ * When installing, the files are processed in alphabetical order - more precisely in the order
+ * of the numerc filename prefixes. For each entity type a data sheet is instantiated and 
+ * `DataSheetInterface::dataReplaceByFilters()` is preformed filtered by the app - this makes
+ * sure all possibly existing entities bound to this app are completely replaced by the contents
+ * of the data sheet.
+ * 
+ * Object-bound entities are first collected into a single large data sheet to make sure all
+ * data is replaced at once.
+ * 
+ * Pages are installed last by calling the dedicated `PageInstaller`.
+ * 
+ * NOTE: The `TimeStampingBehavior` of the model objects is disabled before install, so the
+ * create/update stamps of the exported model are saved correctly.
+ * 
+ * @author Andrej Kabachnik
+ *
+ */
 class MetaModelInstaller extends AbstractAppInstaller
 {
-
     const FOLDER_NAME_MODEL = 'Model';
+    
+    const FOLDER_NAME_PAGES = '99_PAGE';
     
     private $objectSheet = null;
 
@@ -139,7 +187,7 @@ class MetaModelInstaller extends AbstractAppInstaller
         yield $idt . 'Created meta model backup for "' . $app->getAliasWithNamespace() . '".' . PHP_EOL;
         
         // Backup pages.
-        $pageInstaller = new PageInstaller($this->getSelectorInstalling());
+        $pageInstaller = $this->getPageInstaller();
         $pageInstaller->setOutputIndentation($idt);
         yield from $pageInstaller->backup($destinationAbsolutePath);
     }
@@ -410,7 +458,7 @@ class MetaModelInstaller extends AbstractAppInstaller
     
     protected function getPageInstaller() : PageInstaller
     {
-        return new PageInstaller($this->getSelectorInstalling());
+        return new PageInstaller($this->getSelectorInstalling(), self::FOLDER_NAME_MODEL . DIRECTORY_SEPARATOR . self::FOLDER_NAME_PAGES);
     }
     
     /**
@@ -498,6 +546,9 @@ class MetaModelInstaller extends AbstractAppInstaller
         
         foreach (scandir($absolutePath) as $file) {
             if ($file == '.' || $file == '..') {
+                continue;
+            }
+            if ($file === self::FOLDER_NAME_PAGES) {
                 continue;
             }
             $path = $absolutePath . DIRECTORY_SEPARATOR . $file;
