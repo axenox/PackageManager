@@ -156,11 +156,11 @@ class PageInstaller extends AbstractAppInstaller
                     if ($pageExisting->isMoved()) {
                         $pageFile->setMenuIndex($pageExisting->getMenuIndex());
                         $pageFile->setParentPageSelector($pageExisting->getParentPageSelector());
+                        // Remember the page to be able to print it in a separate part of the response
                         $pagesUpdateMoved[] = $pageFile;
-                    } else {
-                        // If not moved, update everything
-                        $pagesUpdate[] = $pageFile;
                     }
+                    // Remember the page to peform the update later
+                    $pagesUpdate[] = $pageFile;
                 } else {
                     $pagesUpdateDisabled[] = $pageFile;
                 }
