@@ -92,8 +92,8 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI
                 } catch (\Exception $e) {
                     $installed_counter --;
                     $this->getWorkbench()->getLogger()->logException($e);
-                    yield "ERROR: " . ($e instanceof ExceptionInterface ? ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
-                    yield "...$app_alias installation failed!" . PHP_EOL;
+                    yield PHP_EOL . "ERROR: " . ($e instanceof ExceptionInterface ? $e->getMessage() . ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
+                    yield "...{$app_alias} installation failed!" . PHP_EOL;
                 }
             }
             
