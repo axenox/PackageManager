@@ -7,7 +7,6 @@ use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\CommonLogic\AppInstallers\AbstractAppInstaller;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\AppInterface;
-use exface\Core\CommonLogic\Model\ConditionGroup;
 use exface\Core\CommonLogic\Model\Aggregator;
 use exface\Core\DataTypes\AggregatorFunctionsDataType;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
@@ -19,9 +18,12 @@ use exface\Core\CommonLogic\QueryBuilder\RowDataArrayFilter;
 use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 use exface\Core\Behaviors\ModelValidatingBehavior;
 use exface\Core\DataTypes\UxonDataType;
+use exface\Core\Interfaces\Model\ConditionGroupInterface;
 
 /**
  * Saves all model entities as JSON files in the `Model` subfolder of the app.
+ * 
+ * ## Export folder and file structure
  * 
  * The folder structure is outlined below. Each file is a data sheet UXON containing
  * all the model entities of it's type except for pages. Since the page installer logic
@@ -62,8 +64,26 @@ use exface\Core\DataTypes\UxonDataType;
  * 
  * Pages are installed last by calling the dedicated `PageInstaller`.
  * 
+ * ## Behaviors
+ * 
  * NOTE: The `TimeStampingBehavior` of the model objects is disabled before install, so the
  * create/update stamps of the exported model are saved correctly.
+ * 
+ * ## Backwards compatibilty issues
+ * 
+ * Keep in mind, that the metamodel installer requires the current model in the DB to be
+ * compatible with the model files it installs. In other words, if the exported attribute-sheet
+ * has certain columns, the currently deployed metamodel for attributes themselves MUST have
+ * attributes for each of these columns. The same goes for any other metamodel entity.
+ * 
+ * Thus, when attributes of model entities change, the compatibility between files and current
+ * model must be restored at the time of installation. Here is a typical approach:
+ * 
+ * - Changes to the model (e.g. adding new attributes to objects, attributes, etc.) need to be applied 
+ * in the core SQL migrations to make sure they are already there when loading this installer.
+ * - Legacy model files (exported from older models) may need some transformation. This can be
+ * applied in `applyCompatibilityFixesToFileContent()` or `applyCompatibilityFixesToDataSheet()`
+ * depending on where the changes are easier to implement.
  * 
  * @author Andrej Kabachnik
  *
@@ -531,6 +551,8 @@ class MetaModelInstaller extends AbstractAppInstaller
             // Add all the rows to the sheet.
             $baseSheet->addRows($rows, false, false);
             
+            $baseSheet = $this->applyCompatibilityFixesToDataSheet($baseSheet);
+            
             yield $baseSheet;
         }
     }
@@ -652,7 +674,32 @@ class MetaModelInstaller extends AbstractAppInstaller
         return $contents;
     }
     
-    protected function checkFiltersMatchModel(ConditionGroup $condition_group) : bool
+    /**
+     * 
+     * @param DataSheetInterface $sheet
+     * @return DataSheetInterface
+     */
+    protected function applyCompatibilityFixesToDataSheet(DataSheetInterface $sheet) : DataSheetInterface
+    {
+        // Upgrade to 1.2: add copyable-attribute to any legacy attribute sheet and make it
+        // get the values from the editable-attribute. This ensures backwards compatibility
+        // because the CopyData action copied editable attributes before a dedicated copyable
+        // flag was introduced.
+        if ($sheet->getMetaObject()->isExactly('exface.Core.ATTRIBUTE')) {
+            if (! $sheet->getColumns()->getByExpression('COPYABLEFLAG') && $editableCol = $sheet->getColumns()->getByExpression('EDITABLEFLAG')) {
+                $sheet->getColumns()->addFromExpression('COPYABLEFLAG')->setValues($editableCol->getValues(false));
+            }
+        }
+        
+        return $sheet;
+    }
+    
+    /**
+     * 
+     * @param ConditionGroupInterface $condition_group
+     * @return bool
+     */
+    protected function checkFiltersMatchModel(ConditionGroupInterface $condition_group) : bool
     {
         foreach ($condition_group->getConditions() as $condition){
             if(! $condition->getExpression()->isMetaAttribute()){
@@ -668,6 +715,11 @@ class MetaModelInstaller extends AbstractAppInstaller
         return true;
     }
     
+    /**
+     * 
+     * @param string $uid
+     * @return string
+     */
     protected function getObjectSubfolder(string $uid) : string
     {
         if ($this->objectSheet !== null) {
