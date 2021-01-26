@@ -537,7 +537,9 @@ class MetaModelInstaller extends AbstractAppInstaller
             foreach ($baseSheet->getColumns() as $col) {
                 // UXON values are normally transformed into JSON when exporting the model to
                 // increase readability of diffs. Need to transform them back to strings here.
-                if ($col->getDataType() instanceof UxonDataType) {
+                // The check for DEFAULT_EDITOR_UXON is a quick fix for a strange bug when updating
+                // older installations.
+                if ($col->getDataType() instanceof UxonDataType || $col->getName() === 'DEFAULT_EDITOR_UXON') {
                     $colName = $col->getName();
                     foreach ($rows as $i => $row) {
                         $val = $row[$colName];
