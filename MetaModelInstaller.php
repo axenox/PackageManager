@@ -19,6 +19,7 @@ use exface\Core\Exceptions\Installers\InstallerRuntimeError;
 use exface\Core\Behaviors\ModelValidatingBehavior;
 use exface\Core\DataTypes\UxonDataType;
 use exface\Core\Interfaces\Model\ConditionGroupInterface;
+use exface\Core\DataTypes\JsonDataType;
 
 /**
  * Saves all model entities as JSON files in the `Model` subfolder of the app.
@@ -537,9 +538,9 @@ class MetaModelInstaller extends AbstractAppInstaller
             foreach ($baseSheet->getColumns() as $col) {
                 // UXON values are normally transformed into JSON when exporting the model to
                 // increase readability of diffs. Need to transform them back to strings here.
-                // The check for DEFAULT_EDITOR_UXON is a quick fix for a strange bug when updating
-                // older installations.
-                if ($col->getDataType() instanceof UxonDataType || $col->getName() === 'DEFAULT_EDITOR_UXON') {
+                // The check for JsonDataType is a fix upgrading older installations where the
+                // UxonDataType was not a PHP class yet.
+                if ($col->getDataType() instanceof UxonDataType || $col->getDataType() instanceof JsonDataType) {
                     $colName = $col->getName();
                     foreach ($rows as $i => $row) {
                         $val = $row[$colName];
