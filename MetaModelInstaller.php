@@ -356,6 +356,7 @@ class MetaModelInstaller extends AbstractAppInstaller
             'DISABLED_FLAG'
         ]);
         $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.QUEUE'), 'APP');
+        $sheets[] = $this->getObjectDataSheet($app, $this->getWorkbench()->model()->getObject('ExFace.Core.SCHEDULER'), 'APP');
         
         return $sheets;
     }
