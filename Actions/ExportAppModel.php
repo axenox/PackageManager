@@ -13,6 +13,9 @@ use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Factories\ResultFactory;
 use exface\Core\CommonLogic\Tasks\ResultMessageStream;
+use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
+use exface\Core\Interfaces\WorkbenchInterface;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 
 /**
  * Saves the metamodel for the selected apps as JSON files in the apps folder.
@@ -32,45 +35,47 @@ class ExportAppModel extends AbstractActionDeferred
         $this->setInputRowsMax(null);
         $this->setInputObjectAlias('exface.Core.APP');
     }
-
+    
     /**
-     * 
+     *
      * {@inheritDoc}
-     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     * @see \exface\Core\CommonLogic\AbstractActionDeferred::performImmediately()
      */
-    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
+    protected function performImmediately(TaskInterface $task, DataTransactionInterface $transaction, ResultMessageStreamInterface $result) : array
     {
-        $apps = $this->getInputAppsDataSheet($task);
-        $workbench = $this->getWorkbench();
-        $result = new ResultMessageStream($task);
+        return [$this->getInputAppsDataSheet($task)];
+    }
+    
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractActionDeferred::performDeferred()
+     */
+    protected function performDeferred(DataSheetInterface $apps = null) : \Generator
+    {
+        if ($apps === null || $apps->isEmpty()) {
+            yield 'No apps to export' . PHP_EOL;
+            return;
+        }
         
-        
-        $generator = function() use ($apps, $workbench, $result, $transaction) {
-            $exported_counter = 0;
-            foreach ($apps->getRows() as $row) {
-                yield 'Exporting app ' . $row['ALIAS'] . '...' . PHP_EOL;
-                
-                $app_selector = new AppSelector($workbench, $row['ALIAS']);
-                $app = $workbench->getApp($row['ALIAS']);
-                if (! file_exists($app->getDirectoryAbsolutePath())) {
-                    $this->getApp()->createAppFolder($app);
-                }
-                
-                $installer = new MetaModelInstaller($app_selector);
-                $backupDir = $this->getModelFolderPathAbsolute($app);
-                yield from $installer->backup($backupDir);
-                
-                $exported_counter ++;
-                
-                yield '... exported app ' . $row['ALIAS'] . ' into ' . ($this->getExportToPathRelative() ? '"' . $this->getExportToPathRelative() . '"' : ' the respective app folders') . '.' . PHP_EOL;
+        $exported_counter = 0;
+        foreach ($apps->getRows() as $row) {
+            yield 'Exporting app ' . $row['ALIAS'] . '...' . PHP_EOL;
+            
+            $app_selector = new AppSelector($this->getWorkbench(), $row['ALIAS']);
+            $app = $workbench->getApp($row['ALIAS']);
+            if (! file_exists($app->getDirectoryAbsolutePath())) {
+                $this->getApp()->createAppFolder($app);
             }
             
-            // Trigger regular action post-processing as required by AbstractActionDeferred.
-            $this->performAfterDeferred($result, $transaction);
-        };
-        
-        $result->setMessageStreamGenerator($generator);
-        return $result;
+            $installer = new MetaModelInstaller($app_selector);
+            $backupDir = $this->getModelFolderPathAbsolute($app);
+            yield from $installer->backup($backupDir);
+            
+            $exported_counter ++;
+            
+            yield '... exported app ' . $row['ALIAS'] . ' into ' . ($this->getExportToPathRelative() ? '"' . $this->getExportToPathRelative() . '"' : ' the respective app folders') . '.' . PHP_EOL;
+        }
     }
 
     /**

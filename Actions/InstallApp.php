@@ -1,7 +1,6 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
-use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
@@ -13,14 +12,13 @@ use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
-use exface\Core\Interfaces\Tasks\ResultInterface;
 use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
 use exface\Core\Exceptions\Actions\ActionInputMissingError;
 use exface\Core\Factories\DataSheetFactory;
-use exface\Core\CommonLogic\Tasks\ResultMessageStream;
+use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 
 /**
  * Installs/updates one or more apps including their meta model, custom installer, etc.
@@ -51,7 +49,7 @@ use exface\Core\CommonLogic\Tasks\ResultMessageStream;
  * 
  * ```
  *
- * @method PackageManagerApp getApp()
+ * @method \axenox\PackageManager\PackageManagerApp getApp()
  *        
  * @author Andrej Kabachnik
  *        
@@ -67,50 +65,48 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }
-
+    
     /**
-     * 
+     *
      * {@inheritDoc}
-     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     * @see \exface\Core\CommonLogic\AbstractActionDeferred::performImmediately()
      */
-    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
+    protected function performImmediately(TaskInterface $task, DataTransactionInterface $transaction, ResultMessageStreamInterface $result) : array
     {
-        $exface = $this->getWorkbench();
-        $aliases = $this->getTargetAppAliases($task);
-        $result = new ResultMessageStream($task);
+        return [$this->getTargetAppAliases($task)];
+    }
+    
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractActionDeferred::performDeferred()
+     */
+    protected function performDeferred(array $aliases = []) : \Generator
+    {
+        $installed_counter = 0;
         
-        $generator = function() use ($aliases, $exface, $result, $transaction) {
-            $installed_counter = 0;
-            
-            foreach ($aliases as $app_alias) {
-                yield  PHP_EOL . "Installing " . $app_alias . "..." . PHP_EOL;
-                $app_selector = new AppSelector($exface, $app_alias);
-                try {
-                    $installed_counter ++;
-                    yield from $this->installApp($app_selector);
-                    yield "..." . $app_alias . " successfully installed." . PHP_EOL;
-                } catch (\Exception $e) {
-                    $installed_counter --;
-                    $this->getWorkbench()->getLogger()->logException($e);
-                    yield PHP_EOL . "ERROR: " . ($e instanceof ExceptionInterface ? $e->getMessage() . ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
-                    yield "...{$app_alias} installation failed!" . PHP_EOL;
-                }
+        foreach ($aliases as $app_alias) {
+            yield  PHP_EOL . "Installing " . $app_alias . "..." . PHP_EOL;
+            $app_selector = new AppSelector($this->getWorkbench(), $app_alias);
+            try {
+                $installed_counter ++;
+                yield from $this->installApp($app_selector);
+                yield "..." . $app_alias . " successfully installed." . PHP_EOL;
+            } catch (\Exception $e) {
+                $installed_counter --;
+                $this->getWorkbench()->getLogger()->logException($e);
+                yield PHP_EOL . "ERROR: " . ($e instanceof ExceptionInterface ? $e->getMessage() . ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
+                yield "...{$app_alias} installation failed!" . PHP_EOL;
             }
-            
-            if (count($aliases) == 0) {
-                yield 'No installable apps had been selected!';
-            } elseif ($installed_counter == 0) {
-                yield  'No apps have been installed';
-            }
-            
-            $this->getWorkbench()->getCache()->clear();
-            
-            // Trigger regular action post-processing as required by AbstractActionDeferred.
-            $this->performAfterDeferred($result, $transaction);
-        };
+        }
         
-        $result->setMessageStreamGenerator($generator);
-        return $result;
+        if (count($aliases) == 0) {
+            yield 'No installable apps had been selected!';
+        } elseif ($installed_counter == 0) {
+            yield  'No apps have been installed';
+        }
+        
+        $this->getWorkbench()->getCache()->clear();
     }
 
     /**

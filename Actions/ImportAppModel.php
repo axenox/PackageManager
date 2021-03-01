@@ -4,10 +4,6 @@ namespace axenox\PackageManager\Actions;
 use axenox\PackageManager\MetaModelInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
-use exface\Core\Interfaces\Tasks\TaskInterface;
-use exface\Core\Interfaces\DataSources\DataTransactionInterface;
-use exface\Core\Interfaces\Tasks\ResultInterface;
-use exface\Core\Factories\ResultFactory;
 
 /**
  * This Action saves alle elements of the meta model assotiated with an app as JSON files in the Model subfolder of the current
@@ -25,35 +21,24 @@ class ImportAppModel extends InstallApp
         $this->setInputRowsMin(0);
         $this->setInputRowsMax(null);
     }
-
+    
     /**
      *
      * {@inheritDoc}
-     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     * @see \exface\Core\CommonLogic\AbstractActionDeferred::performDeferred()
      */
-    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
+    protected function performDeferred(array $aliases = []) : \Generator
     {
-        $workbench = $this->getWorkbench();
-        $installed_counter = 0;
-        $message = '';
-        
-        foreach ($this->getTargetAppAliases($task) as $app_alias) {
-            $app_selector = new AppSelector($workbench, $app_alias);
+        foreach ($aliases as $app_alias) {
+            $app_selector = new AppSelector($this->getWorkbench(), $app_alias);
+            yield "Importing meta model for " . $app_alias . ": " . PHP_EOL;
             try {
-                $installed_counter ++;
                 $installer = new MetaModelInstaller($app_selector);
-                $message .= $installer->install($this->getAppAbsolutePath($app_selector));
+                yield from $installer->install($this->getAppAbsolutePath($app_selector));
             } catch (\Exception $e) {
-                $installed_counter --;
                 // FIXME Log the error somehow instead of throwing it. Otherwise the user will not know, which apps actually installed OK!
                 throw $e;
             }
-            $message .= "Importing meta model for " . $app_alias . ": " . $message;
         }
-        
-        $workbench->getCache()->clear();
-        
-        return ResultFactory::createMessageResult($task, $message);
     }
 }
-?>

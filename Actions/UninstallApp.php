@@ -5,11 +5,6 @@ use exface\Core\Factories\AppFactory;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
-use exface\Core\Interfaces\Tasks\TaskInterface;
-use exface\Core\Interfaces\DataSources\DataTransactionInterface;
-use exface\Core\Interfaces\Tasks\ResultInterface;
-use exface\Core\Factories\ResultFactory;
-use exface\Core\CommonLogic\Tasks\ResultMessageStream;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use axenox\PackageManager\MetaModelInstaller;
 
@@ -27,50 +22,38 @@ class UninstallApp extends InstallApp
         parent::init();
         $this->setIcon(Icons::UNINSTALL);
     }
-
+    
     /**
      *
      * {@inheritDoc}
-     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     * @see \exface\Core\CommonLogic\AbstractActionDeferred::performDeferred()
      */
-    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
+    protected function performDeferred(array $aliases = []) : \Generator
     {
-        $workbench = $this->getWorkbench();
-        $aliases = $this->getTargetAppAliases($task);
-        $result = new ResultMessageStream($task);
+        $installed_counter = 0;
         
-        $generator = function() use ($aliases, $workbench, $result, $transaction) {
-            $installed_counter = 0;
-            
-            foreach ($aliases as $app_alias) {
-                yield  PHP_EOL . "Uninstalling " . $app_alias . "..." . PHP_EOL;
-                $app_selector = new AppSelector($workbench, $app_alias);
-                try {
-                    $installed_counter ++;
-                    yield from $this->uninstallApp($app_selector);
-                    yield "..." . $app_alias . " successfully uninstalled." . PHP_EOL;
-                } catch (\Exception $e) {
-                    $installed_counter --;
-                    $this->getWorkbench()->getLogger()->logException($e);
-                    yield "ERROR: " . ($e instanceof ExceptionInterface ? ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
-                    yield "...$app_alias could not be uninstalled!" . PHP_EOL;
-                }
+        foreach ($aliases as $app_alias) {
+            yield  PHP_EOL . "Uninstalling " . $app_alias . "..." . PHP_EOL;
+            $app_selector = new AppSelector($this->getWorkbench(), $app_alias);
+            try {
+                $installed_counter ++;
+                yield from $this->uninstallApp($app_selector);
+                yield "..." . $app_alias . " successfully uninstalled." . PHP_EOL;
+            } catch (\Exception $e) {
+                $installed_counter --;
+                $this->getWorkbench()->getLogger()->logException($e);
+                yield "ERROR: " . ($e instanceof ExceptionInterface ? ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
+                yield "...$app_alias could not be uninstalled!" . PHP_EOL;
             }
-            
-            if (count($aliases) == 0) {
-                yield 'No uninstallable apps had been selected!';
-            } elseif ($installed_counter == 0) {
-                yield  'No apps have been uninstalled';
-            }
-            
-            $this->getWorkbench()->getCache()->clear();
-            
-            // Trigger regular action post-processing as required by AbstractActionDeferred.
-            $this->performAfterDeferred($result, $transaction);
-        };
+        }
         
-        $result->setMessageStreamGenerator($generator);
-        return $result;
+        if (count($aliases) == 0) {
+            yield 'No uninstallable apps had been selected!';
+        } elseif ($installed_counter == 0) {
+            yield  'No apps have been uninstalled';
+        }
+        
+        $this->getWorkbench()->getCache()->clear();
     }
 
     /**

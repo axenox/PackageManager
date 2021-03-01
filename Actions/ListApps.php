@@ -1,17 +1,14 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
-use exface\Core\Factories\AppFactory;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
-use exface\Core\Interfaces\Tasks\ResultInterface;
-use exface\Core\Factories\ResultFactory;
-use exface\Core\CommonLogic\Tasks\ResultMessageStream;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\WorkbenchInterface;
+use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 
 /**
  * This action uninstalls one or more apps
@@ -22,55 +19,60 @@ use exface\Core\Interfaces\WorkbenchInterface;
 class ListApps extends AbstractActionDeferred implements iCanBeCalledFromCLI
 {
 
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractAction::init()
+     */
     protected function init()
     {
         parent::init();
         $this->setIcon(Icons::LIST_);
     }
-
+    
     /**
      *
      * {@inheritDoc}
-     * @see \exface\Core\CommonLogic\AbstractAction::perform()
+     * @see \exface\Core\CommonLogic\AbstractActionDeferred::performImmediately()
      */
-    protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
+    protected function performImmediately(TaskInterface $task, DataTransactionInterface $transaction, ResultMessageStreamInterface $result) : array
     {
-        $result = new ResultMessageStream($task);
+        return [];
+    }
+    
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractActionDeferred::performDeferred()
+     */
+    protected function performDeferred() : \Generator
+    {
+        $aliasesInPackages = static::findAppAliasesInVendorFolders($this->getWorkbench()->filemanager()->getPathToVendorFolder());
+        $aliasesInModel = static::findAppAliasesInModel($this->getWorkbench());
         
-        $generator = function() use ($result, $transaction) {
-            $aliasesInPackages = static::findAppAliasesInVendorFolders($this->getWorkbench()->filemanager()->getPathToVendorFolder());
-            $aliasesInModel = static::findAppAliasesInModel($this->getWorkbench());
-            
-            $aliasesInstalledAndPackaged = array_intersect($aliasesInModel, $aliasesInPackages);
-            if (empty($aliasesInstalledAndPackaged) === false) {
-                yield 'Installed and packaged:' . PHP_EOL;
-                foreach ($aliasesInstalledAndPackaged as $alias) {
-                    yield '  ' . $alias . PHP_EOL;
-                }
+        $aliasesInstalledAndPackaged = array_intersect($aliasesInModel, $aliasesInPackages);
+        if (empty($aliasesInstalledAndPackaged) === false) {
+            yield 'Installed and packaged:' . PHP_EOL;
+            foreach ($aliasesInstalledAndPackaged as $alias) {
+                yield '  ' . $alias . PHP_EOL;
             }
-            
-            $aliasesNotPackaged = array_diff($aliasesInModel, $aliasesInPackages);
-            if (empty($aliasesNotPackaged) === false) {
-                yield 'Not packaged (model exists, but not package yet):' . PHP_EOL;
-                foreach ($aliasesNotPackaged as $alias) {
-                    yield '  ' . $alias . PHP_EOL;
-                }
-            }
-            
-            $aliasesNotInstalled = array_diff($aliasesInPackages, $aliasesInModel);
-            if (empty($aliasesNotInstalled) === false) {
-                yield 'Not installed (package exists, but model not installed yet):' . PHP_EOL;
-                foreach ($aliasesNotInstalled as $alias) {
-                    yield '  ' . $alias . PHP_EOL;
-                }
-            }
-            
-            // Trigger regular action post-processing as required by AbstractActionDeferred.
-            $this->performAfterDeferred($result, $transaction);
-        };
+        }
         
-        $result->setMessageStreamGenerator($generator);
-        return $result;
+        $aliasesNotPackaged = array_diff($aliasesInModel, $aliasesInPackages);
+        if (empty($aliasesNotPackaged) === false) {
+            yield 'Not packaged (model exists, but not package yet):' . PHP_EOL;
+            foreach ($aliasesNotPackaged as $alias) {
+                yield '  ' . $alias . PHP_EOL;
+            }
+        }
+        
+        $aliasesNotInstalled = array_diff($aliasesInPackages, $aliasesInModel);
+        if (empty($aliasesNotInstalled) === false) {
+            yield 'Not installed (package exists, but model not installed yet):' . PHP_EOL;
+            foreach ($aliasesNotInstalled as $alias) {
+                yield '  ' . $alias . PHP_EOL;
+            }
+        }
     }
     
     /**
