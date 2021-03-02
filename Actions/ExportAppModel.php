@@ -63,7 +63,7 @@ class ExportAppModel extends AbstractActionDeferred
             yield 'Exporting app ' . $row['ALIAS'] . '...' . PHP_EOL;
             
             $app_selector = new AppSelector($this->getWorkbench(), $row['ALIAS']);
-            $app = $workbench->getApp($row['ALIAS']);
+            $app = $this->getWorkbench()->getApp($row['ALIAS']);
             if (! file_exists($app->getDirectoryAbsolutePath())) {
                 $this->getApp()->createAppFolder($app);
             }
