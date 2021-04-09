@@ -86,6 +86,10 @@
             "attribute_alias": "TYPE"
         },
         {
+            "name": "COPYABLEFLAG",
+            "attribute_alias": "COPYABLEFLAG"
+        },
+        {
             "name": "ALIAS",
             "attribute_alias": "ALIAS"
         },
@@ -189,6 +193,7 @@
             "NAME": "Version",
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
+            "COPYABLEFLAG": "0",
             "ALIAS": "VERSION_NO",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "tag_name",
@@ -232,6 +237,7 @@
             "NAME": "Name",
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
+            "COPYABLEFLAG": "0",
             "ALIAS": "NAME",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "name",
@@ -275,6 +281,7 @@
             "NAME": "Description",
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
+            "COPYABLEFLAG": "0",
             "ALIAS": "DESCRIPTION",
             "DATATYPE": "0x31310000000000000000000000000000",
             "DATA_ADDRESS": "body",
@@ -318,6 +325,7 @@
             "NAME": "ID",
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
+            "COPYABLEFLAG": "0",
             "ALIAS": "id",
             "DATATYPE": "0x31000000000000000000000000000000",
             "DATA_ADDRESS": "id",
@@ -361,6 +369,7 @@
             "NAME": "Package Repository",
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
+            "COPYABLEFLAG": "0",
             "ALIAS": "PKG_REPO",
             "DATATYPE": "0x31320000000000000000000000000000",
             "DATA_ADDRESS": "repo",
@@ -404,6 +413,7 @@
             "NAME": "Prerelease",
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
+            "COPYABLEFLAG": "0",
             "ALIAS": "PRERELEASE",
             "DATATYPE": "0x37000000000000000000000000000000",
             "DATA_ADDRESS": "prerelease",
@@ -447,6 +457,7 @@
             "NAME": "Published at",
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
+            "COPYABLEFLAG": "0",
             "ALIAS": "PUBLISHED_AT",
             "DATATYPE": "0x32000000000000000000000000000000",
             "DATA_ADDRESS": "published_at",
