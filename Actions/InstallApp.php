@@ -19,6 +19,7 @@ use exface\Core\Exceptions\Actions\ActionConfigurationError;
 use exface\Core\Exceptions\Actions\ActionInputMissingError;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
+use exface\Core\Interfaces\Actions\iModifyData;
 
 /**
  * Installs/updates one or more apps including their meta model, custom installer, etc.
@@ -54,7 +55,7 @@ use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
  * @author Andrej Kabachnik
  *        
  */
-class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI
+class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, iModifyData
 {
 
     private $target_app_aliases = [];

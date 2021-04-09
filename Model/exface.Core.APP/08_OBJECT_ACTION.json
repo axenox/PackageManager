@@ -60,43 +60,8 @@
     ],
     "rows": [
         {
-            "CREATED_ON": "2017-08-23 15:17:00",
-            "MODIFIED_ON": "2019-11-10 07:09:56",
-            "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
-            "UID": "0x11e788161ac74b0abb5fe4b318306b9a",
-            "OBJECT": "0x35370000000000000000000000000000",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
-            "ALIAS": "InstallAppFromVendorFolder",
-            "NAME": "Install app from package",
-            "SHORT_DESCRIPTION": "Installs an app from the vendor folder",
-            "CONFIG_UXON": {
-                "widget": {
-                    "widget_type": "Dialog",
-                    "object_alias": "exface.Core.APP",
-                    "width": 1,
-                    "height": "auto",
-                    "widgets": [
-                        {
-                            "attribute_alias": "ALIAS"
-                        }
-                    ],
-                    "Buttons": [
-                        {
-                            "action_alias": "axenox.PackageManager.InstallApp",
-                            "align": "opposite",
-                            "visibility": "promoted"
-                        }
-                    ]
-                }
-            },
-            "APP": "0x31380000000000000000000000000000",
-            "USE_IN_OBJECT_BASKET_FLAG": "0",
-            "DOCS": ""
-        },
-        {
             "CREATED_ON": "2019-10-21 14:49:29",
-            "MODIFIED_ON": "2019-11-10 07:07:10",
+            "MODIFIED_ON": "2021-04-09 15:40:58",
             "CREATED_BY_USER": "0x11e9ea7fa76e99698f24847beb3e34e8",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e9f40138c8fa1c9132847beb3e34e8",
@@ -121,7 +86,10 @@
                             "working_directory_path": "vendor\/bin"
                         }
                     ]
-                }
+                },
+                "effected_objects": [
+                    "exface.Core.APP"
+                ]
             },
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": "0",
@@ -129,7 +97,7 @@
         },
         {
             "CREATED_ON": "2019-11-10 07:06:45",
-            "MODIFIED_ON": "2019-11-10 07:06:45",
+            "MODIFIED_ON": "2021-04-09 15:41:15",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ea03884f0a6400b7580205857feb80",
@@ -154,7 +122,10 @@
                             "working_directory_path": "vendor\/bin"
                         }
                     ]
-                }
+                },
+                "effected_objects": [
+                    "exface.Core.APP"
+                ]
             },
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": "0",
@@ -162,7 +133,7 @@
         },
         {
             "CREATED_ON": "2019-11-10 10:35:14",
-            "MODIFIED_ON": "2019-11-10 14:42:38",
+            "MODIFIED_ON": "2021-04-09 15:41:37",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ea03a56e51344cb7580205857feb80",
@@ -218,7 +189,10 @@
                             "working_directory_path": "vendor\/bin"
                         }
                     ]
-                }
+                },
+                "effected_objects": [
+                    "exface.Core.APP"
+                ]
             },
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": "0",
