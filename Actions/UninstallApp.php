@@ -6,7 +6,7 @@ use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
-use axenox\PackageManager\MetaModelInstaller;
+use exface\Core\CommonLogic\AppInstallers\MetaModelInstaller;
 
 /**
  * This action uninstalls one or more apps

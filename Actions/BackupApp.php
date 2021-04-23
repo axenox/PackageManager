@@ -2,7 +2,7 @@
 namespace axenox\PackageManager\Actions;
 
 use exface\Core\Factories\AppFactory;
-use axenox\PackageManager\MetaModelInstaller;
+use exface\Core\CommonLogic\AppInstallers\MetaModelInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;

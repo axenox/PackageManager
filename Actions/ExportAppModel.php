@@ -5,7 +5,7 @@ use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
-use axenox\PackageManager\MetaModelInstaller;
+use exface\Core\CommonLogic\AppInstallers\MetaModelInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Tasks\TaskInterface;
@@ -69,6 +69,10 @@ class ExportAppModel extends AbstractActionDeferred
             }
             
             $installer = new MetaModelInstaller($app_selector);
+            // Run the custom app installer logic here in case it will make any changes to the
+            // metamodel installer (e.g. via MetaModelAdditionInstaller)
+            $app->getInstaller($installer);
+            
             $backupDir = $this->getModelFolderPathAbsolute($app);
             yield from $installer->backup($backupDir);
             

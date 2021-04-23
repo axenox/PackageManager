@@ -1,7 +1,7 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
-use axenox\PackageManager\MetaModelInstaller;
+use exface\Core\CommonLogic\AppInstallers\MetaModelInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 
