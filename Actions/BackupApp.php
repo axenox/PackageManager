@@ -68,11 +68,15 @@ class BackupApp extends InstallApp
         $directory = $appSelector->getFolderRelativePath();
         if ($this->getBackupPath() == '') {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
-            $sDirName = date('Y-m-d Hm');
+            $sDirName = date('Y-m-d Hi');
             $backupDir .= DIRECTORY_SEPARATOR . $directory . DIRECTORY_SEPARATOR . $sDirName;
         } else {
-            $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
-            $backupDir .= DIRECTORY_SEPARATOR . $this->getBackupPath() . $directory;
+            if ($app->getWorkbench()->filemanager()->pathIsAbsolute($this->getBackupPath())) {
+                $backupDir = $this->getBackupPath();
+            } else {
+                $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
+                $backupDir .= DIRECTORY_SEPARATOR . $this->getBackupPath() . $directory;
+            }
         }
         $backupDir = $app->getWorkbench()->filemanager()->pathNormalize($backupDir, DIRECTORY_SEPARATOR);
         
