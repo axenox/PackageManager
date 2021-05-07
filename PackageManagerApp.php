@@ -66,7 +66,7 @@ class PackageManagerApp extends App
             $json = json_decode(file_get_contents($file_path), true);
         } else {
             $json = $this->createComposerJson($app);
-            $this->setComposerJson($app, $json);
+            //$this->setComposerJson($app, $json);
         }
         return $json;
     }
