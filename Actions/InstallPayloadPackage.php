@@ -88,9 +88,10 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             if (!is_dir($path)) {
                 mkdir($path);
             }
-            $file = fopen($filepath, "w");
+            $filemanager->dumpFile($filepath, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            /*$file = fopen($filepath, "w");
             fwrite($file, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            fclose($file);
+            fclose($file);*/
         }        
         copy($filemanager->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.phar', $path . DIRECTORY_SEPARATOR . 'composer.phar');
         // TODO
