@@ -9,6 +9,7 @@ use exface\Core\CommonLogic\Model\App;
 use exface\Core\CommonLogic\Filemanager;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
+use exface\Core\CommonLogic\AppInstallers\AbstractSqlDatabaseInstaller;
 
 class PackageManagerApp extends App
 {
@@ -150,6 +151,18 @@ class PackageManagerApp extends App
     {
         $installer = parent::getInstaller($injected_installer);
         $installer->addInstaller(new PackageManagerInstaller($this->getSelector()));
+        $modelLoader = $this->getWorkbench()->model()->getModelLoader();
+        $modelDataSource = $modelLoader->getDataConnection();
+        $installerClass = get_class($modelLoader->getInstaller()->getInstallers()[0]);
+        $schema_installer = new $installerClass($this->getSelector());
+        if ($schema_installer instanceof AbstractSqlDatabaseInstaller) {
+            $schema_installer
+            ->setFoldersWithMigrations(['InitDB','Migrations'])
+            ->setDataConnection($modelDataSource)
+            ->setFoldersWithStaticSql(['Views'])
+            ->setMigrationsTableName('_migrations_packagemanager');
+        }
+        $installer->addInstaller($schema_installer); 
         return $installer;
     }
 }

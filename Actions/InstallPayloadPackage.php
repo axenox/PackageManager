@@ -13,11 +13,14 @@ use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
 use exface\Core\Factories\ConditionGroupFactory;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
-use kabachello\ComposerAPI\ComposerAPI;
+use Symfony\Component\Process\Process;
+use exface\Core\CommonLogic\Selectors\AppSelector;
+use exface\Core\Factories\ActionFactory;
+use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 
 class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCalledFromCLI {
     
-    private $target_app_aliases = null;
+    private $target_package_names = null;
     
     protected function init()
     {
@@ -31,17 +34,17 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         return [$this->getTargetAppAliases($task)];
     }
 
-    protected function performDeferred(array $aliases = []): \Generator
+    protected function performDeferred(array $packageNames = []): \Generator
     {
         $workbench = $this->getWorkbench();
         $filemanager = $workbench->filemanager();
-        $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'exface.core.PAYLOAD_PACKAGES');
+        $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.PackageManager.PAYLOAD_PACKAGES');
         $filters = ConditionGroupFactory::createForDataSheet($ds, EXF_LOGICAL_OR);
-        foreach ($aliases as $alias) {
-            $filters->addConditionFromString('APP_ALIAS', $alias, EXF_COMPARATOR_EQUALS);
+        foreach ($packageNames as $package) {
+            $filters->addConditionFromString('NAME', $package, EXF_COMPARATOR_EQUALS);
         }
         $ds->getFilters()->addNestedGroup($filters);
-        $ds->getColumns()->addMultiple(['URL', 'VERSION', 'TYPE', 'APP_ALIAS']);
+        $ds->getColumns()->addMultiple(['URL', 'VERSION', 'TYPE', 'NAME']);
         $ds->dataRead();
         if ($ds->isEmpty()) {
             yield 'No installable apps had been selected!';
@@ -53,7 +56,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         $filepath = $path . DIRECTORY_SEPARATOR . 'composer.json';
         if (file_exists($filepath)) {
             $json = file_get_contents($filepath);
-            $composerJson = json_decode($json);
+            $composerJson = json_decode($json, true);
         } else {
             $composerJson = [
                 "require" => [],
@@ -74,8 +77,8 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             } else {
                 $version = $row['VERSION'];
             }
-            $name = str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '/', $row['APP_ALIAS']);
-            $appNames[] = name;
+            $name = str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '/', $row['NAME']);
+            $appNames[] = $name;
             //TODO define type from row['TYPE'] value, possible DataType?
             $type = 'composer';
             $url = $row['URL'];
@@ -89,30 +92,49 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 mkdir($path);
             }
             $filemanager->dumpFile($filepath, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            /*$file = fopen($filepath, "w");
-            fwrite($file, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            fclose($file);*/
         }        
         copy($filemanager->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.phar', $path . DIRECTORY_SEPARATOR . 'composer.phar');
         // TODO
-        // set Composer Home Environment Variable putenv('COMPOSER_HOME=' . $this->get_path_to_composer_home());
-        // call composer via something like this:
-        /*$envVars = array_merge($envVars, $widget->getEnvironmentVars());
-        $process = Process::fromShellCommandline($cmd, null, $envVars, null, $widget->getCommandTimeout());
+        $envVars = [];
+        $envVars['COMPOSER_HOME'] = $path . DIRECTORY_SEPARATOR . '_composer';
+        $oldDir = getcwd();
+        $cmd = 'php composer.phar update';
+        chdir($path);
+        $process = Process::fromShellCommandline($cmd, null, $envVars, null, 600);
         $process->start();
-        $generator = function ($process) {
-            foreach ($process as $output) {
-                yield $output;
-            }
-        };
+        while ($process->isRunning()) {
+            //wait for process to finish
+        }
+        chdir($oldDir);
+        //yield $process->getOutput();
+        $payloadVendorPath = $path . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR;
+        $vendorPath = $filemanager->getPathToVendorFolder() . DIRECTORY_SEPARATOR;
+        $installed_counter = 0;
+        foreach ($appNames as $name) {
+            $name = str_replace('/', DIRECTORY_SEPARATOR, $name);
+            if (is_dir($payloadVendorPath . $name)) {
+                $filemanager->deleteDir($vendorPath . $name);
+                $filemanager->copyDir($payloadVendorPath . $name, $vendorPath . $name);
+                $app_alias = str_replace(DIRECTORY_SEPARATOR, AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, $name);
+                $app_selector = new AppSelector($this->getWorkbench(), $app_alias);
+                $action = ActionFactory::createFromString($workbench, 'axenox.PackageManager.InstallApp');
+                try {
+                    $installed_counter ++;
+                    yield from $action->installApp($app_selector);
+                    yield "..." . $app_alias . " successfully installed." . PHP_EOL;
+                } catch (\Exception $e) {
+                    $installed_counter --;
+                    $this->getWorkbench()->getLogger()->logException($e);
+                    yield PHP_EOL . "ERROR: " . ($e instanceof ExceptionInterface ? $e->getMessage() . ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
+                    yield "...{$app_alias} installation failed!" . PHP_EOL;
+                }
+            }            
+        }
+        if ($installed_counter == 0) {
+            yield  'No apps have been installed';
+        }
         
-        $stream = new IteratorStream($generator($process));
-        */
-        /*
-        $composer = new ComposerAPI($filepath);
-        $composer->set_path_to_composer_home($path . DIRECTORY_SEPARATOR . 'composer.phar');        
-        $output = $composer->update($appNames);
-        */
+        $this->getWorkbench()->getCache()->clear();
     }
     
     /**
@@ -128,11 +150,11 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         }
         
         $getAll = false;
-        if (empty($this->target_app_aliases) === false) {
-            if (count($this->target_app_aliases) === 1 && ($this->target_app_aliases[0] === '*' || strcasecmp($this->target_app_aliases[0], 'all') === 0)) {
+        if (empty($this->target_package_names) === false) {
+            if (count($this->target_package_names) === 1 && ($this->target_package_names[0] === '*' || strcasecmp($this->target_package_names[0], 'all') === 0)) {
                 $getAll === true;
             } else {
-                return $this->target_app_aliases;
+                return $this->target_package_names;
             }
         }
         
@@ -140,14 +162,14 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             $input = $this->getInputDataSheet($task);
         } catch (ActionInputMissingError $e) {
             if ($getAll) {
-                $input = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.PAYLOAD_PACKAGES');
+                $input = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'axenox.PackageManager.PAYLOAD_PACKAGES');
             } else {
                 throw $e;
             }
         }
         
-        if ($input->getMetaObject()->isExactly('exface.Core.PAYLOAD_PACKAGES')) {
-            $input->getColumns()->addFromExpression('APP_ALIAS');
+        if ($input->getMetaObject()->isExactly('axenox.PackageManager.PAYLOAD_PACKAGES')) {
+            $input->getColumns()->addFromExpression('NAME');
             if (! $input->isEmpty()) {
                 if (! $input->isFresh()) {
                     $input->dataRead();
@@ -155,12 +177,12 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             } elseif ($getAll === true || ! $input->getFilters()->isEmpty()) {
                 $input->dataRead();
             }
-            $this->target_app_aliases = array_unique($input->getColumnValues('APP_ALIAS', false));
+            $this->target_package_names = array_unique($input->getColumnValues('NAME', false));
         } else {
-            throw new ActionInputInvalidObjectError($this, 'The action "' . $this->getAliasWithNamespace() . '" can only be called on the meta objects "exface.Core.PAYLOAD_PACKAGES" - "' . $input->getMetaObject()->getAliasWithNamespace() . '" given instead!');
+            throw new ActionInputInvalidObjectError($this, 'The action "' . $this->getAliasWithNamespace() . '" can only be called on the meta objects "axenox.PackageManager.PAYLOAD_PACKAGES" - "' . $input->getMetaObject()->getAliasWithNamespace() . '" given instead!');
         }
         
-        return $this->target_app_aliases;
+        return $this->target_package_names;
     }
     
     public function getCliArguments(): array

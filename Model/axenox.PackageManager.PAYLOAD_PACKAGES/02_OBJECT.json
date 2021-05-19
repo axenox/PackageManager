@@ -1,0 +1,129 @@
+{
+    "object_alias": "exface.Core.OBJECT",
+    "columns": [
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "READABLE_FLAG",
+            "attribute_alias": "READABLE_FLAG"
+        },
+        {
+            "name": "WRITABLE_FLAG",
+            "attribute_alias": "WRITABLE_FLAG"
+        },
+        {
+            "name": "COMMENTS",
+            "attribute_alias": "COMMENTS"
+        },
+        {
+            "name": "DOCS",
+            "attribute_alias": "DOCS"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "INHERIT_DATA_SOURCE_BASE_OBJECT",
+            "attribute_alias": "INHERIT_DATA_SOURCE_BASE_OBJECT"
+        },
+        {
+            "name": "DATA_SOURCE",
+            "attribute_alias": "DATA_SOURCE"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
+            "name": "SHORT_DESCRIPTION",
+            "attribute_alias": "SHORT_DESCRIPTION"
+        },
+        {
+            "name": "PARENT_OBJECT",
+            "attribute_alias": "PARENT_OBJECT"
+        },
+        {
+            "name": "DATA_ADDRESS_PROPS",
+            "attribute_alias": "DATA_ADDRESS_PROPS"
+        },
+        {
+            "name": "DEFAULT_EDITOR_UXON",
+            "attribute_alias": "DEFAULT_EDITOR_UXON"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "DATA_ADDRESS",
+            "attribute_alias": "DATA_ADDRESS"
+        }
+    ],
+    "rows": [
+        {
+            "CREATED_ON": "2021-05-07 13:11:16",
+            "MODIFIED_ON": "2021-05-19 17:24:04",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "UID": "0x11eb965cf182543a965c747827c0cc68",
+            "READABLE_FLAG": "1",
+            "WRITABLE_FLAG": "1",
+            "COMMENTS": "",
+            "DOCS": "",
+            "NAME": "Payload Packages",
+            "INHERIT_DATA_SOURCE_BASE_OBJECT": "1",
+            "DATA_SOURCE": "0x32000000000000000000000000000000",
+            "APP": "0x31380000000000000000000000000000",
+            "SHORT_DESCRIPTION": "",
+            "PARENT_OBJECT": "",
+            "DATA_ADDRESS_PROPS": null,
+            "DEFAULT_EDITOR_UXON": null,
+            "ALIAS": "PAYLOAD_PACKAGES",
+            "DATA_ADDRESS": "axxpac_payload_packages"
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "exface.Core.OBJECT",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x31380000000000000000000000000000",
+                "object_alias": "exface.Core.OBJECT"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}
