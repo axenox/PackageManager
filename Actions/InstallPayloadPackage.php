@@ -17,6 +17,10 @@ use Symfony\Component\Process\Process;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Factories\ActionFactory;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\Facades\HttpFileServerFacade;
+use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\Exceptions\Actions\ActionConfigurationError;
+use exface\Core\CommonLogic\UxonObject;
 
 class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCalledFromCLI {
     
@@ -47,13 +51,20 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         $ds->getColumns()->addMultiple(['URL', 'VERSION', 'TYPE', 'NAME']);
         $ds->dataRead();
         if ($ds->isEmpty()) {
-            yield 'No installable apps had been selected!';
+            yield 'No installable apps selected!';
         }        
-        $path = $filemanager->getPathToDataFolder() . DIRECTORY_SEPARATOR . "_payloadPackages";
-        if (!is_dir($path)) {
-            mkdir($path);
+        $payloadPath = $filemanager->getPathToDataFolder() . DIRECTORY_SEPARATOR . "_payloadPackages";
+        if (!is_dir($payloadPath)) {
+            mkdir($payloadPath);
         }
-        $filepath = $path . DIRECTORY_SEPARATOR . 'composer.json';
+        if (!is_file($payloadPath . DIRECTORY_SEPARATOR . 'composer.phar')) {
+            if (!is_file( $filemanager->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.phar')) {
+                yield "Can not install apps, no composer-phar file existing in '{$filemanager->getPathToBaseFolder()}'";
+                return;
+            }
+            $filemanager->copyFile($filemanager->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.phar', $payloadPath . DIRECTORY_SEPARATOR . 'composer.phar');
+        }
+        $filepath = $payloadPath . DIRECTORY_SEPARATOR . 'composer.json';
         if (file_exists($filepath)) {
             $json = file_get_contents($filepath);
             $composerJson = json_decode($json, true);
@@ -87,27 +98,34 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 "type" => $type,
                 "url" => $url
             ];
-            $path = $filemanager->getPathToDataFolder() . DIRECTORY_SEPARATOR . "_payloadPackages";
-            if (!is_dir($path)) {
-                mkdir($path);
-            }
             $filemanager->dumpFile($filepath, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-        }        
-        copy($filemanager->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.phar', $path . DIRECTORY_SEPARATOR . 'composer.phar');
+        }
         // TODO
         $envVars = [];
-        $envVars['COMPOSER_HOME'] = $path . DIRECTORY_SEPARATOR . '_composer';
+        $envVars['COMPOSER_HOME'] = $payloadPath . DIRECTORY_SEPARATOR . '_composer';
         $oldDir = getcwd();
         $cmd = 'php composer.phar update';
-        chdir($path);
+        foreach ($appNames as $name) {
+            $cmd .= " {$name}";
+        }
+        yield "Calling cli command '{$cmd}'";
+        chdir($payloadPath);
         $process = Process::fromShellCommandline($cmd, null, $envVars, null, 600);
         $process->start();
-        while ($process->isRunning()) {
+        /*while ($process->isRunning()) {
             //wait for process to finish
+        }*/
+        foreach ($process as $msg) {
+            // Live output
+            yield 'composer> ' . $this->escapeCliMessage($this->replaceFilePathsWithHyperlinks($msg));
+        }
+        if ($process->isSuccessful() === false) {
+            yield 'Composer failed, no apps have been installed';
+            return;
         }
         chdir($oldDir);
         //yield $process->getOutput();
-        $payloadVendorPath = $path . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR;
+        $payloadVendorPath = $payloadPath . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR;
         $vendorPath = $filemanager->getPathToVendorFolder() . DIRECTORY_SEPARATOR;
         $installed_counter = 0;
         foreach ($appNames as $name) {
@@ -120,6 +138,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 $action = ActionFactory::createFromString($workbench, 'axenox.PackageManager.InstallApp');
                 try {
                     $installed_counter ++;
+                    yield "Installing " . $app_alias . '...' . PHP_EOL;
                     yield from $action->installApp($app_selector);
                     yield "..." . $app_alias . " successfully installed." . PHP_EOL;
                 } catch (\Exception $e) {
@@ -145,8 +164,8 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
      */
     protected function getTargetAppAliases(TaskInterface $task) : array
     {
-        if ($task->hasParameter('apps')) {
-            $this->setTargetAppAliases($task->getParameter('apps'));
+        if ($task->hasParameter('packages')) {
+            $this->setTargetPackages($task->getParameter('packages'));
         }
         
         $getAll = false;
@@ -185,9 +204,69 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         return $this->target_package_names;
     }
     
+    /**
+     * Force to work with these apps instead of searching them in the input data.
+     *
+     * @uxon-property target_package_names
+     * @uxon-type metamodel:payload_packages[]
+     * @uxon-template [""]
+     *
+     * @param string|array|UxonObject $values
+     * @return \axenox\PackageManager\Actions\InstallPayloadPackage
+     */
+    public function setTargetPackages($values)
+    {
+        if ($values instanceof UxonObject) {
+            $this->target_package_names = $values->toArray();
+        } elseif (is_string($values)) {
+            $this->target_package_names = array_map('trim', explode(',', $values));
+        } elseif (is_array($values)) {
+            $this->target_package_names = $values;
+        } else {
+            throw new ActionConfigurationError($this, 'Invalid value for property "target_package_names" of action ' . $this->getAliasWithNamespace() . ': "' . $values . '". Expecting string, array or UXON');
+        }
+        return $this;
+    }
+    
+    /**
+     * 
+     * @param string $msg
+     * @return string
+     */
+    protected function escapeCliMessage(string $msg) : string
+    {
+        // TODO handle strange empty spaces in composer output
+        return str_replace(["\r", "\n"], PHP_EOL, $msg);
+    }
+    
+    /**
+     * Replaces C:\... with http://... links for files within the project folder
+     *
+     * @param string $msg
+     * @return string
+     */
+    protected function replaceFilePathsWithHyperlinks(string $msg) : string
+    {
+        $basePath = $this->getWorkbench()->filemanager()->getPathToBaseFolder() . DIRECTORY_SEPARATOR;
+        $urlMatches = [];
+        if (preg_match_all('/' . preg_quote($basePath, '/') . '[^ "]*/', $msg, $urlMatches) !== false) {
+            foreach ($urlMatches[0] as $urlPath) {
+                $url = HttpFileServerFacade::buildUrlForDownload($this->getWorkbench(), $urlPath, false);
+                $msg = str_replace($urlPath, $url, $msg);
+            }
+        }
+        return $msg;
+    }
+    
     public function getCliArguments(): array
-    {}
+    {
+        return [
+            (new ServiceParameter($this))->setName('packages')->setDescription('Comma-separated list of payload package names to install/update. Use * for all payload packages.')
+        ];
+    }
 
     public function getCliOptions(): array
-    {}
+    {
+        return [];
+    }
 }
