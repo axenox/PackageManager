@@ -21,6 +21,7 @@ use exface\Core\Facades\HttpFileServerFacade;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\DataTypes\StringDataType;
 
 class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCalledFromCLI {
     
@@ -54,33 +55,64 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             yield 'No installable apps selected!';
         }        
         $payloadPath = $filemanager->getPathToDataFolder() . DIRECTORY_SEPARATOR . "_payloadPackages";
-        if (!is_dir($payloadPath)) {
+        if (! is_dir($payloadPath)) {
             mkdir($payloadPath);
         }
-        if (!is_file($payloadPath . DIRECTORY_SEPARATOR . 'composer.phar')) {
-            if (!is_file( $filemanager->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.phar')) {
+        if (! is_file($payloadPath . DIRECTORY_SEPARATOR . 'composer.phar')) {
+            if (! is_file( $filemanager->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.phar')) {
                 yield "Can not install apps, no composer-phar file existing in '{$filemanager->getPathToBaseFolder()}'";
                 return;
             }
             $filemanager->copyFile($filemanager->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.phar', $payloadPath . DIRECTORY_SEPARATOR . 'composer.phar');
         }
-        $filepath = $payloadPath . DIRECTORY_SEPARATOR . 'composer.json';
-        if (file_exists($filepath)) {
-            $json = file_get_contents($filepath);
-            $composerJson = json_decode($json, true);
-        } else {
-            $composerJson = [
-                "require" => [],
-                "replace" => ["exface/core" => "*"],
-                "repositories" => [],
-                "minimum-stability" => "dev",
-                "prefer-stable"=> true,
-                "config" => [
-                    "secure-http"=> false,
-                    "cache-dir"=> "/dev/null"
-                ]
-            ];
+        $envVars = [];
+        $envVars['COMPOSER_HOME'] = $payloadPath . DIRECTORY_SEPARATOR . '_composer';
+        $baseDir = getcwd();
+        $composerJsonPath = $payloadPath . DIRECTORY_SEPARATOR . 'composer.json';
+        $basicComposerJson = [
+            "require" => (object)[],
+            "replace" => ["exface/core" => "*"],
+            "repositories" => (object)[],
+            "minimum-stability" => "dev",
+            "prefer-stable"=> true,
+            "config" => [
+                "secure-http"=> false,
+                "cache-dir"=> "/dev/null"
+            ]
+        ];
+        //check if composer.lock file exists, if not run composer with the basic composer.json
+        //should only occur when payload packages are installed for the first time
+        if (! file_exists($payloadPath . DIRECTORY_SEPARATOR . 'composer.lock')) {
+            $filemanager->dumpFile($composerJsonPath, json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $cmd = 'php composer.phar update';
+            yield "Creating base composer.lock file" . PHP_EOL;
+            chdir($payloadPath);
+            $process = Process::fromShellCommandline($cmd, null, $envVars, null, 600);
+            $process->start();
+            $buffer = '';
+            foreach ($process as $msg) {
+                $buffer .= $msg;
+                if (StringDataType::endsWith($msg, "\r", false) || StringDataType::endsWith($msg, "\n", false)) {
+                    yield 'composer> ' . $this->escapeCliMessage($this->replaceFilePathsWithHyperlinks($buffer));
+                    $buffer = '';
+                }
+            }
+            if ($process->isSuccessful() === false) {
+                yield 'Creating base composer.lock fiel failed, can not install packages';
+                $this->getWorkbench()->getCache()->clear();
+                return;
+            }
+            yield 'Base composer.lock file created. Installing packages now' . PHP_EOL;
+            yield '--------------------------------' . PHP_EOL;
+            chdir($baseDir);
         }
+        if (file_exists($composerJsonPath)) {
+            $json = file_get_contents($composerJsonPath);
+            $composerJson = json_decode($json, true);
+        } else {            
+            $composerJson = $basicComposerJson;
+            $baseDir = getcwd();
+        }        
         $appNames = [];
         foreach($ds->getRows() as $row) {
             if ($row['VERSION'] == null) {
@@ -98,12 +130,10 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 "type" => $type,
                 "url" => $url
             ];
-            $filemanager->dumpFile($filepath, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $filemanager->dumpFile($composerJsonPath, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
-        // TODO
-        $envVars = [];
-        $envVars['COMPOSER_HOME'] = $payloadPath . DIRECTORY_SEPARATOR . '_composer';
-        $oldDir = getcwd();
+        // TODO        
+        
         $cmd = 'php composer.phar update';
         foreach ($appNames as $name) {
             $cmd .= " {$name}";
@@ -115,15 +145,20 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         /*while ($process->isRunning()) {
             //wait for process to finish
         }*/
+        $buffer = '';
         foreach ($process as $msg) {
-            // Live output
-            yield 'composer> ' . $this->escapeCliMessage($this->replaceFilePathsWithHyperlinks($msg));
+            $buffer .= $msg;
+            if (StringDataType::endsWith($msg, "\r", false) || StringDataType::endsWith($msg, "\n", false)) {
+                yield 'composer> ' . $this->escapeCliMessage($this->replaceFilePathsWithHyperlinks($buffer));
+                $buffer = '';
+            }
         }
         if ($process->isSuccessful() === false) {
             yield 'Composer failed, no apps have been installed';
+            $this->getWorkbench()->getCache()->clear();
             return;
         }
-        chdir($oldDir);
+        chdir($baseDir);
         //yield $process->getOutput();
         $payloadVendorPath = $payloadPath . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR;
         $vendorPath = $filemanager->getPathToVendorFolder() . DIRECTORY_SEPARATOR;
