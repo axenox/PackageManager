@@ -22,6 +22,7 @@ use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\StringDataType;
+use axenox\PackageManager\DataTypes\PackageDataType;
 
 class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCalledFromCLI {
     
@@ -110,7 +111,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             $json = file_get_contents($composerJsonPath);
             $composerJson = json_decode($json, true);
         } else {            
-            $composerJson = $basicComposerJson;
+            $composerJson = json_decode(json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), true);
             $baseDir = getcwd();
         }        
         $appNames = [];
@@ -123,15 +124,34 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             $name = str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '/', $row['NAME']);
             $appNames[] = $name;
             //TODO define type from row['TYPE'] value, possible DataType?
-            $type = 'composer';
+            $type = $row['TYPE'];
+            switch ($type) {
+                case PackageDataType::COMPOSER:
+                case PackageDataType::PUPLISHED_PACKAGE:
+                    $type = 'composer';
+                    break;
+                case PackageDataType::BITBUCKET:
+                case PackageDataType::FOSSIL:
+                case PackageDataType::GIT:
+                case PackageDataType::GITHUB:
+                case PackageDataType::GITLAB:
+                case PackageDataType::MERCURIAL:
+                case PackageDataType::VCS:
+                    $type = 'vcs';
+                    break;
+                default:
+                    yield "Package type '{$type}' for package '{$name}' is not supported. Installation cancelled!";
+                    return;
+                    
+            }
             $url = $row['URL'];
             $composerJson['require'][$name] = $version;
             $composerJson['repositories'][$name] = [
                 "type" => $type,
                 "url" => $url
             ];
-            $filemanager->dumpFile($composerJsonPath, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-        }
+        }        
+        $filemanager->dumpFile($composerJsonPath, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         // TODO        
         
         $cmd = 'php composer.phar update';
