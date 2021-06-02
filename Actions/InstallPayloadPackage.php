@@ -107,6 +107,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             }
             if ($process->isSuccessful() === false) {
                 yield 'Creating base composer.lock file failed, can not install packages!';
+                //remove composer temporary folder so it doesnt interfere with later installations
                 $filemanager->deleteDir($composerTempPath);
                 $workbench->getCache()->clear();
                 return;
@@ -160,6 +161,8 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 "type" => $type,
                 "url" => $url
             ];
+            //for authentification via auth.json to work on gitlab hosted packages
+            //the gitlab domains have to be added to the config
             $composerJson['config']['gitlab-domains'] = $gitlabDomains;
         }        
         $filemanager->dumpFile($composerJsonPath, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -182,6 +185,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         }
         if ($process->isSuccessful() === false) {
             yield 'Composer failed, no packages have been installed!';
+            //remove composer temporary folder so it doesnt interfere with later installations
             $filemanager->deleteDir($composerTempPath);
             $workbench->getCache()->clear();
             return;
@@ -218,6 +222,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         if ($installed_counter == 0) {
             yield  'No packages have been installed';
         }
+        //remove composer temporary folder so it doesnt interfere with later installations
         $filemanager->deleteDir($composerTempPath);
         $workbench->getCache()->clear();
     }
