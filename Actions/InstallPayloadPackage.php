@@ -55,6 +55,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
 
         //create payload folder and copy composer.phar from base installation folder to payload folder
         $payloadPath = $filemanager->getPathToDataFolder() . DIRECTORY_SEPARATOR . "_payloadPackages";
+        $composerTempPath = $payloadPath . DIRECTORY_SEPARATOR . '_composer';
         if (! is_dir($payloadPath)) {
             mkdir($payloadPath);
         }
@@ -72,7 +73,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         
         //define environment variables for the command line composer calls
         $envVars = [];
-        $envVars['COMPOSER_HOME'] = $payloadPath . DIRECTORY_SEPARATOR . '_composer';
+        $envVars['COMPOSER_HOME'] = $composerTempPath;
         $baseDir = getcwd();
         $composerJsonPath = $payloadPath . DIRECTORY_SEPARATOR . 'composer.json';
         $basicComposerJson = [
@@ -83,7 +84,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             "prefer-stable"=> true,
             "config" => [
                 "secure-http"=> false,
-                "cache-dir"=> "/dev/null"
+                "preferred-install" => ["*" => "dist"]
             ]
         ];
         
@@ -106,6 +107,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             }
             if ($process->isSuccessful() === false) {
                 yield 'Creating base composer.lock file failed, can not install packages!';
+                $filemanager->deleteDir($composerTempPath);
                 $workbench->getCache()->clear();
                 return;
             }
@@ -127,7 +129,9 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 $version = 'dev-master';
             } else {
                 $version = $row['VERSION'];
-            }
+            }            
+            $url = $row['URL'];
+            $gitlabDomains = [];
             $name = str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '/', $row['NAME']);
             $appNames[] = $name;
             $type = $row['TYPE'];
@@ -141,6 +145,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 case PackageDataType::GIT:
                 case PackageDataType::GITHUB:
                 case PackageDataType::GITLAB:
+                    $gitlabDomains[] = $this->getDomainFromUrl($url);
                 case PackageDataType::MERCURIAL:
                 case PackageDataType::VCS:
                     $type = 'vcs';
@@ -150,12 +155,12 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                     return;
                     
             }
-            $url = $row['URL'];
             $composerJson['require'][$name] = $version;
             $composerJson['repositories'][$name] = [
                 "type" => $type,
                 "url" => $url
             ];
+            $composerJson['config']['gitlab-domains'] = $gitlabDomains;
         }        
         $filemanager->dumpFile($composerJsonPath, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         
@@ -177,6 +182,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         }
         if ($process->isSuccessful() === false) {
             yield 'Composer failed, no packages have been installed!';
+            $filemanager->deleteDir($composerTempPath);
             $workbench->getCache()->clear();
             return;
         }
@@ -212,7 +218,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         if ($installed_counter == 0) {
             yield  'No packages have been installed';
         }
-        
+        $filemanager->deleteDir($composerTempPath);
         $workbench->getCache()->clear();
     }
     
@@ -234,6 +240,23 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         $ds->getColumns()->addMultiple(['URL', 'VERSION', 'TYPE', 'NAME']);
         $ds->dataRead();
         return $ds;
+    }
+    
+    /**
+     * Gets the domain from an url by removing `https://` or `http://` from the url and then cuts of everything after (and including) the first slash
+     * 
+     * @param string $url
+     * @return string
+     */
+    protected function getDomainFromUrl(string $url) : string
+    {
+        if (StringDataType::startsWith($url, 'https://')) {
+            $url = StringDataType::substringAfter($url, 'https://');
+        } elseif (StringDataType::startsWith($url, 'http://')) {
+            $url = StringDataType::substringAfter($url, 'http://');
+        }
+        $url = StringDataType::substringBefore($url, '/');
+        return $url;
     }
     
     /**
