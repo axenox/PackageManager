@@ -9,8 +9,9 @@ CREATE TABLE [dbo].[axxpac_payload_packages] (
   [type] [nvarchar](50) NOT NULL,
   [name] [nvarchar](128) NOT NULL,
   [url] [nvarchar](200) NOT NULL,
-  [version] [nvarchar](5) DEFAULT NULL,
-  CONSTRAINT PK_axxpac_payload_packages_oid PRIMARY KEY (oid)
+  [version] [nvarchar](50) NOT NULL,
+  CONSTRAINT PK_axxpac_payload_packages_oid PRIMARY KEY (oid),
+  CONSTRAINT PK_axxpac_payload_packages_name UNIQUE (name)
 );
 	
 -- DOWN

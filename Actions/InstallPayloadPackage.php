@@ -125,12 +125,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             $composerJson = json_decode(json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), true);
         }        
         $appNames = [];
-        foreach($ds->getRows() as $row) {
-            if ($row['VERSION'] == null) {
-                $version = 'dev-master';
-            } else {
-                $version = $row['VERSION'];
-            }            
+        foreach($ds->getRows() as $row) {           
             $url = $row['URL'];
             $gitlabDomains = [];
             $name = str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '/', $row['NAME']);
@@ -156,7 +151,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                     return;
                     
             }
-            $composerJson['require'][$name] = $version;
+            $composerJson['require'][$name] = $row['VERSION'];
             $composerJson['repositories'][$name] = [
                 "type" => $type,
                 "url" => $url
@@ -177,7 +172,8 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         $process = Process::fromShellCommandline($cmd, null, $envVars, null, 600);
         $process->start();
         $buffer = '';
-        foreach ($process as $msg) {$buffer .= $msg;
+        foreach ($process as $msg) {
+            $buffer .= $msg;
             if (StringDataType::endsWith($msg, "\r", false) || StringDataType::endsWith($msg, "\n", false)) {
                 yield 'composer> ' . $this->escapeCliMessage($this->replaceFilePathsWithHyperlinks($buffer));
                 $buffer = '';

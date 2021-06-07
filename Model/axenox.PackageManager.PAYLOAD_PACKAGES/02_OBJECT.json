@@ -81,7 +81,7 @@
     "rows": [
         {
             "CREATED_ON": "2021-05-07 13:11:16",
-            "MODIFIED_ON": "2021-05-20 15:16:58",
+            "MODIFIED_ON": "2021-06-07 13:40:00",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11eb965cf182543a965c747827c0cc68",
@@ -96,7 +96,28 @@
             "SHORT_DESCRIPTION": "",
             "PARENT_OBJECT": "",
             "DATA_ADDRESS_PROPS": null,
-            "DEFAULT_EDITOR_UXON": null,
+            "DEFAULT_EDITOR_UXON": {
+                "widget_type": "Dialog",
+                "object_alias": "axenox.PackageManager.PAYLOAD_PACKAGES",
+                "width": 1,
+                "columns_in_grid": 1,
+                "height": "auto",
+                "maximized": false,
+                "widgets": [
+                    {
+                        "attribute_alias": "NAME"
+                    },
+                    {
+                        "attribute_alias": "TYPE"
+                    },
+                    {
+                        "attribute_alias": "URL"
+                    },
+                    {
+                        "attribute_alias": "VERSION"
+                    }
+                ]
+            },
             "ALIAS": "PAYLOAD_PACKAGES",
             "DATA_ADDRESS": "axxpac_payload_packages"
         }
