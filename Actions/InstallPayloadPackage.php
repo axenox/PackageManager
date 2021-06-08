@@ -25,6 +25,13 @@ use exface\Core\DataTypes\StringDataType;
 use axenox\PackageManager\DataTypes\PackageDataType;
 use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+/**
+ * Action to install a package from another system or another source compoer can handle.
+ * IMPORTANT: Right now dependencies of a package will not be installed!
+ * 
+ * @author ralf.mulansky
+ *
+ */
 
 class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCalledFromCLI {
     
@@ -54,8 +61,8 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         }
 
         //create payload folder and copy composer.phar from base installation folder to payload folder
-        $payloadPath = $filemanager->getPathToDataFolder() . DIRECTORY_SEPARATOR . "_payloadPackages";
-        $composerTempPath = $payloadPath . DIRECTORY_SEPARATOR . '_composer';
+        $payloadPath = $filemanager->getPathToDataFolder() . DIRECTORY_SEPARATOR . ".payloadPackages";
+        $composerTempPath = $payloadPath . DIRECTORY_SEPARATOR . '.composer';
         if (! is_dir($payloadPath)) {
             mkdir($payloadPath);
         }
@@ -79,7 +86,12 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         $basicComposerJson = [
             "require" => (object)[],
             "replace" => ["exface/core" => "*"],
-            "repositories" => (object)[],
+            "repositories" => [
+                "asset/packagist" => [
+                    "type" => "composer",
+                    "url" => "https://asset-packagist.org"
+                ]
+            ],
             "minimum-stability" => "dev",
             "prefer-stable"=> true,
             "config" => [
@@ -127,9 +139,8 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         $appNames = [];
         foreach($ds->getRows() as $row) {           
             $url = $row['URL'];
-            $gitlabDomains = [];
-            $name = str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '/', $row['NAME']);
-            $appNames[] = $name;
+            $gitlabDomains = $composerJson['config']['gitlab-domains'] ?? [];
+            $name = str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '/', $row['NAME']);            
             $type = $row['TYPE'];
             switch ($type) {
                 case PackageDataType::COMPOSER:
@@ -146,16 +157,25 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 case PackageDataType::VCS:
                     $type = 'vcs';
                     break;
+                case PackageDataType::BOWER:
+                    //$name = 'bower-asset' . '/' . $name;
+                    break;
+                case PackageDataType::NPM:
+                    //$name = 'npm-asset' . '/' . $name;
+                    break;
                 default:
                     yield "Package type '{$type}' for package '{$name}' is not supported. Installation cancelled!";
                     return;
                     
             }
+            $appNames[] = $name;
             $composerJson['require'][$name] = $row['VERSION'];
-            $composerJson['repositories'][$name] = [
-                "type" => $type,
-                "url" => $url
-            ];
+            if ($url && $type !== PackageDataType::BOWER && $type !== PackageDataType::NPM) {
+                $composerJson['repositories'][$name] = [
+                    "type" => $type,
+                    "url" => $url
+                ];
+            }
             //for authentification via auth.json to work on gitlab hosted packages
             //the gitlab domains have to be added to the config
             $composerJson['config']['gitlab-domains'] = $gitlabDomains;

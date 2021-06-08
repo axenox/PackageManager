@@ -16,12 +16,14 @@ class PackageDataType extends StringDataType implements EnumDataTypeInterface
     use EnumStaticDataTypeTrait;
     
     const BITBUCKET = 'BitBucket';    
-    const COMPOSER = 'composer';  
     const FOSSIL = 'Fossil';
     const GIT = 'Git';
     const GITHUB = 'GitHub';
     const GITLAB = 'GitLab';
+    const BOWER = 'Javascript Bower';
+    const NPM = 'Javascript Npm-Asset';    
     const MERCURIAL = 'Mercurial';
+    const COMPOSER = 'php composer';
     const PUPLISHED_PACKAGE = 'Puplished Package';
     const VCS = 'vcs';
     
