@@ -58,6 +58,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         $ds = $this->getPackagesData($workbench, $packageNames);
         if ($ds->isEmpty()) {
             yield 'No installable packages selected!';
+            return;
         }
 
         //create payload folder and copy composer.phar from base installation folder to payload folder
