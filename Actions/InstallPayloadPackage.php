@@ -78,6 +78,9 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             yield "Can not install packages, composer.phar file could not be copied to '{$payloadPath}'";
             return;
         }
+        if (is_dir($composerTempPath)) {
+            $filemanager->deleteDir($composerTempPath);
+        }
         
         //define environment variables for the command line composer calls
         $envVars = [];
@@ -153,7 +156,10 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 case PackageDataType::GIT:
                 case PackageDataType::GITHUB:
                 case PackageDataType::GITLAB:
-                    $gitlabDomains[] = $this->getDomainFromUrl($url);
+                    if (! in_array($domain = $this->getDomainFromUrl($url), $gitlabDomains)) {
+                        $gitlabDomains[] = $domain;
+                    }
+                    
                 case PackageDataType::MERCURIAL:
                 case PackageDataType::VCS:
                     $type = 'vcs';
@@ -238,6 +244,8 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         }
         if ($installed_counter == 0) {
             yield  'No packages have been installed';
+        } else {
+            yield  "Installation done. {$installed_counter} Package(s) installed";
         }
         //remove composer temporary folder so it doesnt interfere with later installations
         $filemanager->deleteDir($composerTempPath);
