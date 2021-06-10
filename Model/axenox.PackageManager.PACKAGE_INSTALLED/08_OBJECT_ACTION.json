@@ -60,49 +60,15 @@
     ],
     "rows": [
         {
-            "CREATED_ON": "2021-05-20 14:01:12",
-            "MODIFIED_ON": "2021-06-07 14:16:35",
+            "CREATED_ON": "2021-06-10 15:52:25",
+            "MODIFIED_ON": "2021-06-10 16:17:04",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "UID": "0x11ebb5ab12efc11eb5ab025041000001",
-            "OBJECT": "0x11eb965cf182543a965c747827c0cc68",
+            "UID": "0x11ebbbc917a5a67ebbc9025041000001",
+            "OBJECT": "0x11e64d20c9789d1a9409c0f8dae36b4f",
             "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
-            "ALIAS": "ShowInstallPayload",
-            "NAME": "Install Package",
-            "SHORT_DESCRIPTION": "",
-            "CONFIG_UXON": {
-                "alias": "exface.Core.ShowDialog",
-                "input_rows_min": 1,
-                "effected_objects": [
-                    "axenox.PackageManager.PAYLOAD_PACKAGES"
-                ],
-                "widget": {
-                    "widgets": [
-                        {
-                            "widget_type": "Console",
-                            "disabled": true,
-                            "start_commands": [
-                                "action axenox.PackageManager:InstallPayloadPackage [#NAME#]"
-                            ],
-                            "working_directory_path": "vendor\/bin"
-                        }
-                    ]
-                }
-            },
-            "APP": "0x31380000000000000000000000000000",
-            "USE_IN_OBJECT_BASKET_FLAG": "0",
-            "DOCS": ""
-        },
-        {
-            "CREATED_ON": "2021-06-09 09:18:10",
-            "MODIFIED_ON": "2021-06-10 15:47:45",
-            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "UID": "0x11eb96e6d89fe40496e6025041000001",
-            "OBJECT": "0x11eb965cf182543a965c747827c0cc68",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
-            "ALIAS": "ShowPayloadComposerConsole",
-            "NAME": "Payload Composer Console",
+            "ALIAS": "ShowInfrastructureComposerConsole",
+            "NAME": "Infrastructure Composer Console",
             "SHORT_DESCRIPTION": "",
             "CONFIG_UXON": {
                 "icon": "terminal",
@@ -110,28 +76,18 @@
                     "widgets": [
                         {
                             "widget_type": "Console",
-                            "working_directory_path": "data\/.payloadPackages",
+                            "environment_vars": {
+                                "COMPOSER_HOME": "=WorkbenchPath('.composer')"
+                            },
                             "allowed_commands": [
                                 "@php composer.phar.*@",
-                                "@..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayloadPackage.*@"
-                            ],
-                            "environment_vars": {
-                                "COMPOSER_HOME": "=WorkbenchPath('data\/.payloadPackages\/.composer')"
-                            },
-                            "command_presets": [
-                                {
-                                    "caption": "Update Package",
-                                    "hint": "Update Package(s)",
-                                    "commands": [
-                                        "..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayloadPackage <Package names comma-separated>"
-                                    ]
-                                }
+                                "@vendor\/bin\/action.*@"
                             ]
                         }
                     ]
                 },
                 "effected_objects": [
-                    "axenox.PackageManager.PAYLOAD_PACKAGES"
+                    "axenox.PackageManager.PACKAGE_INSTALLED"
                 ]
             },
             "APP": "0x31380000000000000000000000000000",

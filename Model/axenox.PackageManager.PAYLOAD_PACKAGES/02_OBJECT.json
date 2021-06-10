@@ -81,7 +81,7 @@
     "rows": [
         {
             "CREATED_ON": "2021-05-07 13:11:16",
-            "MODIFIED_ON": "2021-06-07 13:40:00",
+            "MODIFIED_ON": "2021-06-08 15:00:56",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11eb965cf182543a965c747827c0cc68",
@@ -104,6 +104,11 @@
                 "height": "auto",
                 "maximized": false,
                 "widgets": [
+                    {
+                        "widget_type": "Message",
+                        "type": "info",
+                        "text": "Dependencies of a package will not be installed with the package. If the dependency package is required add it manually to the payload packages list and install it. "
+                    },
                     {
                         "attribute_alias": "NAME"
                     },

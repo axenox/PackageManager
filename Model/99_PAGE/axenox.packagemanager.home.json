@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2020-04-17 12:40:39",
     "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-    "modified_on": "2021-06-07 13:51:55",
+    "modified_on": "2021-06-10 15:54:18",
     "contents": {
         "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
         "widget_type": "SplitHorizontal",
@@ -21,6 +21,7 @@
                 "width": "50%",
                 "widgets": [
                     {
+                        "id": "InfraTable",
                         "widget_type": "DataTable",
                         "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
                         "paginate": false,
@@ -57,32 +58,7 @@
                         ],
                         "buttons": [
                             {
-                                "caption": "Update",
-                                "action_alias": "axenox.PackageManager.ComposerUpdate"
-                            },
-                            {
-                                "caption": "List packages",
-                                "action_alias": "axenox.PackageManager.ComposerShow"
-                            },
-                            {
-                                "caption": "Install package",
-                                "action": {
-                                    "alias": "exface.Core.ShowObjectCreateDialog",
-                                    "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
-                                    "save_action_alias": "axenox.PackageManager.ComposerRequire"
-                                }
-                            },
-                            {
-                                "caption": "Uninstall package",
-                                "action": {
-                                    "alias": "axenox.PackageManager.ComposerRemove"
-                                }
-                            },
-                            {
-                                "caption": "Install app",
-                                "action": {
-                                    "alias": "axenox.PackageManager.InstallApp"
-                                }
+                                "action_alias": "axenox.PackageManager.ShowInfrastructureComposerConsole"
                             }
                         ]
                     }
@@ -95,6 +71,7 @@
                         "panels": [
                             {
                                 "caption": "Payload Packages",
+                                "id": "PayloadTable",
                                 "height": "50%",
                                 "widget_type": "DataTable",
                                 "object_alias": "axenox.PackageManager.PAYLOAD_PACKAGES",
@@ -104,6 +81,12 @@
                                         "attribute_alias": "NAME"
                                     },
                                     {
+                                        "attribute_alias": "PACKAGE__version"
+                                    },
+                                    {
+                                        "attribute_alias": "PACKAGE__license:LIST"
+                                    },
+                                    {
                                         "attribute_alias": "TYPE"
                                     },
                                     {
@@ -111,11 +94,6 @@
                                     },
                                     {
                                         "attribute_alias": "VERSION"
-                                    },
-                                    {
-                                        "hint": "The Version of the package that was last downloaded on this system",
-                                        "caption": "Last loaded Version",
-                                        "attribute_alias": "PACKAGE__version"
                                     },
                                     {
                                         "caption": "Installed on",
@@ -138,15 +116,18 @@
                                         "action_alias": "exface.Core.ShowObjectCopyDialog"
                                     },
                                     {
+                                        "action_alias": "axenox.PackageManager.ShowPayloadComposerConsole"
+                                    },
+                                    {
                                         "action_alias": "exface.Core.DeleteObject",
                                         "visibility": "optional"
                                     }
                                 ]
                             },
                             {
+                                "id": "PuplishedTable",
                                 "caption": "Puplished Packages",
                                 "object_alias": "exface.Core.APP",
-                                "id": "PuplishedTable",
                                 "widget_type": "DataTable",
                                 "filters": [
                                     {
@@ -177,32 +158,7 @@
                                 ],
                                 "buttons": [
                                     {
-                                        "icon": "info",
-                                        "caption": "Packages URL",
-                                        "action": {
-                                            "alias": "exface.Core.ShowDialog",
-                                            "widget": {
-                                                "caption": "Puplished Packages URL",
-                                                "widget_type": "Dialog",
-                                                "width": 1,
-                                                "columns_in_grid": 1,
-                                                "height": "auto",
-                                                "maximized": false,
-                                                "widgets": [
-                                                    {
-                                                        "widget_type": "QrCode",
-                                                        "hide_caption": true,
-                                                        "value": "=WorkbenchURL('api\/packagist\/packages')"
-                                                    },
-                                                    {
-                                                        "value": "=WorkbenchURL('api\/packagist\/packages')",
-                                                        "widget_type": "Text",
-                                                        "align": "center",
-                                                        "hide_caption": true
-                                                    }
-                                                ]
-                                            }
-                                        }
+                                        "action_alias": "axenox.PackageManager.ShowPackageUrl"
                                     }
                                 ]
                             }
