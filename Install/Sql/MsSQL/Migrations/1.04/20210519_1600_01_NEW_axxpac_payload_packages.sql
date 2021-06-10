@@ -8,7 +8,7 @@ CREATE TABLE [dbo].[axxpac_payload_packages] (
   [modified_by_user_oid] [binary](16) DEFAULT NULL,
   [type] [nvarchar](50) NOT NULL,
   [name] [nvarchar](128) NOT NULL,
-  [url] [nvarchar](200) NOT NULL,
+  [url] [nvarchar](200) DEFAULT NULL,
   [version] [nvarchar](50) NOT NULL,
   CONSTRAINT PK_axxpac_payload_packages_oid PRIMARY KEY (oid),
   CONSTRAINT PK_axxpac_payload_packages_name UNIQUE (name)

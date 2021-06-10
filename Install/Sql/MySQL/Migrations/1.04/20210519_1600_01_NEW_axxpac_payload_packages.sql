@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS `axxpac_payload_packages` (
   `oid` binary(16) NOT NULL,
   `name` varchar(128) NOT NULL UNIQUE,
   `type` varchar(50) NOT NULL,
-  `url` varchar(250) NOT NULL,
+  `url` varchar(250) DEFAULT NULL,
   `version` varchar(50) NOT NULL,
   `created_on` datetime NOT NULL,
   `modified_on` datetime NOT NULL,
