@@ -81,7 +81,7 @@
     "rows": [
         {
             "CREATED_ON": "2021-05-19 16:39:42",
-            "MODIFIED_ON": "2021-05-19 16:58:14",
+            "MODIFIED_ON": "2021-06-08 13:32:19",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11eb8dcd0ca5c33e8dcd747827c0cc68",
@@ -98,7 +98,7 @@
             "DATA_ADDRESS_PROPS": "{\"response_data_path\":\"packages\"}",
             "DEFAULT_EDITOR_UXON": null,
             "ALIAS": "PAYLOAD_INSTALLED",
-            "DATA_ADDRESS": "data\/_payloadPackages\/composer.lock"
+            "DATA_ADDRESS": "data\/.payloadPackages\/composer.lock"
         }
     ],
     "totals_rows": [],
