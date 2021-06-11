@@ -54,13 +54,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         $workbench = $this->getWorkbench();
         $filemanager = $workbench->filemanager();
         
-        //read informations for all apps to install from the DB
-        $ds = $this->getPackagesData($workbench, $packageNames);
-        if ($ds->isEmpty()) {
-            yield 'No installable packages selected!';
-            return;
-        }
-
+        yield 'Setting up basic installation requirements...' . PHP_EOL;
         //create payload folder and copy composer.phar from base installation folder to payload folder
         $payloadPath = $filemanager->getPathToDataFolder() . DIRECTORY_SEPARATOR . ".payloadPackages";
         $composerTempPath = $payloadPath . DIRECTORY_SEPARATOR . '.composer';
@@ -69,23 +63,19 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         }
         if (! is_file($payloadPath . DIRECTORY_SEPARATOR . 'composer.phar')) {
             if (! is_file( $filemanager->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.phar')) {
-                yield "Can not install packages, no composer.phar file existing in '{$filemanager->getPathToBaseFolder()}'";
+                yield "Can not set up basic installation requirements, no composer.phar file existing in '{$filemanager->getPathToBaseFolder()}'!" . PHP_EOL;
                 return;
             }
             $filemanager->copyFile($filemanager->getPathToBaseFolder() . DIRECTORY_SEPARATOR . 'composer.phar', $payloadPath . DIRECTORY_SEPARATOR . 'composer.phar');
         }
-        if (! is_file($payloadPath . DIRECTORY_SEPARATOR . 'composer.phar')) {            
-            yield "Can not install packages, composer.phar file could not be copied to '{$payloadPath}'";
+        if (! is_file($payloadPath . DIRECTORY_SEPARATOR . 'composer.phar')) {
+            yield "Can not set up basic installation requirements, composer.phar file could not be copied to '{$payloadPath}'!" . PHP_EOL;
             return;
         }
         if (is_dir($composerTempPath)) {
             $filemanager->deleteDir($composerTempPath);
         }
-        
-        //define environment variables for the command line composer calls
-        $envVars = [];
-        $envVars['COMPOSER_HOME'] = $composerTempPath;
-        $baseDir = getcwd();
+        //create base composer.json in payload folder
         $composerJsonPath = $payloadPath . DIRECTORY_SEPARATOR . 'composer.json';
         $basicComposerJson = [
             "require" => (object)[],
@@ -103,11 +93,34 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 "preferred-install" => ["*" => "dist"]
             ]
         ];
+        if (!is_file($composerJsonPath)) {
+            $filemanager->dumpFile($composerJsonPath, json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        }        
+        yield 'Basic installation requirements are set up!' . PHP_EOL;
+        
+        if (empty($packageNames)) {
+            yield "To install a package call the action with a package name added to it as parameter like:". PHP_EOL;
+            yield "'action axenox.PackageManager:InstallPayloadPackage powerui/test'" . PHP_EOL;
+            yield "To add authentification credentials for a domain call the command:" . PHP_EOL;
+            yield "'php composer.phar config -a <Authentification Type>.<Domain> <Credentials>'" . PHP_EOL;
+            yield "Credentials can be a username and password seperated by a space or a token.";
+            return;
+        }
+        //read informations for all apps to install from the DB
+        $ds = $this->getPackagesData($workbench, $packageNames);
+        if ($ds->isEmpty()) {
+            yield 'Installation cancelled, no installable packages selected!' . PHP_EOL;
+            return;
+        }        
+        
+        //define environment variables for the command line composer calls
+        $envVars = [];
+        $envVars['COMPOSER_HOME'] = $composerTempPath;
+        $baseDir = getcwd();        
         
         //check if composer.lock file exists, if not run composer with the basic composer.json
         //should only occur when payload packages are installed for the first time
-        if (! file_exists($payloadPath . DIRECTORY_SEPARATOR . 'composer.lock')) {
-            $filemanager->dumpFile($composerJsonPath, json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        if (! is_file($payloadPath . DIRECTORY_SEPARATOR . 'composer.lock')) {
             $cmd = 'php composer.phar update';
             yield "Creating base composer.lock file..." . PHP_EOL;
             chdir($payloadPath);
@@ -134,9 +147,8 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         }
         
         //build composer.json
-        if (file_exists($composerJsonPath)) {
-            $json = file_get_contents($composerJsonPath);
-            $composerJson = json_decode($json, true);
+        if (is_file($composerJsonPath)) {
+            $composerJson = json_decode(file_get_contents($composerJsonPath), true);
         } else {            
             $composerJson = json_decode(json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), true);
         }        
@@ -180,7 +192,8 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             if ($url && $type !== PackageDataType::BOWER && $type !== PackageDataType::NPM) {
                 $composerJson['repositories'][$name] = [
                     "type" => $type,
-                    "url" => $url
+                    "url" => $url,
+                    "only" => [$name]
                 ];
             }
             //for authentification via auth.json to work on gitlab hosted packages
@@ -316,7 +329,8 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             if ($getAll) {
                 $input = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'axenox.PackageManager.PAYLOAD_PACKAGES');
             } else {
-                throw $e;
+                $this->targetPackageNames = [];
+                return $this->targetPackageNames;
             }
         }
         
