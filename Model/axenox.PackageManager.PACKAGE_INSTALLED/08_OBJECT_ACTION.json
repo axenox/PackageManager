@@ -61,7 +61,7 @@
     "rows": [
         {
             "CREATED_ON": "2021-06-10 15:52:25",
-            "MODIFIED_ON": "2021-06-10 16:17:04",
+            "MODIFIED_ON": "2021-06-11 15:27:28",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11ebbbc917a5a67ebbc9025041000001",
@@ -77,7 +77,7 @@
                         {
                             "widget_type": "Console",
                             "environment_vars": {
-                                "COMPOSER_HOME": "=WorkbenchPath('.composer')"
+                                "COMPOSER_HOME": "=WorkbenchPath('data\/.composer')"
                             },
                             "allowed_commands": [
                                 "@php composer.phar.*@",

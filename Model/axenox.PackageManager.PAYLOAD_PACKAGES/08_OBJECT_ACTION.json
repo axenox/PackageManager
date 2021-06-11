@@ -95,7 +95,7 @@
         },
         {
             "CREATED_ON": "2021-06-09 09:18:10",
-            "MODIFIED_ON": "2021-06-11 13:21:42",
+            "MODIFIED_ON": "2021-06-11 17:42:40",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11eb96e6d89fe40496e6025041000001",
@@ -113,12 +113,11 @@
                             "working_directory_path": "data\/.payloadPackages",
                             "working_directory_create": true,
                             "start_commands": [
-                                "copy ..\\..\\composer.phar composer.phar"
+                                "..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayloadPackage"
                             ],
                             "allowed_commands": [
                                 "@php composer.phar.*@",
-                                "@..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayloadPackage.*@",
-                                "@copy ..\\\\..\\\\composer.phar composer.phar@"
+                                "@..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayloadPackage.*@"
                             ],
                             "environment_vars": {
                                 "COMPOSER_HOME": "=WorkbenchPath('data\/.payloadPackages\/.composer')"
