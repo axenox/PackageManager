@@ -97,10 +97,13 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             $filemanager->dumpFile($composerJsonPath, json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }        
         yield 'Basic installation requirements are set up!' . PHP_EOL;
+        yield '--------------------------------' . PHP_EOL;
         
         if (empty($packageNames)) {
+            yield "HELP:". PHP_EOL;
             yield "To install a package call the action with a package name added to it as parameter like:". PHP_EOL;
             yield "'action axenox.PackageManager:InstallPayloadPackage powerui/test'" . PHP_EOL;
+            yield "" . PHP_EOL;
             yield "To add authentification credentials for a domain call the command:" . PHP_EOL;
             yield "'php composer.phar config -a <Authentification Type>.<Domain> <Credentials>'" . PHP_EOL;
             yield "Credentials can be a username and password seperated by a space or a token.";
