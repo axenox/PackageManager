@@ -6,4 +6,7 @@
 	<buildpathentry external="true" kind="lib" path="C:/wamp/www/exface/exface/vendor/composer/composer/src/Composer"/>
 	<buildpathentry external="true" kind="lib" path="C:/wamp/www/exface/exface/vendor/symfony/console"/>
 	<buildpathentry external="true" kind="lib" path="C:/wamp/www/exface/exface/vendor/kabachello/ComposerAPI"/>
+	<buildpathentry external="true" kind="lib" path="C:/wamp/www/exface/exface/vendor/guzzlehttp/guzzle/src"/>
+	<buildpathentry external="true" kind="lib" path="C:/wamp/www/exface/exface/vendor/guzzlehttp/psr7/src"/>
+	<buildpathentry external="true" kind="lib" path="C:/wamp/www/exface/exface/vendor/psr"/>
 </buildpath>

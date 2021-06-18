@@ -1,5 +1,4 @@
 {
-"PATH_TO_AUTHORED_PACKAGES" : "",
-"HTTP_PROXY": "",
-"HTTPS_PROXY": ""
+	"PAYLOAD.PUBLISHED_DATA_FOLDER_NAME" : ".publishedPackages",
+	"PAYLOAD.INSTALLED_DATA_FOLODER_NAME": ".payloadPackages"
 }

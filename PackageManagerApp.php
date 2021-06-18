@@ -2,15 +2,21 @@
 namespace axenox\PackageManager;
 
 use exface\Core\Interfaces\AppInterface;
-use exface\Core\Factories\AppFactory;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\InstallerInterface;
 use exface\Core\CommonLogic\Model\App;
 use exface\Core\CommonLogic\Filemanager;
-use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\CommonLogic\AppInstallers\AbstractSqlDatabaseInstaller;
+use exface\Core\Facades\AbstractHttpFacade\HttpFacadeInstaller;
+use exface\Core\Factories\FacadeFactory;
+use axenox\PackageManager\Facades\PackagistFacade;
 
+/**
+ * 
+ * @author Andrej Kabachnik
+ *
+ */
 class PackageManagerApp extends App
 {
 
@@ -163,6 +169,12 @@ class PackageManagerApp extends App
             ->setMigrationsTableName('_migrations_packagemanager');
         }
         $installer->addInstaller($schema_installer); 
+        
+        // Docs facade
+        $tplInstaller = new HttpFacadeInstaller($this->getSelector());
+        $tplInstaller->setFacade(FacadeFactory::createFromString(PackagistFacade::class, $this->getWorkbench()));
+        $installer->addInstaller($tplInstaller);
+        
         return $installer;
     }
 }
