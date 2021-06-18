@@ -80,25 +80,25 @@
     ],
     "rows": [
         {
-            "CREATED_ON": "2016-07-18 21:49:49",
-            "MODIFIED_ON": "2021-06-11 13:37:46",
-            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "CREATED_ON": "2021-05-19 16:39:42",
+            "MODIFIED_ON": "2021-06-08 13:32:19",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "UID": "0x11e64d20c9789d1a9409c0f8dae36b4f",
+            "UID": "0x11eb8dcd0ca5c33e8dcd747827c0cc68",
             "READABLE_FLAG": "1",
             "WRITABLE_FLAG": "1",
             "COMMENTS": "",
             "DOCS": "",
-            "NAME": "Package in composer.lock",
+            "NAME": "Payload Package in composer.lock",
             "INHERIT_DATA_SOURCE_BASE_OBJECT": "1",
             "DATA_SOURCE": "0x11e64d20a1fcb3079409c0f8dae36b4f",
             "APP": "0x31380000000000000000000000000000",
             "SHORT_DESCRIPTION": "",
-            "PARENT_OBJECT": "",
+            "PARENT_OBJECT": "0x11e64d20c9789d1a9409c0f8dae36b4f",
             "DATA_ADDRESS_PROPS": "{\"response_data_path\":\"packages\"}",
             "DEFAULT_EDITOR_UXON": null,
-            "ALIAS": "PACKAGE_INSTALLED",
-            "DATA_ADDRESS": "composer.lock"
+            "ALIAS": "PAYLOAD_INSTALLED",
+            "DATA_ADDRESS": "data\/.payloadPackages\/composer.lock"
         }
     ],
     "totals_rows": [],

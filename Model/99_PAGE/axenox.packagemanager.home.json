@@ -10,71 +10,161 @@
     "replaces_page_selector": null,
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2020-04-17 12:40:39",
-    "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2020-11-17 13:31:54",
+    "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+    "modified_on": "2021-06-11 17:17:31",
     "contents": {
-        "widget_type": "DataTable",
         "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
-        "paginate": false,
-        "filters": [
+        "widget_type": "SplitHorizontal",
+        "panels": [
             {
-                "attribute_alias": "name"
+                "caption": "Infrastructure Packages",
+                "width": "50%",
+                "widgets": [
+                    {
+                        "id": "InfraTable",
+                        "widget_type": "DataTable",
+                        "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
+                        "paginate": false,
+                        "filters": [
+                            {
+                                "attribute_alias": "name"
+                            },
+                            {
+                                "attribute_alias": "version"
+                            },
+                            {
+                                "attribute_alias": "description"
+                            }
+                        ],
+                        "columns": [
+                            {
+                                "attribute_alias": "name"
+                            },
+                            {
+                                "attribute_alias": "version"
+                            },
+                            {
+                                "attribute_alias": "license:LIST"
+                            },
+                            {
+                                "attribute_alias": "description"
+                            },
+                            {
+                                "attribute_alias": "time"
+                            },
+                            {
+                                "attribute_alias": "app_alias"
+                            }
+                        ],
+                        "buttons": [
+                            {
+                                "action_alias": "axenox.PackageManager.ShowInfrastructureComposerConsole"
+                            }
+                        ]
+                    }
+                ]
             },
             {
-                "attribute_alias": "version"
-            },
-            {
-                "attribute_alias": "description"
-            }
-        ],
-        "columns": [
-            {
-                "attribute_alias": "name"
-            },
-            {
-                "attribute_alias": "version"
-            },
-            {
-                "attribute_alias": "license:LIST"
-            },
-            {
-                "attribute_alias": "description"
-            },
-            {
-                "attribute_alias": "time"
-            },
-            {
-                "attribute_alias": "app_alias"
-            }
-        ],
-        "buttons": [
-            {
-                "caption": "Update",
-                "action_alias": "axenox.PackageManager.ComposerUpdate"
-            },
-            {
-                "caption": "List packages",
-                "action_alias": "axenox.PackageManager.ComposerShow"
-            },
-            {
-                "caption": "Install package",
-                "action": {
-                    "alias": "exface.Core.ShowObjectCreateDialog",
-                    "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
-                    "save_action_alias": "axenox.PackageManager.ComposerRequire"
-                }
-            },
-            {
-                "caption": "Uninstall package",
-                "action": {
-                    "alias": "axenox.PackageManager.ComposerRemove"
-                }
-            },
-            {
-                "caption": "Install app",
-                "action": {
-                    "alias": "axenox.PackageManager.InstallApp"
-                }
+                "widgets": [
+                    {
+                        "widget_type": "SplitVertical",
+                        "panels": [
+                            {
+                                "caption": "Payload Packages",
+                                "id": "PayloadTable",
+                                "height": "50%",
+                                "widget_type": "DataTable",
+                                "object_alias": "axenox.PackageManager.PAYLOAD_PACKAGES",
+                                "multi_select": true,
+                                "columns": [
+                                    {
+                                        "attribute_alias": "NAME"
+                                    },
+                                    {
+                                        "attribute_alias": "PACKAGE__version"
+                                    },
+                                    {
+                                        "attribute_alias": "PACKAGE__license:LIST"
+                                    },
+                                    {
+                                        "attribute_alias": "TYPE"
+                                    },
+                                    {
+                                        "attribute_alias": "URL"
+                                    },
+                                    {
+                                        "attribute_alias": "VERSION"
+                                    },
+                                    {
+                                        "caption": "Installed on",
+                                        "attribute_alias": "APP__MODIFIED_ON"
+                                    }
+                                ],
+                                "buttons": [
+                                    {
+                                        "caption": "Install",
+                                        "action_alias": "axenox.PackageManager.ShowInstallPayload"
+                                    },
+                                    {
+                                        "action_alias": "axenox.PackageManager.ShowPayloadComposerConsole"
+                                    },
+                                    {
+                                        "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                    },
+                                    {
+                                        "action_alias": "exface.Core.ShowObjectEditDialog",
+                                        "bind_to_double_click": true
+                                    },
+                                    {
+                                        "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                    },
+                                    {
+                                        "action_alias": "exface.Core.DeleteObject",
+                                        "visibility": "optional"
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "PuplishedTable",
+                                "caption": "Puplished Packages",
+                                "object_alias": "exface.Core.APP",
+                                "widget_type": "DataTable",
+                                "filters": [
+                                    {
+                                        "attribute_alias": "PUPLISHED",
+                                        "value": true,
+                                        "hidden": true
+                                    }
+                                ],
+                                "columns": [
+                                    {
+                                        "attribute_alias": "NAME"
+                                    },
+                                    {
+                                        "attribute_alias": "ALIAS"
+                                    },
+                                    {
+                                        "attribute_alias": "PACKAGE"
+                                    },
+                                    {
+                                        "attribute_alias": "PACKAGE_INSTALLED__version"
+                                    },
+                                    {
+                                        "attribute_alias": "MODIFIED_ON"
+                                    },
+                                    {
+                                        "attribute_alias": "PUPLISHED"
+                                    }
+                                ],
+                                "buttons": [
+                                    {
+                                        "action_alias": "axenox.PackageManager.ShowPackageUrl"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
             }
         ]
     }

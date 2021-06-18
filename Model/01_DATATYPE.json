@@ -1,0 +1,101 @@
+{
+    "object_alias": "exface.Core.DATATYPE",
+    "columns": [
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "PROTOTYPE",
+            "attribute_alias": "PROTOTYPE"
+        },
+        {
+            "name": "CONFIG_UXON",
+            "attribute_alias": "CONFIG_UXON"
+        },
+        {
+            "name": "VALIDATION_ERROR",
+            "attribute_alias": "VALIDATION_ERROR"
+        },
+        {
+            "name": "DEFAULT_EDITOR_UXON",
+            "attribute_alias": "DEFAULT_EDITOR_UXON"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "SHORT_DESCRIPTION",
+            "attribute_alias": "SHORT_DESCRIPTION"
+        }
+    ],
+    "rows": [
+        {
+            "CREATED_ON": "2021-06-01 11:31:59",
+            "MODIFIED_ON": "2021-06-01 11:35:20",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "UID": "0x11eb882c374f9978882c025041000001",
+            "APP": "0x31380000000000000000000000000000",
+            "NAME": "Package Type",
+            "PROTOTYPE": "axenox\/packagemanager\/DataTypes\/PackageDataType.php",
+            "CONFIG_UXON": null,
+            "VALIDATION_ERROR": "",
+            "DEFAULT_EDITOR_UXON": {
+                "widget_type": "InputSelect"
+            },
+            "ALIAS": "PackageType",
+            "SHORT_DESCRIPTION": ""
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "exface.Core.DATATYPE",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x31380000000000000000000000000000",
+                "object_alias": "exface.Core.DATATYPE"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}
