@@ -22,7 +22,7 @@ use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\StringDataType;
-use axenox\PackageManager\DataTypes\PackageDataType;
+use axenox\PackageManager\DataTypes\RepoTypeDataType;
 use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 /**
@@ -162,27 +162,27 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             $name = str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '/', $row['NAME']);            
             $type = $row['TYPE'];
             switch ($type) {
-                case PackageDataType::COMPOSER:
-                case PackageDataType::PUPLISHED_PACKAGE:
+                case RepoTypeDataType::COMPOSER:
+                case RepoTypeDataType::PUPLISHED_PACKAGE:
                     $type = 'composer';
                     break;
-                case PackageDataType::BITBUCKET:
-                case PackageDataType::FOSSIL:
-                case PackageDataType::GIT:
-                case PackageDataType::GITHUB:
-                case PackageDataType::GITLAB:
+                case RepoTypeDataType::BITBUCKET:
+                case RepoTypeDataType::FOSSIL:
+                case RepoTypeDataType::GIT:
+                case RepoTypeDataType::GITHUB:
+                case RepoTypeDataType::GITLAB:
                     if (! in_array($domain = $this->getDomainFromUrl($url), $gitlabDomains)) {
                         $gitlabDomains[] = $domain;
                     }
                     
-                case PackageDataType::MERCURIAL:
-                case PackageDataType::VCS:
+                case RepoTypeDataType::MERCURIAL:
+                case RepoTypeDataType::VCS:
                     $type = 'vcs';
                     break;
-                case PackageDataType::BOWER:
+                case RepoTypeDataType::BOWER:
                     //$name = 'bower-asset' . '/' . $name;
                     break;
-                case PackageDataType::NPM:
+                case RepoTypeDataType::NPM:
                     //$name = 'npm-asset' . '/' . $name;
                     break;
                 default:
@@ -192,7 +192,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             }
             $appNames[] = $name;
             $composerJson['require'][$name] = $row['VERSION'];
-            if ($url && $type !== PackageDataType::BOWER && $type !== PackageDataType::NPM) {
+            if ($url && $type !== RepoTypeDataType::BOWER && $type !== RepoTypeDataType::NPM) {
                 $composerJson['repositories'][$name] = [
                     "type" => $type,
                     "url" => $url,

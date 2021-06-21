@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2020-04-17 12:40:39",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2021-06-21 09:21:19",
+    "modified_on": "2021-06-21 09:28:15",
     "contents": {
         "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
         "widget_type": "SplitHorizontal",
@@ -100,6 +100,9 @@
                                     },
                                     {
                                         "attribute_alias": "VERSION"
+                                    },
+                                    {
+                                        "attribute_alias": "APP__ALIAS"
                                     }
                                 ],
                                 "buttons": [
@@ -126,8 +129,18 @@
                                         "action_alias": "axenox.PackageManager.ShowAppRepairConsole"
                                     },
                                     {
-                                        "action_alias": "axenox.PackageManager.ShowAppUninstallConsole",
-                                        "caption": "Uninstall app"
+                                        "caption": "Uninstall app",
+                                        "action": {
+                                            "alias": "axenox.PackageManager.ShowAppUninstallConsole",
+                                            "input_mapper": {
+                                                "column_to_column_mappings": [
+                                                    {
+                                                        "from": "APP__ALIAS",
+                                                        "to": "ALIAS"
+                                                    }
+                                                ]
+                                            }
+                                        }
                                     },
                                     {
                                         "action_alias": "exface.Core.DeleteObject",

@@ -61,20 +61,20 @@
     "rows": [
         {
             "CREATED_ON": "2021-06-01 11:31:59",
-            "MODIFIED_ON": "2021-06-01 11:35:20",
+            "MODIFIED_ON": "2021-06-21 09:49:48",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11eb882c374f9978882c025041000001",
             "APP": "0x31380000000000000000000000000000",
-            "NAME": "Package Type",
-            "PROTOTYPE": "axenox\/packagemanager\/DataTypes\/PackageDataType.php",
+            "NAME": "Repository Type",
+            "PROTOTYPE": "axenox\/packagemanager\/DataTypes\/RepoTypeDataType.php",
             "CONFIG_UXON": null,
             "VALIDATION_ERROR": "",
             "DEFAULT_DISPLAY_UXON": null,
             "DEFAULT_EDITOR_UXON": {
                 "widget_type": "InputSelect"
             },
-            "ALIAS": "PackageType",
+            "ALIAS": "RepoType",
             "SHORT_DESCRIPTION": ""
         }
     ],

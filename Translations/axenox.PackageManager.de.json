@@ -5,5 +5,17 @@
 	"ACTION.INSTALLAPP.NAME": "Installieren",
 	"ACTION.IMPORTAPPMODEL.NAME": "Modell reparieren",
 	"ACTION.UNINSTALLAPP.NAME": "Deinstallieren",
-	"ACTION.LISTAPPS.NAME": "Apps listen"
+	"ACTION.LISTAPPS.NAME": "Apps listen",
+	
+	"DATATYPE.PACKAGE.PUBLISHED_PACKAGE": "Published app",
+    "DATATYPE.PACKAGE.PHP_COMPOSER": "Composer (PHP)",
+    "DATATYPE.PACKAGE.GITHUB": "GitHub",
+    "DATATYPE.PACKAGE.GITLAB": "GitLab",
+    "DATATYPE.PACKAGE.BITBUCKET": "BitBucket",    
+    "DATATYPE.PACKAGE.JS_BOWER": "Bower (JavaScript)",
+    "DATATYPE.PACKAGE.FOSSIL": "Fossil",
+    "DATATYPE.PACKAGE.GIT": "Git (generic)",
+    "DATATYPE.PACKAGE.JS_NPM": "NPM (JavaScript)",    
+    "DATATYPE.PACKAGE.MERCURIAL": "Mercurial",
+    "DATATYPE.PACKAGE.VCS": "VCS (generic)"
 }
