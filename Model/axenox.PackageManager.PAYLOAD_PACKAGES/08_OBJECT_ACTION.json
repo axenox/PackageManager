@@ -96,7 +96,7 @@
         },
         {
             "CREATED_ON": "2021-06-09 09:18:10",
-            "MODIFIED_ON": "2021-06-21 09:05:17",
+            "MODIFIED_ON": "2021-06-21 10:04:06",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11eb96e6d89fe40496e6025041000001",
@@ -125,14 +125,14 @@
                             },
                             "command_presets": [
                                 {
-                                    "caption": "Add Authentification",
+                                    "caption": "Add authentification",
                                     "hint": "Add Authentification credentials to the auth.json",
                                     "commands": [
                                         "php composer.phar config -a <Authentification Type>.<Domain> <Credentials>"
                                     ]
                                 },
                                 {
-                                    "caption": "Update Package",
+                                    "caption": "Update existing package",
                                     "hint": "Update Package(s)",
                                     "commands": [
                                         "..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayloadPackage <Package names comma-separated>"

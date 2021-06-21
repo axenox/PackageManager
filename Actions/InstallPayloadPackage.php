@@ -97,24 +97,24 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             $filemanager->dumpFile($composerJsonPath, json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }        
         yield 'Basic installation requirements are set up!' . PHP_EOL;
-        yield '--------------------------------' . PHP_EOL;
+        yield $this->printLineDelimiter();
         
-        if (empty($packageNames)) {
-            yield "HELP:". PHP_EOL;
+        if (! empty($packageNames)) {
+            //read informations for all apps to install from the DB
+            $ds = $this->getPackagesData($workbench, $packageNames);   
+        }
+        if (! $ds || $ds->isEmpty()) {
+            yield "No packages to install/update specified". PHP_EOL;
+            yield $this->printLineDelimiter();
             yield "To install a package call the action with a package name added to it as parameter like:". PHP_EOL;
             yield "'action axenox.PackageManager:InstallPayloadPackage powerui/test'" . PHP_EOL;
             yield "" . PHP_EOL;
-            yield "To add authentification credentials for a domain call the command:" . PHP_EOL;
-            yield "'php composer.phar config -a <Authentification Type>.<Domain> <Credentials>'" . PHP_EOL;
-            yield "Credentials can be a username and password seperated by a space or a token.";
+            yield "To add authentification for a domain call the command" . PHP_EOL;
+            yield "'php composer.phar config -a <Authentification Type>.<Domain> <Credentials>': e.g." . PHP_EOL;
+            yield "'php composer.phar config -a http-basic.localhost username password'" . PHP_EOL;
+            yield "Credentials can be a username and password (seperated by a space) or a single API token." . PHP_EOL;
             return;
         }
-        //read informations for all apps to install from the DB
-        $ds = $this->getPackagesData($workbench, $packageNames);
-        if ($ds->isEmpty()) {
-            yield 'Installation cancelled, no installable packages selected!' . PHP_EOL;
-            return;
-        }        
         
         //define environment variables for the command line composer calls
         $envVars = [];
@@ -145,7 +145,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                 return;
             }
             yield 'Base composer.lock file created. Loading packages now.' . PHP_EOL;
-            yield '--------------------------------' . PHP_EOL;
+            yield $this->printLineDelimiter();
             chdir($baseDir);
         }
         
@@ -233,7 +233,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         
         //copy packages from payload vednor folder to normal vendor folder and install them
         yield 'Composer finished loading packages. Packages will be installed now.' . PHP_EOL;
-        yield '--------------------------------' . PHP_EOL;
+        yield $this->printLineDelimiter();
         $payloadVendorPath = $payloadPath . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR;
         $vendorPath = $filemanager->getPathToVendorFolder() . DIRECTORY_SEPARATOR;
         $installed_counter = 0;
@@ -418,5 +418,10 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
     public function getCliOptions(): array
     {
         return [];
+    }
+    
+    protected function printLineDelimiter() : string
+    {
+        return PHP_EOL . '--------------------------------' . PHP_EOL . PHP_EOL;
     }
 }
