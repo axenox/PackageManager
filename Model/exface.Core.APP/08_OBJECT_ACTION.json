@@ -200,17 +200,17 @@
         },
         {
             "CREATED_ON": "2021-06-09 15:59:27",
-            "MODIFIED_ON": "2021-06-11 10:56:35",
+            "MODIFIED_ON": "2021-06-21 09:08:22",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11eb9e12e91c029e9e12025041000001",
             "OBJECT": "0x35370000000000000000000000000000",
             "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
             "ALIAS": "ShowPackageUrl",
             "NAME": "Package URL",
-            "SHORT_DESCRIPTION": "",
+            "SHORT_DESCRIPTION": "Shows a dialog with the Composer setup required to install this app",
             "CONFIG_UXON": {
-                "icon": "info",
+                "icon": "link",
                 "input_rows_max": 1,
                 "input_rows_min": 1,
                 "widget": {
@@ -220,13 +220,18 @@
                     "widgets": [
                         {
                             "width": "max",
+                            "widget_type": "Message",
+                            "text": "Use the following settings to add the package as a payload to another workbench or even add it the composer.json of any PHP project"
+                        },
+                        {
+                            "width": "max",
                             "widget_type": "Text",
                             "attribute_alias": "PACKAGE"
                         },
                         {
                             "widget_type": "Text",
                             "value": "=WorkbenchURL('api\/packagist\/packages')",
-                            "caption": "Package URL",
+                            "caption": "Repository URL",
                             "width": "max"
                         },
                         {
@@ -243,6 +248,64 @@
                                     "hide_caption": true
                                 }
                             ]
+                        }
+                    ]
+                }
+            },
+            "APP": "0x31380000000000000000000000000000",
+            "USE_IN_OBJECT_BASKET_FLAG": "0",
+            "DOCS": ""
+        },
+        {
+            "CREATED_ON": "2021-06-21 08:42:08",
+            "MODIFIED_ON": "2021-06-21 08:44:15",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11eb974fccb776a8974f025041000001",
+            "OBJECT": "0x35370000000000000000000000000000",
+            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/UpdateData.php",
+            "ALIAS": "UnpublishApp",
+            "NAME": "Unpublish",
+            "SHORT_DESCRIPTION": "Makes published apps local again",
+            "CONFIG_UXON": {
+                "input_object_alias": "exface.Core.APP",
+                "input_rows_min": 1,
+                "icon": "times",
+                "input_mapper": {
+                    "inherit_columns_only_for_system_attributes": true,
+                    "column_to_column_mappings": [
+                        {
+                            "from": 0,
+                            "to": "PUPLISHED"
+                        }
+                    ]
+                }
+            },
+            "APP": "0x31380000000000000000000000000000",
+            "USE_IN_OBJECT_BASKET_FLAG": "0",
+            "DOCS": ""
+        },
+        {
+            "CREATED_ON": "2021-06-21 08:43:43",
+            "MODIFIED_ON": "2021-06-21 08:45:46",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11eb8d4905c8cd5c8d49025041000001",
+            "OBJECT": "0x35370000000000000000000000000000",
+            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/UpdateData.php",
+            "ALIAS": "PublishApp",
+            "NAME": "Publish",
+            "SHORT_DESCRIPTION": "Publishes an app, so it can be downloaded from this server by the package manager of another workbench or via PHP Composer",
+            "CONFIG_UXON": {
+                "input_object_alias": "exface.Core.APP",
+                "input_rows_min": 1,
+                "icon": "share-square-o",
+                "input_mapper": {
+                    "inherit_columns_only_for_system_attributes": true,
+                    "column_to_column_mappings": [
+                        {
+                            "from": 1,
+                            "to": "PUPLISHED"
                         }
                     ]
                 }

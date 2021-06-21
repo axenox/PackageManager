@@ -56,7 +56,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         
         yield 'Setting up basic installation requirements...' . PHP_EOL;
         //create payload folder and copy composer.phar from base installation folder to payload folder
-        $payloadPath = $filemanager->getPathToDataFolder() . DIRECTORY_SEPARATOR . $this->getApp()->getConfig()->getOption('PAYLOAD.INSTALLED_DATA_FOLODER_NAME');
+        $payloadPath = $filemanager->getPathToDataFolder() . DIRECTORY_SEPARATOR . $this->getApp()->getConfig()->getOption('PAYLOAD.INSTALLED_DATA_FOLDER_NAME');
         $composerTempPath = $payloadPath . DIRECTORY_SEPARATOR . '.composer';
         if (! is_dir($payloadPath)) {
             mkdir($payloadPath);

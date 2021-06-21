@@ -42,6 +42,10 @@
             "attribute_alias": "VALIDATION_ERROR"
         },
         {
+            "name": "DEFAULT_DISPLAY_UXON",
+            "attribute_alias": "DEFAULT_DISPLAY_UXON"
+        },
+        {
             "name": "DEFAULT_EDITOR_UXON",
             "attribute_alias": "DEFAULT_EDITOR_UXON"
         },
@@ -66,6 +70,7 @@
             "PROTOTYPE": "axenox\/packagemanager\/DataTypes\/PackageDataType.php",
             "CONFIG_UXON": null,
             "VALIDATION_ERROR": "",
+            "DEFAULT_DISPLAY_UXON": null,
             "DEFAULT_EDITOR_UXON": {
                 "widget_type": "InputSelect"
             },

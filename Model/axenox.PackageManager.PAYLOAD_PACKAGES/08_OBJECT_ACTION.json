@@ -61,18 +61,19 @@
     "rows": [
         {
             "CREATED_ON": "2021-05-20 14:01:12",
-            "MODIFIED_ON": "2021-06-07 14:16:35",
+            "MODIFIED_ON": "2021-06-21 09:07:03",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ebb5ab12efc11eb5ab025041000001",
             "OBJECT": "0x11eb965cf182543a965c747827c0cc68",
             "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
             "ALIAS": "ShowInstallPayload",
             "NAME": "Install Package",
-            "SHORT_DESCRIPTION": "",
+            "SHORT_DESCRIPTION": "Download and install a fresh version of the package",
             "CONFIG_UXON": {
-                "alias": "exface.Core.ShowDialog",
+                "input_object_alias": "axenox.PackageManager.PAYLOAD_PACKAGES",
                 "input_rows_min": 1,
+                "icon": "download",
                 "effected_objects": [
                     "axenox.PackageManager.PAYLOAD_PACKAGES"
                 ],
@@ -95,15 +96,15 @@
         },
         {
             "CREATED_ON": "2021-06-09 09:18:10",
-            "MODIFIED_ON": "2021-06-11 17:42:40",
+            "MODIFIED_ON": "2021-06-21 09:05:17",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11eb96e6d89fe40496e6025041000001",
             "OBJECT": "0x11eb965cf182543a965c747827c0cc68",
             "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
             "ALIAS": "ShowPayloadComposerConsole",
-            "NAME": "Payload Composer Console",
-            "SHORT_DESCRIPTION": "",
+            "NAME": "Payload Composer CLI",
+            "SHORT_DESCRIPTION": "Command line interface for managing payload packages",
             "CONFIG_UXON": {
                 "icon": "terminal",
                 "widget": {

@@ -1,4 +1,4 @@
 {
 	"PAYLOAD.PUBLISHED_DATA_FOLDER_NAME" : ".publishedPackages",
-	"PAYLOAD.INSTALLED_DATA_FOLODER_NAME": ".payloadPackages"
+	"PAYLOAD.INSTALLED_DATA_FOLDER_NAME": ".payloadPackages"
 }

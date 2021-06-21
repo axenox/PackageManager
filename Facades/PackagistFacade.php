@@ -37,7 +37,7 @@ class PackagistFacade extends AbstractHttpFacade
         ]);
         $token = $middleware->extractBasicHttpAuthToken($request, $this);
         if (!$token) {
-            return new Response(401, [], 'No Basic-Auth data provided!');
+            return new Response(401, [], 'Authentication required!');
         }
         try {
             $this->getWorkbench()->getSecurity()->authenticate($token);
@@ -174,7 +174,7 @@ class PackagistFacade extends AbstractHttpFacade
     public function getPathToPuplishedFolder() : string
     {
         if (is_null($this->pathToPublishedFolder)) {
-            $this->pathToPublishedFolder = $this->getWorkbench()->filemanager()->getPathToDataFolder() . DIRECTORY_SEPARATOR . $this->getApp()->getConfig()->getOption('PAYLOAD.PUBLISHED_DATA_FOLODER_NAME');
+            $this->pathToPublishedFolder = $this->getWorkbench()->filemanager()->getPathToDataFolder() . DIRECTORY_SEPARATOR . $this->getApp()->getConfig()->getOption('PAYLOAD.PUBLISHED_DATA_FOLDER_NAME');
             if (! is_dir($this->pathToPublishedFolder)) {
                 Filemanager::pathConstruct($this->pathToPublishedFolder);
             }
