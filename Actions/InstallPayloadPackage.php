@@ -26,7 +26,7 @@ use axenox\PackageManager\DataTypes\RepoTypeDataType;
 use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 /**
- * Action to install a package from another system or another source compoer can handle.
+ * Action to install a package from another system or another source composer can handle.
  * IMPORTANT: Right now dependencies of a package will not be installed!
  * 
  * @author ralf.mulansky
@@ -101,7 +101,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         
         if (! empty($packageNames)) {
             //read informations for all apps to install from the DB
-            $ds = $this->getPackagesData($workbench, $packageNames);   
+            $ds = $this->getPackagesData($workbench);   
         }
         if (! $ds || $ds->isEmpty()) {
             yield "No packages to install/update specified". PHP_EOL;
@@ -150,12 +150,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         }
         
         //build composer.json
-        if (is_file($composerJsonPath)) {
-            $composerJson = json_decode(file_get_contents($composerJsonPath), true);
-        } else {            
-            $composerJson = json_decode(json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), true);
-        }        
-        $appNames = [];
+        $composerJson = json_decode(json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), true);
         foreach($ds->getRows() as $row) {           
             $url = $row['URL'];
             $gitlabDomains = $composerJson['config']['gitlab-domains'] ?? [];
@@ -190,7 +185,6 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                     return;
                     
             }
-            $appNames[] = $name;
             $composerJson['require'][$name] = $row['VERSION'];
             if ($url && $type !== RepoTypeDataType::BOWER && $type !== RepoTypeDataType::NPM) {
                 $composerJson['repositories'][$name] = [
@@ -207,7 +201,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         
         // run the composer to  download packages to payload vendor folder
         $cmd = 'php composer.phar update';
-        foreach ($appNames as $name) {
+        foreach ($packageNames as $name) {
             $cmd .= " {$name}";
         }
         yield "Loading packages via composer cli command '{$cmd}' ..." . PHP_EOL;
@@ -237,7 +231,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         $payloadVendorPath = $payloadPath . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR;
         $vendorPath = $filemanager->getPathToVendorFolder() . DIRECTORY_SEPARATOR;
         $installed_counter = 0;
-        foreach ($appNames as $name) {
+        foreach ($packageNames as $name) {
             $name = str_replace('/', DIRECTORY_SEPARATOR, $name);
             if (is_dir($payloadVendorPath . $name)) {
                 $filemanager->deleteDir($vendorPath . $name);
@@ -249,12 +243,12 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
                     $installed_counter ++;
                     yield "Installing " . $app_alias . '...' . PHP_EOL;
                     yield from $action->installApp($app_selector);
-                    yield "..." . $app_alias . " successfully installed." . PHP_EOL;
+                    yield "..." . $app_alias . " successfully installed." . PHP_EOL . PHP_EOL;
                 } catch (\Exception $e) {
                     $installed_counter --;
                     $this->getWorkbench()->getLogger()->logException($e);
                     yield PHP_EOL . "ERROR: " . ($e instanceof ExceptionInterface ? $e->getMessage() . ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
-                    yield "...{$app_alias} installation failed!" . PHP_EOL;
+                    yield "...{$app_alias} installation failed!" . PHP_EOL . PHP_EOL;
                 }
             }            
         }
@@ -269,20 +263,15 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
     }
     
     /**
-     * Returns datasheet with all information from database for all given package names in array
+     * Returns datasheet with all data for every db payload package entry
      * 
      * @param WorkbenchInterface $workbench
      * @param array $packageNames
      * @return DataSheetInterface
      */
-    protected function getPackagesData(WorkbenchInterface $workbench, array $packageNames) : DataSheetInterface
+    protected function getPackagesData(WorkbenchInterface $workbench) : DataSheetInterface
     {
-        $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.PackageManager.PAYLOAD_PACKAGES');
-        $filters = ConditionGroupFactory::createForDataSheet($ds, EXF_LOGICAL_OR);
-        foreach ($packageNames as $package) {
-            $filters->addConditionFromString('NAME', $package, EXF_COMPARATOR_EQUALS);
-        }
-        $ds->getFilters()->addNestedGroup($filters);
+        $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.PackageManager.PAYLOAD_PACKAGES');        
         $ds->getColumns()->addMultiple(['URL', 'VERSION', 'TYPE', 'NAME']);
         $ds->dataRead();
         return $ds;
@@ -320,7 +309,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
         $getAll = false;
         if (empty($this->targetPackageNames) === false) {
             if (count($this->targetPackageNames) === 1 && ($this->targetPackageNames[0] === '*' || strcasecmp($this->targetPackageNames[0], 'all') === 0)) {
-                $getAll === true;
+                $getAll = true;
             } else {
                 return $this->targetPackageNames;
             }
