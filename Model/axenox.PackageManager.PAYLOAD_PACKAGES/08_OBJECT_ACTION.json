@@ -83,7 +83,7 @@
                             "widget_type": "Console",
                             "disabled": true,
                             "start_commands": [
-                                "action axenox.PackageManager:InstallPayloadPackage [#NAME#]"
+                                "action axenox.PackageManager:InstallPayload [#NAME#]"
                             ],
                             "working_directory_path": "vendor\/bin"
                         }
@@ -114,11 +114,11 @@
                             "working_directory_path": "data\/.payloadPackages",
                             "working_directory_create": true,
                             "start_commands": [
-                                "..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayloadPackage"
+                                "..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayload"
                             ],
                             "allowed_commands": [
                                 "@php composer.phar.*@",
-                                "@..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayloadPackage.*@"
+                                "@..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayload.*@"
                             ],
                             "environment_vars": {
                                 "COMPOSER_HOME": "=WorkbenchPath('data\/.payloadPackages\/.composer')"
@@ -135,7 +135,7 @@
                                     "caption": "Update existing package",
                                     "hint": "Update Package(s)",
                                     "commands": [
-                                        "..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayloadPackage <Package names comma-separated>"
+                                        "..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayload <Package names comma-separated>"
                                     ]
                                 }
                             ]

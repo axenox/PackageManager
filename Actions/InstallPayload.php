@@ -33,7 +33,7 @@ use exface\Core\Interfaces\DataSheets\DataSheetInterface;
  *
  */
 
-class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCalledFromCLI {
+class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromCLI {
     
     private $targetPackageNames = null;
     
@@ -107,7 +107,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
             yield "No packages to install/update specified". PHP_EOL;
             yield $this->printLineDelimiter();
             yield "To install a package call the action with a package name added to it as parameter like:". PHP_EOL;
-            yield "'action axenox.PackageManager:InstallPayloadPackage powerui/test'" . PHP_EOL;
+            yield "'action axenox.PackageManager:InstallPayload powerui/test'" . PHP_EOL;
             yield "" . PHP_EOL;
             yield "To add authentification for a domain call the command" . PHP_EOL;
             yield "'php composer.phar config -a <Authentification Type>.<Domain> <Credentials>': e.g." . PHP_EOL;
@@ -351,7 +351,7 @@ class InstallPayloadPackage extends AbstractActionDeferred implements iCanBeCall
      * @uxon-template [""]
      *
      * @param string|array|UxonObject $values
-     * @return \axenox\PackageManager\Actions\InstallPayloadPackage
+     * @return \axenox\PackageManager\Actions\InstallPayload
      */
     public function setTargetPackages($values)
     {

@@ -11,62 +11,13 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2020-04-17 12:40:39",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2021-06-21 09:28:15",
+    "modified_on": "2021-06-29 08:30:18",
     "contents": {
         "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
         "widget_type": "SplitHorizontal",
         "panels": [
             {
-                "caption": "Infrastructure Packages",
                 "width": "50%",
-                "widgets": [
-                    {
-                        "id": "InfraTable",
-                        "widget_type": "DataTable",
-                        "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
-                        "paginate": false,
-                        "nowrap": false,
-                        "filters": [
-                            {
-                                "attribute_alias": "name"
-                            },
-                            {
-                                "attribute_alias": "version"
-                            },
-                            {
-                                "attribute_alias": "description"
-                            }
-                        ],
-                        "columns": [
-                            {
-                                "attribute_alias": "name"
-                            },
-                            {
-                                "attribute_alias": "version"
-                            },
-                            {
-                                "attribute_alias": "license:LIST"
-                            },
-                            {
-                                "attribute_alias": "description"
-                            },
-                            {
-                                "attribute_alias": "time"
-                            },
-                            {
-                                "attribute_alias": "app_alias"
-                            }
-                        ],
-                        "buttons": [
-                            {
-                                "caption": "Composer CLI",
-                                "action_alias": "axenox.PackageManager.ShowInfrastructureComposerConsole"
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
                 "widgets": [
                     {
                         "widget_type": "SplitVertical",
@@ -189,6 +140,55 @@
                                         "action_alias": "axenox.packagemanager.ExportAppModel"
                                     }
                                 ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "caption": "Infrastructure Packages",
+                "widgets": [
+                    {
+                        "id": "InfraTable",
+                        "widget_type": "DataTable",
+                        "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
+                        "paginate": false,
+                        "nowrap": false,
+                        "filters": [
+                            {
+                                "attribute_alias": "name"
+                            },
+                            {
+                                "attribute_alias": "version"
+                            },
+                            {
+                                "attribute_alias": "description"
+                            }
+                        ],
+                        "columns": [
+                            {
+                                "attribute_alias": "name"
+                            },
+                            {
+                                "attribute_alias": "version"
+                            },
+                            {
+                                "attribute_alias": "license:LIST"
+                            },
+                            {
+                                "attribute_alias": "description"
+                            },
+                            {
+                                "attribute_alias": "time"
+                            },
+                            {
+                                "attribute_alias": "app_alias"
+                            }
+                        ],
+                        "buttons": [
+                            {
+                                "caption": "Composer CLI",
+                                "action_alias": "axenox.PackageManager.ShowInfrastructureComposerConsole"
                             }
                         ]
                     }

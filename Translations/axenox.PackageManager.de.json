@@ -6,6 +6,7 @@
 	"ACTION.IMPORTAPPMODEL.NAME": "Modell reparieren",
 	"ACTION.UNINSTALLAPP.NAME": "Deinstallieren",
 	"ACTION.LISTAPPS.NAME": "Apps listen",
+	"ACTION.INSTALLPAYLOAD.NAME": "Payload-App installieren",
 	
 	"DATATYPE.PACKAGE.PUBLISHED_PACKAGE": "Published app",
     "DATATYPE.PACKAGE.PHP_COMPOSER": "Composer (PHP)",
