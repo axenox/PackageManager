@@ -12,8 +12,9 @@ use exface\Core\Factories\ResultFactory;
 
 /**
  * This action cleans up all remains of previous composer actions if something went wrong.
- * Thus, if composer
- * exits with an exception, the temp downloaded apps do not get installed. This action will install them.
+ * 
+ * Thus, if composer exits with an exception, the temp downloaded apps do not get installed. 
+ * This action will install them.
  *
  * @author Andrej Kabachnik
  *        
@@ -22,10 +23,9 @@ class ComposerCleanupPreviousActions extends AbstractAction implements iModifyDa
 {
 
     /**
-     *
-     * {@inheritdoc}
-     *
-     * @see \axenox\PackageManager\Actions\AbstractComposerAction::init()
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractAction::init()
      */
     protected function init()
     {
