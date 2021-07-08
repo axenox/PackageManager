@@ -200,9 +200,9 @@
         },
         {
             "CREATED_ON": "2021-06-09 15:59:27",
-            "MODIFIED_ON": "2021-06-21 09:08:22",
+            "MODIFIED_ON": "2021-06-29 11:34:25",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11eb9e12e91c029e9e12025041000001",
             "OBJECT": "0x35370000000000000000000000000000",
             "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
@@ -240,7 +240,7 @@
                             "caption": "Example composer.json",
                             "widgets": [
                                 {
-                                    "value": "=ReplacePlaceholders('\n{\n    \"require\": {\n        \"[#PACKAGE#]\": \"*\"\n    },\n    \"repositories\": {\n        \"[#PACKAGE#]\": {\n            \"type\": \"composer\",\n            \"url\": \"[#=WorkbenchURL('api\/packagist\/packages')#]\"\n        }\n    }\n}')",
+                                    "value": "=ReplacePlaceholders('\n{\n    \"require\": {\n        \"[#PACKAGE#]\": \"*\"\n    },\n    \"repositories\": {\n        \"[#PACKAGE#]\": {\n            \"type\": \"composer\",\n            \"url\": \"[#=WorkbenchURL(\\'api\/packagist\/packages\\')#]\"\n        }\n    }\n}')",
                                     "disabled": true,
                                     "width": "max",
                                     "height": 10,
