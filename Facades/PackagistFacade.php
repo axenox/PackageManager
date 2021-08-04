@@ -121,6 +121,9 @@ class PackagistFacade extends AbstractHttpFacade
         foreach($generator as $gen) {
             continue;
         }
+        if (!is_dir($path)) {
+            return new Response(404, [], "The package '{$packageAlias}' could not be exported!");
+        }
         $zip = new ArchiveManager($workbench, $path . '.zip');
         $zip->addFolder($path);
         $zip->close();
@@ -128,6 +131,9 @@ class PackagistFacade extends AbstractHttpFacade
             "Content-type" => "application/zip",
             "Content-Transfer-Encoding"=> "Binary",
         ];
+        if (!is_file($path . '.zip')) {
+            return new Response(404, [], "The zip file for package '{$packageAlias}' could not be created!");
+        }
         $filemanager->deleteDir($path);
         return new Response(200, $headers, readfile($path . '.zip'));
         
