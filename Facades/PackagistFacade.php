@@ -1,5 +1,4 @@
 <?php
-
 namespace axenox\PackageManager\Facades;
 
 use Psr\Http\Message\ResponseInterface;
@@ -19,7 +18,12 @@ use axenox\PackageManager\StaticInstaller;
 use exface\Core\CommonLogic\ArchiveManager;
 use exface\Core\CommonLogic\Filemanager;
 
-
+/**
+ * HTTP facade allowing to install apps hosted on this workbench somewhere else via composer (i.e. a private packagist).
+ * 
+ * @author ralf.mulansky
+ *
+ */
 class PackagistFacade extends AbstractHttpFacade
 {
     const BRANCH_NAME = 'dev-puplished';
@@ -42,6 +46,7 @@ class PackagistFacade extends AbstractHttpFacade
         try {
             $this->getWorkbench()->getSecurity()->authenticate($token);
         } catch (AuthenticationFailedError $e) {
+            $this->getWorkbench()->getLogger()->logException($e);
             return new Response(403, [], 'Authentification failed!');
         }
         $uri = $request->getUri();
@@ -81,7 +86,7 @@ class PackagistFacade extends AbstractHttpFacade
             $composerJson['version'] = self::BRANCH_NAME;
             $composerJson['dist'] = [
                 'type' => 'zip',
-                'url' => $this->buildPackageUrl($app),
+                'url' => $this->buildUrlToPackage($app),
                 'reference' => $this->getAppVersion()
             ];
             $json['packages'][$composerJson['name']] = [];            
@@ -145,9 +150,13 @@ class PackagistFacade extends AbstractHttpFacade
      * @param AppInterface $app
      * @return string
      */
-    public function buildPackageUrl(AppInterface $app) : string
+    public function buildUrlToPackage(AppInterface $app) : string
     {
-        return $this->buildUrlToFacade() . '/' . mb_strtolower($app->getVendor() . '/' . str_replace($app->getVendor() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '', $app->getAliasWithNamespace()));
+        $baseUrl = $this->getConfig()->getOption('FACADES.PACKAGIST.URL');
+        if (! $baseUrl) {
+            $baseUrl = $this->buildUrlToFacade();
+        }
+        return $baseUrl . '/' . mb_strtolower($app->getVendor() . '/' . str_replace($app->getVendor() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '', $app->getAliasWithNamespace()));
     }
 
     /**

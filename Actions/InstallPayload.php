@@ -52,6 +52,7 @@ class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromC
     protected function performDeferred(array $packageNames = []): \Generator
     {
         $workbench = $this->getWorkbench();
+        $config = $this->getApp()->getConfig();
         $filemanager = $workbench->filemanager();
         
         yield 'Setting up basic installation requirements...' . PHP_EOL;
@@ -75,17 +76,13 @@ class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromC
         if (is_dir($composerTempPath)) {
             $filemanager->deleteDir($composerTempPath);
         }
+        
         //create base composer.json in payload folder
         $composerJsonPath = $payloadPath . DIRECTORY_SEPARATOR . 'composer.json';
         $basicComposerJson = [
             "require" => (object)[],
             "replace" => ["exface/core" => "*"],
-            "repositories" => [
-                "asset/packagist" => [
-                    "type" => "composer",
-                    "url" => "https://asset-packagist.org"
-                ]
-            ],
+            "repositories" => [],
             "minimum-stability" => "dev",
             "prefer-stable"=> true,
             "config" => [
@@ -93,6 +90,16 @@ class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromC
                 "preferred-install" => ["*" => "dist"]
             ]
         ];
+        if ($config->getOption('PAYLOAD.COMPOSER_USE_PACKAGIST') === false) {
+            $basicComposerJson['repositories']['packagist'] = ['packagist.org' => false];
+        }
+        if ($config->getOption('PAYLOAD.COMPOSER_USE_ASSET_PACKAGIST') === true) {
+            $basicComposerJson['repositories']["asset-packagist"] = [
+                "type" => "composer",
+                "url" => "https://asset-packagist.org"
+            ];
+        }
+        
         if (!is_file($composerJsonPath)) {
             $filemanager->dumpFile($composerJsonPath, json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }        
