@@ -1,0 +1,89 @@
+{
+    "object_alias": "exface.Core.USER_ROLE",
+    "columns": [
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "SYNC_WITH_EXT_ROLE",
+            "attribute_alias": "SYNC_WITH_EXT_ROLE"
+        },
+        {
+            "name": "START_PAGE",
+            "attribute_alias": "START_PAGE"
+        }
+    ],
+    "rows": [
+        {
+            "CREATED_ON": "2021-10-01 10:34:12",
+            "MODIFIED_ON": "2021-10-01 10:38:06",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11ec84e55ab6420a84e5025041000001",
+            "NAME": "Published apps downloader",
+            "DESCRIPTION": "Allows to download published apps",
+            "APP": "0x31380000000000000000000000000000",
+            "ALIAS": "PACKAGIST_CLIENT",
+            "SYNC_WITH_EXT_ROLE": "",
+            "START_PAGE": ""
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "exface.Core.USER_ROLE",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x31380000000000000000000000000000",
+                "object_alias": "exface.Core.USER_ROLE"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}

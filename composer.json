@@ -1,40 +1,41 @@
 {
-	"name" : "axenox/packagemanager",
-	"description" : "Composer-based package manager for the ExFace business web application plattform",
-	"type" : "library",
-	"license" : [
-		"GPL-3.0+",
-		"proprietary"
-	],
-	"authors" : [{
-			"name" : "Andrej Kabachnik",
-			"email" : "kabachnik@gmail.com",
-			"role" : "Creator"
-		}
-	],
-	"support" : {
-		"source" : "https://github.com/exface/PackageManager",
-		"issues" : "https://github.com/axenox/PackageManager/issues"
-	},
-	"require" : {
-		"exface/core" : "^1.0"
-	},
-	"extra" : {
-		"app" : {
-			"app_uid" : "0x31380000000000000000000000000000",
-			"app_alias" : "axenox.PackageManager",
-			"model_md5" : "671b3b0f37226c937f913a83903e5125",
-			"model_timestamp" : "2021-06-21 16:33:37"
-		}
-	},
-	"autoload" : {
-		"psr-4" : {
-			"axenox\\PackageManager\\" : ""
-		},
-		"exclude-from-classmap" : [
-			"/Config/",
-			"/Translations/",
-			"/Model/"
-		]
-	}
+    "name": "axenox/packagemanager",
+    "description": "Composer-based package manager for the ExFace business web application plattform",
+    "type": "library",
+    "license": [
+        "GPL-3.0+",
+        "proprietary"
+    ],
+    "authors": [
+        {
+            "name": "Andrej Kabachnik",
+            "email": "kabachnik@gmail.com",
+            "role": "Creator"
+        }
+    ],
+    "support": {
+        "source": "https://github.com/exface/PackageManager",
+        "issues": "https://github.com/axenox/PackageManager/issues"
+    },
+    "require": {
+        "exface/core": "^1.0"
+    },
+    "extra": {
+        "app": {
+            "app_uid": "0x31380000000000000000000000000000",
+            "app_alias": "axenox.PackageManager",
+            "model_md5": "413ab0fea3c29d311c5825422484780c",
+            "model_timestamp": "2021-10-01 10:38:06"
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "axenox\\PackageManager\\": ""
+        },
+        "exclude-from-classmap": [
+            "/Config/",
+            "/Translations/",
+            "/Model/"
+        ]
+    }
 }
