@@ -25,6 +25,8 @@ use exface\Core\DataTypes\StringDataType;
 use axenox\PackageManager\DataTypes\RepoTypeDataType;
 use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\Factories\AppFactory;
+
 /**
  * Action to install a package from another system or another source composer can handle.
  * IMPORTANT: Right now dependencies of a package will not be installed!
@@ -32,7 +34,6 @@ use exface\Core\Interfaces\DataSheets\DataSheetInterface;
  * @author ralf.mulansky
  *
  */
-
 class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromCLI {
     
     private $targetPackageNames = null;
@@ -100,7 +101,7 @@ class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromC
             ];
         }
         
-        if (!is_file($composerJsonPath)) {
+        if (!is_file($composerJsonPath) || ! is_file($payloadPath . DIRECTORY_SEPARATOR . 'composer.lock')) {
             $filemanager->dumpFile($composerJsonPath, json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }        
         yield 'Basic installation requirements are set up!' . PHP_EOL;
@@ -137,16 +138,23 @@ class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromC
             chdir($payloadPath);
             $process = Process::fromShellCommandline($cmd, null, $envVars, null, 600);
             $process->start();
-            $buffer = '';
-            foreach ($process as $msg) {$buffer .= $msg;
+            $outputBuffer = [];
+            $msgBuffer = '';
+            foreach ($process as $msg) {
+                $msgBuffer .= $msg;
                 // writing output for this command line disabled as it might confuse the user more than help him
-                /*if (StringDataType::endsWith($msg, "\r", false) || StringDataType::endsWith($msg, "\n", false)) {
-                    yield 'composer> ' . $this->escapeCliMessage($this->replaceFilePathsWithHyperlinks($buffer));
-                    $buffer = '';
-                }*/
+                if (StringDataType::endsWith($msg, "\r", false) || StringDataType::endsWith($msg, "\n", false)) {
+                    $outputBuffer[] = 'composer> ' . $this->escapeCliMessage($this->replaceFilePathsWithHyperlinks($msgBuffer));
+                    $msgBuffer = '';
+                }
             }
             if ($process->isSuccessful() === false) {
-                yield 'Creating base composer.lock file failed, can not install packages!';
+                yield 'Creating base composer.lock file failed, can not install packages!' . PHP_EOL;
+                yield 'See the following error messages for more information.' . PHP_EOL;
+                yield $this->printLineDelimiter();
+                foreach ($outputBuffer as $output) {
+                    yield $output;
+                }
                 //remove composer temporary folder so it doesnt interfere with later installations
                 $filemanager->deleteDir($composerTempPath);
                 $workbench->getCache()->clear();
@@ -233,7 +241,7 @@ class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromC
         }
         chdir($baseDir);
         
-        //copy packages from payload vednor folder to normal vendor folder and install them
+        //copy packages from payload vendor folder to normal vendor folder and install them
         yield 'Composer finished loading packages. Packages will be installed now.' . PHP_EOL;
         yield $this->printLineDelimiter();
         $payloadVendorPath = $payloadPath . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR;
@@ -241,11 +249,24 @@ class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromC
         $installed_counter = 0;
         foreach ($packageNames as $name) {
             $name = str_replace('/', DIRECTORY_SEPARATOR, $name);
-            if (is_dir($payloadVendorPath . $name)) {
-                $filemanager->deleteDir($vendorPath . $name);
-                $filemanager->copyDir($payloadVendorPath . $name, $vendorPath . $name);
+            if (is_dir($payloadVendorPath . $name)) {                
                 $app_alias = str_replace(DIRECTORY_SEPARATOR, AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, $name);
                 $app_selector = new AppSelector($this->getWorkbench(), $app_alias);
+                $app = AppFactory::create($app_selector);
+                if ($app->isInstalled()) {
+                    $action = ActionFactory::createFromString($workbench, 'axenox.PackageManager.BackupApp');
+                    try {
+                        yield "Creating Backup for " . $app_alias . '...' . PHP_EOL;
+                        yield from $action->backup($app_selector);
+                        yield "..." . $app_alias . " backup created successfully." . PHP_EOL . PHP_EOL;
+                    } catch (\Exception $e) {
+                        $this->getWorkbench()->getLogger()->logException($e);
+                        yield PHP_EOL . "ERROR: " . ($e instanceof ExceptionInterface ? $e->getMessage() . ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
+                        yield "...{$app_alias} backup failed!" . PHP_EOL . PHP_EOL;
+                    }
+                }
+                $filemanager->deleteDir($vendorPath . $name);
+                $filemanager->copyDir($payloadVendorPath . $name, $vendorPath . $name);
                 $action = ActionFactory::createFromString($workbench, 'axenox.PackageManager.InstallApp');
                 try {
                     $installed_counter ++;
