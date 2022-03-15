@@ -100,7 +100,7 @@ class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromC
             ];
         }
         
-        if (!is_file($composerJsonPath)) {
+        if (!is_file($composerJsonPath) || ! is_file($payloadPath . DIRECTORY_SEPARATOR . 'composer.lock')) {
             $filemanager->dumpFile($composerJsonPath, json_encode($basicComposerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }        
         yield 'Basic installation requirements are set up!' . PHP_EOL;
@@ -136,16 +136,23 @@ class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromC
             chdir($payloadPath);
             $process = Process::fromShellCommandline($cmd, null, $envVars, null, 600);
             $process->start();
-            $buffer = '';
-            foreach ($process as $msg) {$buffer .= $msg;
+            $outputBuffer = [];
+            $msgBuffer = '';
+            foreach ($process as $msg) {
+                $msgBuffer .= $msg;
                 // writing output for this command line disabled as it might confuse the user more than help him
-                /*if (StringDataType::endsWith($msg, "\r", false) || StringDataType::endsWith($msg, "\n", false)) {
-                    yield 'composer> ' . $this->escapeCliMessage($this->replaceFilePathsWithHyperlinks($buffer));
-                    $buffer = '';
-                }*/
+                if (StringDataType::endsWith($msg, "\r", false) || StringDataType::endsWith($msg, "\n", false)) {
+                    $outputBuffer[] = 'composer> ' . $this->escapeCliMessage($this->replaceFilePathsWithHyperlinks($msgBuffer));
+                    $msgBuffer = '';
+                }
             }
             if ($process->isSuccessful() === false) {
-                yield 'Creating base composer.lock file failed, can not install packages!';
+                yield 'Creating base composer.lock file failed, can not install packages!' . PHP_EOL;
+                yield 'See the following error messages for more information.' . PHP_EOL;
+                yield $this->printLineDelimiter();
+                foreach ($outputBuffer as $output) {
+                    yield $output;
+                }
                 //remove composer temporary folder so it doesnt interfere with later installations
                 $filemanager->deleteDir($composerTempPath);
                 $workbench->getCache()->clear();
