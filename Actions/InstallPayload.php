@@ -120,6 +120,7 @@ class InstallPayload extends AbstractActionDeferred implements iCanBeCalledFromC
             yield "To add authentification for a domain call the command" . PHP_EOL;
             yield "'php composer.phar config -a <Authentification Type>.<Domain> <Credentials>': e.g." . PHP_EOL;
             yield "'php composer.phar config -a http-basic.localhost username password'" . PHP_EOL;
+            yield "'php composer.phar config -a gitlab-token.mygitsrv.mycompany.com accesstoken'" . PHP_EOL;
             yield "Credentials can be a username and password (seperated by a space) or a single API token." . PHP_EOL;
             return;
         }
