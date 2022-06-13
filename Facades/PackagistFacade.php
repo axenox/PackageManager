@@ -6,8 +6,6 @@ use Psr\Http\Message\ServerRequestInterface;
 use exface\Core\Facades\AbstractHttpFacade\AbstractHttpFacade;
 use exface\Core\DataTypes\StringDataType;
 use GuzzleHttp\Psr7\Response;
-use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
-use exface\Core\Exceptions\Security\AuthenticationFailedError;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Interfaces\AppInterface;
@@ -17,6 +15,8 @@ use exface\Core\Factories\ActionFactory;
 use axenox\PackageManager\StaticInstaller;
 use exface\Core\CommonLogic\ArchiveManager;
 use exface\Core\CommonLogic\Filemanager;
+use exface\Core\Facades\AbstractHttpFacade\Middleware\RequestContextReader;
+use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
 
 /**
  * HTTP facade allowing to install apps hosted on this workbench somewhere else via composer (i.e. a private packagist).
@@ -32,23 +32,13 @@ class PackagistFacade extends AbstractHttpFacade
     
     private $pathToPublishedFolder = null;
     
-    public function handle(ServerRequestInterface $request): ResponseInterface
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\Facades\AbstractHttpFacade\AbstractHttpFacade::createResponse()
+     */
+    protected function createResponse(ServerRequestInterface $request) : ResponseInterface
     {
-        $middleware = new AuthenticationMiddleware($this, [
-            [
-                AuthenticationMiddleware::class, 'extractBasicHttpAuthToken'
-            ]
-        ]);
-        $token = $middleware->extractBasicHttpAuthToken($request, $this);
-        if (!$token) {
-            return new Response(401, [], 'Authentication required!');
-        }
-        try {
-            $this->getWorkbench()->getSecurity()->authenticate($token);
-        } catch (AuthenticationFailedError $e) {
-            $this->getWorkbench()->getLogger()->logException($e);
-            return new Response(403, [], 'Authentification failed!');
-        }
         $uri = $request->getUri();
         $path = $uri->getPath();
         $topics = explode('/',substr(StringDataType::substringAfter($path, $this->getUrlRouteDefault()), 1));
@@ -58,6 +48,23 @@ class PackagistFacade extends AbstractHttpFacade
             return $this->buildResponsePackage($topics);
         }
         return new Response(404);
+    }
+    
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\Facades\AbstractHttpFacade\AbstractHttpFacade::getMiddleware()
+     */
+    protected function getMiddleware() : array
+    {
+        return [
+            new RequestContextReader($this->getWorkbench()->getContext()), // Pass request data to the request context
+            new AuthenticationMiddleware($this[
+                [
+                    AuthenticationMiddleware::class, 'extractBasicHttpAuthToken'
+                ]
+            ], true)
+        ];
     }
     
     /**
