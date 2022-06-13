@@ -92,7 +92,7 @@
                 ]
             },
             "APP": "0x31380000000000000000000000000000",
-            "USE_IN_OBJECT_BASKET_FLAG": "0",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
             "DOCS": ""
         },
         {
@@ -128,7 +128,7 @@
                 ]
             },
             "APP": "0x31380000000000000000000000000000",
-            "USE_IN_OBJECT_BASKET_FLAG": "0",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
             "DOCS": ""
         },
         {
@@ -195,7 +195,7 @@
                 ]
             },
             "APP": "0x31380000000000000000000000000000",
-            "USE_IN_OBJECT_BASKET_FLAG": "0",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
             "DOCS": ""
         },
         {
@@ -253,7 +253,7 @@
                 }
             },
             "APP": "0x31380000000000000000000000000000",
-            "USE_IN_OBJECT_BASKET_FLAG": "0",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
             "DOCS": ""
         },
         {
@@ -282,7 +282,7 @@
                 }
             },
             "APP": "0x31380000000000000000000000000000",
-            "USE_IN_OBJECT_BASKET_FLAG": "0",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
             "DOCS": ""
         },
         {
@@ -311,7 +311,7 @@
                 }
             },
             "APP": "0x31380000000000000000000000000000",
-            "USE_IN_OBJECT_BASKET_FLAG": "0",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
             "DOCS": ""
         }
     ],

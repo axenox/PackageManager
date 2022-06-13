@@ -23,9 +23,7 @@
     "extra": {
         "app": {
             "app_uid": "0x31380000000000000000000000000000",
-            "app_alias": "axenox.PackageManager",
-            "model_md5": "413ab0fea3c29d311c5825422484780c",
-            "model_timestamp": "2021-10-01 10:38:06"
+            "app_alias": "axenox.PackageManager"
         }
     },
     "autoload": {
