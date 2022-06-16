@@ -60,6 +60,101 @@
     ],
     "rows": [
         {
+            "CREATED_ON": "2019-05-13 09:02:35",
+            "MODIFIED_ON": "2022-06-16 11:43:46",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11e9755dcd59222586490205857feb80",
+            "OBJECT": "0x35370000000000000000000000000000",
+            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
+            "ALIAS": "ShowAppGitConsoleDialog",
+            "NAME": "Git Console",
+            "SHORT_DESCRIPTION": "Shows a GIT console for a selected app",
+            "CONFIG_UXON": {
+                "prefill_with_input_data": true,
+                "input_rows_max": 1,
+                "icon": "git",
+                "widget": {
+                    "widgets": [
+                        {
+                            "widget_type": "Console",
+                            "working_directory_attribute_alias": "PACKAGE",
+                            "working_directory_subfolder": "vendor",
+                            "environment_vars": {
+                                "GIT_SSL_NO_VERIFY": true
+                            },
+                            "allowed_commands": [
+                                "\/dir\/",
+                                "\/cd .*\/",
+                                "\/git .*\/ ",
+                                "\/.*\/ "
+                            ],
+                            "start_commands": [
+                                "git status"
+                            ],
+                            "command_presets": [
+                                {
+                                    "caption": "Commit & Push",
+                                    "hint": "Commit all local changes and push the to the repo",
+                                    "visibility": "promoted",
+                                    "commands": [
+                                        "git add --all",
+                                        "git commit -a -m \"<Commit-Message>\" --author \"[#=Concatenate(User('LAST_NAME'), ' ', User('FIRST_NAME'), '<', User('EMAIL'), '>')#]\"",
+                                        "git push"
+                                    ]
+                                },
+                                {
+                                    "caption": "Status",
+                                    "hint": "See if any uncommitted\/unpushed changes exist in the local repo",
+                                    "commands": [
+                                        "git status"
+                                    ]
+                                },
+                                {
+                                    "caption": "Diff",
+                                    "hint": "Show differences across all files",
+                                    "commands": [
+                                        "git diff"
+                                    ]
+                                },
+                                {
+                                    "caption": "Push",
+                                    "hint": "Push all local commits to the repo",
+                                    "commands": [
+                                        "git push"
+                                    ]
+                                },
+                                {
+                                    "caption": "Pull",
+                                    "hint": "Pull all changes from the repo",
+                                    "commands": [
+                                        "git pull"
+                                    ]
+                                },
+                                {
+                                    "caption": "Branches",
+                                    "hint": "List available branches",
+                                    "commands": [
+                                        "git branch -a"
+                                    ]
+                                },
+                                {
+                                    "caption": "Switch branch",
+                                    "hint": "Switch to another branch",
+                                    "commands": [
+                                        "git checkout &lt;branch&gt;"
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "APP": "0x31380000000000000000000000000000",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
+            "DOCS": ""
+        },
+        {
             "CREATED_ON": "2019-10-21 14:49:29",
             "MODIFIED_ON": "2021-04-09 15:40:58",
             "CREATED_BY_USER": "0x11e9ea7fa76e99698f24847beb3e34e8",

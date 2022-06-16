@@ -1,0 +1,18 @@
+{
+    "NAME": null,
+    "SHORT_DESCRIPTION": null,
+    "CONFIG_UXON.HINT.COMMIT_ALL_LOCAL_CHANGES_AND_PUSH_THE_TO_THE_REPO": "Alle lokalen Änderungen einchecken und hochladen",
+    "CONFIG_UXON.CAPTION.COMMIT_&_PUSH": null,
+    "CONFIG_UXON.HINT.SHOW_DIFFERENCES_BETWEEN_LOCAL_AND_REPO": null,
+    "CONFIG_UXON.CAPTION.STATUS": null,
+    "CONFIG_UXON.HINT.SHOW_DIFFERENCES_ACROSS_ALL_FILES": "Änderung in allen Dateien anzeigen",
+    "CONFIG_UXON.CAPTION.DIFF": null,
+    "CONFIG_UXON.HINT.PUSH_ALL_LOCAL_COMMITS_TO_THE_REPO": "Push aller lokalen Commits",
+    "CONFIG_UXON.CAPTION.PUSH": null,
+    "CONFIG_UXON.HINT.PULL_ALL_CHANGES_FROM_THE_REPO": "Aktuellen Stand vom Repo laden",
+    "CONFIG_UXON.CAPTION.PULL": null,
+    "CONFIG_UXON.HINT.LIST_AVAILABLE_BRANCHES": "Verfügbare Branches listen",
+    "CONFIG_UXON.CAPTION.BRANCHES": null,
+    "CONFIG_UXON.HINT.SWITCH_TO_ANOTHER_BRANCH": "Zu einem anderen Branch wechseln",
+    "CONFIG_UXON.CAPTION.SWITCH_BRANCH": null
+}
