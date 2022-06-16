@@ -57,14 +57,13 @@ class PackagistFacade extends AbstractHttpFacade
      */
     protected function getMiddleware() : array
     {
-        return [
-            new RequestContextReader($this->getWorkbench()->getContext()), // Pass request data to the request context
-            new AuthenticationMiddleware($this[
+        return array_merge(parent::getMiddleware(), [
+            new AuthenticationMiddleware($this, [
                 [
                     AuthenticationMiddleware::class, 'extractBasicHttpAuthToken'
                 ]
-            ], true)
-        ];
+            ])
+        ]);
     }
     
     /**
