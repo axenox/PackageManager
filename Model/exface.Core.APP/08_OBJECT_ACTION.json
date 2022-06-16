@@ -61,7 +61,7 @@
     "rows": [
         {
             "CREATED_ON": "2019-05-13 09:02:35",
-            "MODIFIED_ON": "2022-06-16 11:43:46",
+            "MODIFIED_ON": "2022-06-16 17:58:11",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e9755dcd59222586490205857feb80",
@@ -104,13 +104,6 @@
                                     ]
                                 },
                                 {
-                                    "caption": "Status",
-                                    "hint": "See if any uncommitted\/unpushed changes exist in the local repo",
-                                    "commands": [
-                                        "git status"
-                                    ]
-                                },
-                                {
                                     "caption": "Diff",
                                     "hint": "Show differences across all files",
                                     "commands": [
@@ -118,8 +111,39 @@
                                     ]
                                 },
                                 {
+                                    "caption": "Stage",
+                                    "hint": "Stage all changes for the next commit",
+                                    "commands": [
+                                        "git add <File (path or wildcard expr.)>",
+                                        "git status"
+                                    ]
+                                },
+                                {
+                                    "caption": "Unstage",
+                                    "hint": "Remove a file from the staging area. It will not be committed then",
+                                    "commands": [
+                                        "git restore --staged <File (path or wildcard expr.)>",
+                                        "git status"
+                                    ]
+                                },
+                                {
+                                    "caption": "Restore",
+                                    "hint": "Discard changes in a file",
+                                    "commands": [
+                                        "git restore <File (path or wildcard expr.)>",
+                                        "git status"
+                                    ]
+                                },
+                                {
+                                    "caption": "Commit",
+                                    "hint": "Commit staged changes",
+                                    "commands": [
+                                        "git commit -a -m \"<Commit-Message>\" --author \"[#=Concatenate(User('LAST_NAME'), ' ', User('FIRST_NAME'), '<', User('EMAIL'), '>')#]\""
+                                    ]
+                                },
+                                {
                                     "caption": "Push",
-                                    "hint": "Push all local commits to the repo",
+                                    "hint": "Push all local commits to the remote repo",
                                     "commands": [
                                         "git push"
                                     ]
