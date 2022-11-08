@@ -61,7 +61,7 @@
     "rows": [
         {
             "CREATED_ON": "2019-05-13 09:02:35",
-            "MODIFIED_ON": "2022-06-17 16:36:17",
+            "MODIFIED_ON": "2022-11-08 16:11:31",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e9755dcd59222586490205857feb80",
@@ -134,6 +134,14 @@
                                     ]
                                 },
                                 {
+                                    "caption": "Delete untracked",
+                                    "hint": "Delete untracked files",
+                                    "commands": [
+                                        "git clean -f <File (path or wildcard expr.)>",
+                                        "git status"
+                                    ]
+                                },
+                                {
                                     "caption": "Commit",
                                     "hint": "Commit staged changes",
                                     "commands": [
@@ -159,14 +167,16 @@
                                     "caption": "Branches",
                                     "hint": "List available branches",
                                     "commands": [
+                                        "git fetch",
                                         "git branch -a"
                                     ]
                                 },
                                 {
                                     "caption": "Switch branch",
-                                    "hint": "Switch to another branch",
+                                    "hint": "Checkout another branch and work on it",
                                     "commands": [
-                                        "git checkout &lt;branch&gt;"
+                                        "git switch <Branch>",
+                                        "git status"
                                     ]
                                 }
                             ]
