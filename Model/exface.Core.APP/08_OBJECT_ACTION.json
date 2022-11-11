@@ -61,7 +61,7 @@
     "rows": [
         {
             "CREATED_ON": "2019-05-13 09:02:35",
-            "MODIFIED_ON": "2022-11-08 16:11:31",
+            "MODIFIED_ON": "2022-11-11 11:34:55",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e9755dcd59222586490205857feb80",
@@ -94,8 +94,8 @@
                             ],
                             "command_presets": [
                                 {
-                                    "caption": "Commit & Push",
-                                    "hint": "Commit all local changes and push the to the repo",
+                                    "caption": "Commit&push all",
+                                    "hint": "Commit ALL local changes and push everything to the repo",
                                     "visibility": "promoted",
                                     "commands": [
                                         "git commit -a -m \"<Commit-Message>\" --author \"[#=Concatenate(User('LAST_NAME'), ' ', User('FIRST_NAME'), '<', User('EMAIL'), '>')#]\"",
