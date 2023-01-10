@@ -35,11 +35,21 @@ Here is where to find the global git config on different servers:
 
 ### Local repository configuration
 
-In order to pull/push changes for an app directly to a remote git repository, you will need to pull the repository first - for example using the command promt of the server running the workbench and providing your personal git user (don't worry, other workbench users will not be able to use your personal credentials!).
+Make sure, the app folder (e.g. `vendor/my/app`) is a git-repo. Either clone one before exporting the app or perform the following commands:
 
-Now that the app folder has a `.git` subfolder with the corresponding configuration, open `.git/config` and change the URL in the `[remote "origin"]` section to contain the username and access-key of a user, that can read/write the remote repo. Like this: `https://username:CcVuWsM6xrGcsdfsdfzkex@git.yourdomain.com/vendor/package.git`
+```
+# Initialize the local directory as a Git repository.
+git init
 
-Note: currently the git console will always authenticate as the same user, but each commit will still have the correct author - the workbench user performing it. 
+# Add remote origin
+git remote add origin <Remote repository URL preferrably with access token>
+```
+
+A repo URL with an access token looks like: `https://username:CcVuWsM6xrGcsdfsdfzkex@git.yourdomain.com/vendor/package.git`
+
+If you cloned an existing repo from the command line, you will need to add the access token manually: head to the `.git` subfolder, open `.git/config` and change the URL in the `[remote "origin"]` section to contain the username and access-key of a user, that can read/write the remote repo - see above.
+
+**Note:** currently the git console will always authenticate as the same user, but each commit will still have the correct author - the workbench user performing it. It is recommended to add a separate access-token to the repo for the specific machine running the git console. This is more explicit, than associating the git console with an access token of some git user. On GitLab you can do it via Repos Setting > Project Access Tokens.
 
 ### Permissions for the vendor folder
 
