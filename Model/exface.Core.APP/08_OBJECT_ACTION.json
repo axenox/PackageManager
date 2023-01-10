@@ -401,7 +401,7 @@
                 "input_rows_min": 1,
                 "icon": "times",
                 "input_mapper": {
-                    "inherit_columns_only_for_system_attributes": true,
+                    "inherit_columns": "own_system_attributes",
                     "column_to_column_mappings": [
                         {
                             "from": 0,
@@ -430,7 +430,7 @@
                 "input_rows_min": 1,
                 "icon": "share-square-o",
                 "input_mapper": {
-                    "inherit_columns_only_for_system_attributes": true,
+                    "inherit_columns": "own_system_attributes",
                     "column_to_column_mappings": [
                         {
                             "from": 1,
