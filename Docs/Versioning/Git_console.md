@@ -8,15 +8,22 @@ There is a built-in git console available in `Administration > Metamodel > Apps`
 
 The user, that runs PHP (further referred to as the PHP user) will need access to various folder in order to use the git commands. To find out, which user it is, go to `Administration > Console` and type `whoami`.
 
-### Global git config 
+### Git configuration
 
-Make sure the global git config of the PHP user has the following configuration:
+To check the current git configuraion open the git console an run `git config --list --show-origin --show-scope`. This will show you all git options applicable to the workbench user. Depending on the configuration of your web server, the options and the location of the config files may be very different, but they will be visible in the output of this command.
+
+In order for the workbench to be able to control git, the following options are important:
+
+- `safe.directory = *` allows git to work with other users repos
+- `user.name = ` helps avoid warnings about missing global user info when committing. The actual name is not important, it will be overwritte by the current user on every commit anyway.
+
+In short, you can place the following in the users-scope or system-scope .gitconfig file. The locations of the respective files are visible in the output of the command above.
 
 ```
 [safe]
 	directory = *
 [user]
-	name = username
+	name = <computer network name>
 [credential "https://git.yourdomain.com"]
 	provider = generic
 [credential]
@@ -24,14 +31,11 @@ Make sure the global git config of the PHP user has the following configuration:
 
 ```
 
-Here is where to find the global git config on different servers:
+Here is where to find the system git config on different servers. Just create a file called `.gitconfig` there:
 
-- Windows + IIS: 
-	- Create a file called `.gitconfig` in `C:\Windows\System32\config\systemprofile`
-	- Copy the configuration from above into the file
-- Windows + Apache
-	- Create a file called `.gitconfig` in `C:\Users\<php-user-username>`
-	- Copy the configuration from above into the file
+- Windows + IIS: `C:\Windows\System32\config\systemprofile`
+- Windows + Apache running as localadmin: `C:\Program Files\Git\etc` (the file will be already here, edit it)
+- Windows + Apache running as a specific user: `C:\Users\<php-user-username>`
 
 ### Permissions for the vendor folder
 
