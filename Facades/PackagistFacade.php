@@ -15,7 +15,6 @@ use exface\Core\Factories\ActionFactory;
 use axenox\PackageManager\StaticInstaller;
 use exface\Core\CommonLogic\ArchiveManager;
 use exface\Core\CommonLogic\Filemanager;
-use exface\Core\Facades\AbstractHttpFacade\Middleware\RequestContextReader;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
 
 /**
