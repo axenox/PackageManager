@@ -11,6 +11,7 @@ use exface\Core\CommonLogic\AppInstallers\AbstractSqlDatabaseInstaller;
 use exface\Core\Facades\AbstractHttpFacade\HttpFacadeInstaller;
 use exface\Core\Factories\FacadeFactory;
 use axenox\PackageManager\Facades\PackagistFacade;
+use axenox\PackageManager\Facades\UpdaterFacade;
 
 /**
  * 
@@ -170,10 +171,15 @@ class PackageManagerApp extends App
         }
         $installer->addInstaller($schema_installer); 
         
-        // Docs facade
-        $tplInstaller = new HttpFacadeInstaller($this->getSelector());
-        $tplInstaller->setFacade(FacadeFactory::createFromString(PackagistFacade::class, $this->getWorkbench()));
-        $installer->addInstaller($tplInstaller);
+        // Packagist facade
+        $facadeInstaller = new HttpFacadeInstaller($this->getSelector());
+        $facadeInstaller->setFacade(FacadeFactory::createFromString(PackagistFacade::class, $this->getWorkbench()));
+        $installer->addInstaller($facadeInstaller);
+        
+        // Updater facade
+        $facadeInstaller = new HttpFacadeInstaller($this->getSelector());
+        $facadeInstaller->setFacade(FacadeFactory::createFromString(UpdaterFacade::class, $this->getWorkbench()));
+        $installer->addInstaller($facadeInstaller);
         
         return $installer;
     }
