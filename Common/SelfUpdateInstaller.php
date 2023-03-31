@@ -9,8 +9,6 @@ class SelfUpdateInstaller {
     
     private $statusMessage = null;
     
-    private $timer = 1;
-    
     private $timestamp = null;
 
         public function install(string $command, string $filePath)
@@ -21,11 +19,12 @@ class SelfUpdateInstaller {
             /* @var $process \Symfony\Component\Process\Process */
             $process = Process::fromShellCommandline($cmd, null, null, null, 600);
             $process->start();
+            $this->timestamp = time();
             while ($process->isRunning()) {
                 if ($process->getOutput() !== $this->statusMessage){
                     yield $this->printProgress($process->getOutput());
                 } else {
-                    yield ".";
+                    yield $this->printLoadTimer();
                 }
             }
             yield $this->printLineDelimiter();
@@ -37,16 +36,19 @@ class SelfUpdateInstaller {
         $progress = PHP_EOL . substr($output, strlen($this->statusMessage));
         $this->emptyBuffer();
         $this->statusMessage = $output;
-        $this->timer = 1;
         return $progress;
     }
     
-    protected function printLoadTimer() : string
+    protected function printLoadTimer() : ?string
     {
-        sleep(1);
-        $loadingOutput = ".";
+        $diffTimestamp = time();
+        if ($diffTimestamp > ($this->timestamp + 1)){
+            $loadingOutput = ".";
+            $this->timestamp = $diffTimestamp;
+        } else {
+            $loadingOutput = "";
+        }
         $this->emptyBuffer();
-        $this->timer++;
         return $loadingOutput;
     }
     
