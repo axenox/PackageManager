@@ -6,9 +6,15 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
-use exface\Core\Factories\DataSheetFactory;
-use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
+use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
+use axenox\PackageManager\Common\LicenseBOM\FindLicenseTextEnricher;
+use axenox\PackageManager\Common\LicenseBOM\FindLicenseGithubEnricher;
+use axenox\PackageManager\Common\LicenseBOM\FindLicenseSPDXEnricher;
+use axenox\PackageManager\Common\LicenseBOM\ComposerBOM;
+use axenox\PackageManager\Common\LicenseBOM\FindLicenseFileEnricher;
+use axenox\PackageManager\Common\LicenseBOM\IncludesBOM;
+use axenox\PackageManager\Common\LicenseBOM\MarkdownBOM;
 
 /**
  * This action uninstalls one or more apps
@@ -47,11 +53,65 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
      */
     protected function performDeferred() : \Generator
     {
-        yield 'hier kommt die Ausgabe rein' . PHP_EOL;
-        for ($i = 0; $i < 5; $i++) {
-            sleep(1);
-            yield '.'.$i.'.';
+        $vendorPath = $this->getWorkbench()->filemanager()->getPathToVendorFolder();
+        // Create empty BigBom
+        $bigBOM = new LicenseBOM();
+        // find license_text if licensefile is found in packagepath
+        $bigBOM->addEnricher(new FindLicenseTextEnricher($vendorPath));
+        // find license_text if Github-link is set
+        $bigBOM->addEnricher(new FindLicenseGithubEnricher($vendorPath));
+        // find license_text from SPDX-Github-Repository if licenseName is set
+        $bigBOM->addEnricher(new FindLicenseSPDXEnricher($vendorPath));
+        // Create BOM from Composer.lock
+        $filePath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'composer.lock';
+        $composerBOM = new ComposerBOM($filePath, $vendorPath);
+        // Merge BigBom with Composer-BOM
+        $bigBOM->merge($composerBOM);
+        // merge all includes-jsons with bigBOM
+        $includesArray = [];
+        foreach($composerBOM->getPackageData() as $package) {
+            $filePath = $vendorPath . $package->getName() . DIRECTORY_SEPARATOR . "includes.json";
+            if(file_get_contents($filePath) !== false){
+                // find license_text if license_file is set
+                $bigBOM->addEnricher(new FindLicenseFileEnricher($filePath));
+                $includesArray[$package->getName()] = new IncludesBOM($filePath, $vendorPath);
+                $bigBOM->merge($includesArray[$package->getName()]);
+            }
         }
+        
+        // save complete markdown as file 'markdown.md' in C:\wamp\www\exface\exface\vendor\axenox\ide\Docs
+        $filePath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'Licenses.md';
+        $markdownBOM = new MarkdownBOM($bigBOM);
+        $markdownBOM->saveMarkdown($filePath);
+        
+        // Show all Bill of materials (BOMs) found
+        yield '# Found BOMs:' . PHP_EOL. PHP_EOL;
+        yield $composerBOM->getFilePath(). PHP_EOL;
+        // show all includes-BOMs with includes-jsons
+        foreach($includesArray as $includesBOM) {
+            yield $includesBOM->getFilePath(). PHP_EOL;
+        }
+        
+        // Show packages without license as a list
+        yield PHP_EOL . "# Packages without License:" . PHP_EOL . PHP_EOL;
+        foreach ($bigBOM->getPackages() as $package) {
+            if ($package->hasLicense() === false) {
+                yield 'Name: ' . $package->getName() . PHP_EOL;
+                yield 'Version: ' . $package->getVersion() . PHP_EOL;
+                yield 'Source: ' . $package->getSource() . PHP_EOL. PHP_EOL;
+            }
+        }
+        
+        // Show packages without license-text as a list
+        yield PHP_EOL . "# Packages without License-Text:" . PHP_EOL . PHP_EOL;
+        foreach ($bigBOM->getPackages() as $package) {
+            if ($package->hasLicenseText() === false) {
+                yield 'Name: ' . $package->getName() . PHP_EOL;
+                yield 'Version: ' . $package->getVersion() . PHP_EOL;
+                yield 'Source: ' . $package->getSource() . PHP_EOL. PHP_EOL;
+            }
+        }
+        
         yield 'Refreshed license information in Licenses.md';
     }
     
