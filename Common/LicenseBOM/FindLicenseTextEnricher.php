@@ -24,7 +24,7 @@ class FindLicenseTextEnricher implements BOMPackageEnricherInterface
     public function enrich(BOMPackage $package) : BOMPackage
     {
         $licenseUsed = $package->getLicenseUsed();
-        $packagePath = $this->vendorPath . $package->getName();
+        $packagePath = $this->vendorPath . DIRECTORY_SEPARATOR . $package->getName();
 
         // if license-text for licenseUsed is empty and license-text in packagePath is found
         if(null == $package->getLicenseText($licenseUsed) && null !== $this->findLicenseText($packagePath)) {
