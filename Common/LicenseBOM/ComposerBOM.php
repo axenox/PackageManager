@@ -13,13 +13,10 @@ class ComposerBOM extends LicenseBOM implements LicenseBOMInterface
 {
     private $filePath = null;
     
-    private $vendorFolderPath = null;
-    
-    public function __construct(string $composerLockPath, string $vendorPath)
+    public function __construct(string $composerLockPath)
     {
         $this->filePath = $composerLockPath;
-        $this->vendorFolderPath = $vendorPath;
-        // reads composerJson and fills BOM with packages
+        // reads composerJson and fills BOM with packages        
         $this->readComposerJson($this->filePath);
     }
     
