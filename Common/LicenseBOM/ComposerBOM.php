@@ -7,6 +7,7 @@ use exface\Core\CommonLogic\Filemanager;
 use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\Exceptions\RuntimeException;
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
+use exface\Core\DataTypes\StringDataType;
 use axenox;
 
 class ComposerBOM extends LicenseBOM implements LicenseBOMInterface
@@ -33,6 +34,11 @@ class ComposerBOM extends LicenseBOM implements LicenseBOMInterface
             $this->addPackage(new BOMPackage($packageData));
         }
         return $this;
+    }
+
+    public function getPackageName() : string
+    {
+        return end(explode(DIRECTORY_SEPARATOR, $this->getFilePath()));
     }
 
     /**

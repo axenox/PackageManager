@@ -17,7 +17,7 @@ use axenox\PackageManager\Common\LicenseBOM\IncludesBOM;
 use axenox\PackageManager\Common\LicenseBOM\MarkdownBOM;
 
 /**
- * This action uninstalls one or more apps
+ * 
  *
  * @author Andrej Kabachnik
  *        
@@ -93,18 +93,18 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         yield $this->printLineDelimiter();
         
         // save complete markdown as file
-        $markdownPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'Licenses.md';
+        $markdownPath = $vendorPath . DIRECTORY_SEPARATOR . 'Licenses.md';
         $markdownBOM = new MarkdownBOM($bigBOM);
         $markdownBOM->saveMarkdown($markdownPath);
         
         // Show all Bill of materials (BOMs) found
         yield '# Found BOMs:' . PHP_EOL. PHP_EOL;
         $this->emptyBuffer();
-        yield $composerBOM->getFilePath(). PHP_EOL;
+        yield $composerBOM->getPackageName(). PHP_EOL;
         $this->emptyBuffer();
         // show all includes-BOMs with includes-jsons
         foreach($includesArray as $includesBOM) {
-            yield $includesBOM->getFilePath(). PHP_EOL;
+            yield $includesBOM->getPackageName(). PHP_EOL;
             $this->emptyBuffer();
         }
         
