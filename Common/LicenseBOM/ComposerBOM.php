@@ -36,18 +36,17 @@ class ComposerBOM extends LicenseBOM implements LicenseBOMInterface
         return $this;
     }
 
-    public function getPackageName() : string
-    {
-        return end(explode(DIRECTORY_SEPARATOR, $this->getFilePath()));
-    }
-
     /**
      * 
-     * @return string
+     * @return bool
      */
-    public function getFilePath() : string
+    public function hasFile() : bool
     {
-        return $this->filePath;
+        if(file_exists($this->filePath)){
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
