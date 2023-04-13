@@ -10,7 +10,9 @@ use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
 use exface\Core\Facades\AbstractHttpFacade\IteratorStream;
 use exface\Core\Formulas\DateTime;
 use axenox\PackageManager\Common\Updater\UploadFile;
-use axenox\PackageManager\Common\Updater\GetDeployedFiles;
+use axenox\PackageManager\Common\Updater\DownloadFile;
+use axenox\PackageManager\Common\Updater\LogFiles;
+use axenox\PackageManager\Common\Updater\PostLog;
 use GuzzleHttp\Client;
 use axenox\PackageManager\Actions\SelfUpdate;
 use axenox\PackageManager\Common\SelfUpdateInstaller;
@@ -37,18 +39,46 @@ class UpdaterFacade extends AbstractHttpFacade
         
         switch (true) {
             
+            case $pathInFacade === 'update':
+                
+                $downloader = new DownloadFile();
+                $downloadPath = __DIR__ . '/../../../../Download/';
+                //$url = 'http://sdrexf2.salt-solutions.de/buildsrv/data/deployer/test_updater/builds/1.0+20230328095613_UpdaterTest_bei_Thomas.phx';
+                $url = $this->getConfig()->getOption('UPDATE_URL');
+                $username = $this->getConfig()->getOption('USERNAME');
+                $password = $this->getConfig()->getOption('PASSWORD');
+
+                $download = $downloader->download($url, $username, $password, $downloadPath);
+                if($downloader->getStatusCode() == 200){
+                    echo "Downloaded file: " . $download->getFileName() . PHP_EOL;
+                    echo "Filesize: "  . $download->getContentSize() . " bytes" . PHP_EOL;
+                    echo $this->printLineDelimiter();
+                    $installationFilePath = $downloadPath . $download->getFileName();
+                    $command = 'php -d memory_limit=2G';
+                    $installer = new SelfUpdateInstaller();
+                    $outputInstaller = $installer->install($command, $installationFilePath);
+                    $log = $installer->getInstallationOutput();
+                    $status = $installer->getInstallationResult();
+                    $postLog = new PostLog();
+                    $postLog->postLog($url, $username, $password, $log, $status);
+                }
+                $headers = ['Content-Type' => 'text/plain-stream'];
+                return new Response(200, $headers, $outputInstaller);
+   
             case $pathInFacade === 'download':
                 
-                $selfUpdate = new SelfUpdate();
+                $downloader = new DownloadFile();
                 $downloadPath = __DIR__ . '/../../../../Download/';
-                $url = 'http://sdrexf2.salt-solutions.de/buildsrv/data/deployer/test_updater/builds/1.0+20230328095613_UpdaterTest_bei_Thomas.phx';
-                $return = $selfUpdate->download($url, $downloadPath);
+                //$url = 'http://sdrexf2.salt-solutions.de/buildsrv/data/deployer/test_updater/builds/1.0+20230328095613_UpdaterTest_bei_Thomas.phx';
+                $url = $this->getConfig()->getOption('UPDATE_URL');
+                $username = $this->getConfig()->getOption('USERNAME');
+                $password = $this->getConfig()->getOption('PASSWORD');
+                $return = $downloader->download($url, $username, $password, $downloadPath);
                 $headers = ['Content-Type' => 'text/plain-stream'];
                 return new Response(200, $headers, $return);
-                
+            
             case $pathInFacade === 'install':
-                
-                $filePath = __DIR__ . '/../../../../Download/1.0+20230328095613_UpdaterTest_bei_Thomas.phx';
+                $filePath = __DIR__ . '/../../../../Download/0x11edaf48defa39fcaf48005056be9857.phx';
                 $command = 'php -d memory_limit=2G';
                 $installer = new SelfUpdateInstaller();
                 $headers = ['Content-Type' => 'text/plain-stream'];
@@ -81,7 +111,7 @@ class UpdaterFacade extends AbstractHttpFacade
                 return new Response(200, $headers, $stream);
                 
             case $pathInFacade === 'status':
-                $deployedFiles = new GetDeployedFiles();
+                $deployedFiles = new LogFiles();
                 $releasesPath = __DIR__ . '/../../../../.dep/releases';
                 $output = "Last Deployment: " . $deployedFiles->getLatestDeployment($releasesPath)  . PHP_EOL. PHP_EOL;
                 $logsPath = __DIR__ . '/../../../../.dep/log/';
@@ -92,14 +122,14 @@ class UpdaterFacade extends AbstractHttpFacade
             // Shows log-entries for all uploaded files
             case $pathInFacade === 'log':
                 // Gets log-entries for all uploaded files as Json
-                $deployedFiles = new GetDeployedFiles();
+                $deployedFiles = new LogFiles();
                 $headers = ['Content-Type' => 'application/json'];
                 $jsonPath = __DIR__ . '/../../../../.dep/log';
                 return new Response(200, $headers, $deployedFiles->createJson($jsonPath));
                 
             // Search for pathInFacade in log-directory
             default:
-                $deployedFiles = new GetDeployedFiles();
+                $deployedFiles = new LogFiles();
                 $logPath = __DIR__ . '/../../../../.dep/log/';
                 if($deployedFiles->getLogContent($logPath, $pathInFacade) !== null){
                     $headers = ['Content-Type' => 'text/plain-stream'];
@@ -133,5 +163,10 @@ class UpdaterFacade extends AbstractHttpFacade
     public function getUrlRouteDefault(): string
     {
         return 'api/updater';
+    }
+    
+    protected function printLineDelimiter() : string
+    {
+        return PHP_EOL . '--------------------------------' . PHP_EOL . PHP_EOL;
     }
 }
