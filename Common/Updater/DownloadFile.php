@@ -2,7 +2,9 @@
 namespace axenox\PackageManager\Common\Updater;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 use axenox\PackageManager\Common\SelfUpdateInstaller;
+use Psr\Http\Message\ResponseInterface;
 
 class DownloadFile
 {
@@ -14,24 +16,30 @@ class DownloadFile
     
     private $contentSize = null;
     
+    private $download = null;
+    
+    private $timeStamp = null;
+    
     /**
      * 
      * @param string $url
      * @param string $username
      * @param string $password
      * @param string $downloadPath
-     * @return SelfUpdate
+     * @return DownloadFile
      */
-    public function download(string $url, string $username, string $password, string $downloadPath) : DownloadFile
+    public function download(string $url, string $username, string $password, string $downloadPath)
     {
         $client = new Client();
         /* @var $client \GuzzleHttp\Client */
+        $this->timestamp = time();
         $response = $client->request('GET', $url, ['auth' => [$username, $password]],
             ['progress' => function($downloadTotal,$downloadedBytes)
             {
                 $this->progress($downloadTotal,$downloadedBytes);
             }
             ]);
+
         if ($response->getStatusCode() === 200) {
             $this->setStatusCode($response->getStatusCode());
             $content = $response->getBody();
@@ -42,7 +50,25 @@ class DownloadFile
         } else {
             $this->setStatusCode($response->getStatusCode());
         }
-        return $this;
+        $this->download = $this;
+    }
+
+    protected function printLoadTimer() : ?string
+    {
+        $diffTimestamp = time();
+        if ($diffTimestamp > ($this->timestamp + 1)){
+            $loadingOutput = ".";
+            $this->timestamp = $diffTimestamp;
+        } else {
+            $loadingOutput = "";
+        }
+        $this->emptyBuffer();
+        return $loadingOutput;
+    }
+    
+    public function getDownload()
+    {
+        return $this->download;
     }
     
     public function getFileName()
@@ -100,10 +126,18 @@ class DownloadFile
     protected function progress($downloadTotal,int $downloadedBytes)
     {
         if ($downloadedBytes !== $this->downloadedBytes){
-            echo "Downloadprogress: " . $downloadedBytes . " bytes" . PHP_EOL;
+            yield "Downloadprogress: " . $downloadedBytes . " bytes" . PHP_EOL;
             $this->downloadedBytes = $downloadedBytes;
-            ob_flush();
-            flush();
+            $this->emptyBuffer();
         }
+    }
+    
+    /**
+     *
+     */
+    protected function emptyBuffer()
+    {
+        ob_flush();
+        flush();
     }
 }

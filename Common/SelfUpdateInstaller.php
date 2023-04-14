@@ -16,29 +16,30 @@ class SelfUpdateInstaller {
     
     private $output = null;
 
-        public function install(string $command, string $filePath)
+        public function install(string $command, string $filePath) : string
         {
             $cmd = $command . " " . $filePath;
-            yield "Installing " . end(explode("/", $filePath)) . "..." .PHP_EOL .PHP_EOL;
+            $output = "Installing " . end(explode("/", $filePath)) . "..." .PHP_EOL .PHP_EOL;
             /* @var $process \Symfony\Component\Process\Process */
             $process = Process::fromShellCommandline($cmd, null, null, null, 600);
             $process->start();
             $this->timestamp = time();
             while ($process->isRunning()) {
                 if ($process->getOutput() !== $this->statusMessage){
-                    yield $this->printProgress($process->getOutput());
+                    $output .= $this->printProgress($process->getOutput());
                 } else {
-                    yield $this->printLoadTimer();
+                    $output .= $this->printLoadTimer();
                 }
             }
-            yield $this->printLineDelimiter();
+            $output .= $this->printLineDelimiter();
             $this->output = $process->getOutput();
             $this->setInstallationResult($process->IsSuccessful());
             if($this->getInstallationResult()){
-                yield "Installation successful!";
+                $output .= "Installation successful!";
             } else {
-                yield "Installation failed!";
+                $output .= "Installation failed!";
             }
+            return $output;
         }
         
     public function getInstallationOutput() : ?string

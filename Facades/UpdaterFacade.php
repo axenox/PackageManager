@@ -39,32 +39,6 @@ class UpdaterFacade extends AbstractHttpFacade
         
         switch (true) {
             
-            case $pathInFacade === 'update':
-                
-                $downloader = new DownloadFile();
-                $downloadPath = __DIR__ . '/../../../../Download/';
-                //$url = 'http://sdrexf2.salt-solutions.de/buildsrv/data/deployer/test_updater/builds/1.0+20230328095613_UpdaterTest_bei_Thomas.phx';
-                $url = $this->getConfig()->getOption('UPDATE_URL');
-                $username = $this->getConfig()->getOption('USERNAME');
-                $password = $this->getConfig()->getOption('PASSWORD');
-
-                $download = $downloader->download($url, $username, $password, $downloadPath);
-                if($downloader->getStatusCode() == 200){
-                    echo "Downloaded file: " . $download->getFileName() . PHP_EOL;
-                    echo "Filesize: "  . $download->getContentSize() . " bytes" . PHP_EOL;
-                    echo $this->printLineDelimiter();
-                    $installationFilePath = $downloadPath . $download->getFileName();
-                    $command = 'php -d memory_limit=2G';
-                    $installer = new SelfUpdateInstaller();
-                    $outputInstaller = $installer->install($command, $installationFilePath);
-                    $log = $installer->getInstallationOutput();
-                    $status = $installer->getInstallationResult();
-                    $postLog = new PostLog();
-                    $postLog->postLog($url, $username, $password, $log, $status);
-                }
-                $headers = ['Content-Type' => 'text/plain-stream'];
-                return new Response(200, $headers, $outputInstaller);
-   
             case $pathInFacade === 'download':
                 
                 $downloader = new DownloadFile();

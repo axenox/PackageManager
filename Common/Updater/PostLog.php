@@ -17,7 +17,9 @@ class PostLog
     public function postLog(string $url, $username, $password, $log, $status)
     {
         $client = new Client();
-        $postRequest = $client->request('POST', $url, ['auth' => [$username, $password]],["body" => $log, "status" => $status]);
+        $statusCode = $status === false ? 0 : 1;
+        $postRequest = $client->request('POST', $url, ['auth' => ['admin', 'admin']],["body" => $log]);
+        //$postRequest = $client->request('POST', $url, ['auth' => [$username, $password]],["body" => $log, "status" => $status]);
         return $postRequest;
     }
 }
