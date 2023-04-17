@@ -7,6 +7,7 @@ use exface\Core\CommonLogic\Filemanager;
 use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\Exceptions\RuntimeException;
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
+use exface\Core\DataTypes\StringDataType;
 use axenox;
 
 class ComposerBOM extends LicenseBOM implements LicenseBOMInterface
@@ -37,11 +38,15 @@ class ComposerBOM extends LicenseBOM implements LicenseBOMInterface
 
     /**
      * 
-     * @return string
+     * @return bool
      */
-    public function getFilePath() : string
+    public function hasFile() : bool
     {
-        return $this->filePath;
+        if(file_exists($this->filePath)){
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**

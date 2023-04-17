@@ -11,9 +11,11 @@ class FindLicenseFileEnricher implements BOMPackageEnricherInterface
 {
     private $filePath = null;
     
-    public function __construct($filePath)
+    private $vendorPath = null;
+    
+    public function __construct($vendorPath)
     {
-        $this->filePath = $filePath;
+        $this->vendorPath = $vendorPath;
     }
     
     /**
@@ -25,22 +27,23 @@ class FindLicenseFileEnricher implements BOMPackageEnricherInterface
     {
         $licenseUsed = $package->getLicenseUsed();
 
-        if(null == $package->getLicenseText($licenseUsed) && null !== $package->getLicenseFile($licenseUsed)){
-            $package->setLicenseText($licenseUsed, $this->getLicenseFileContent($this->filePath));
+        if(null !== $package->getLicenseFile() && $this->getLicenseFileContent($package->getLicenseFile()) !== null){
+            $package->setLicenseText($licenseUsed, $this->getLicenseFileContent($package->getLicenseFile()));
         }
         return $package;
     }
-    
+
     /**
      * Find license-text if package-attribute license_file is set
-     * @param string $packagePath
+     * @param string $licenseFilePath
      * @return string|NULL
      */
-    public function getLicenseFileContent(string $filePath) : ?string
+    protected function getLicenseFileContent(string $licenseFilePath) : ?string
     {
-        if(file_exists($filePath))
+        $path = $this->vendorPath . DIRECTORY_SEPARATOR . $licenseFilePath;
+        if(file_exists($path))
         {
-            return file_get_contents($filePath);
+            return file_get_contents($path);
         } else return null;
     } 
 }
