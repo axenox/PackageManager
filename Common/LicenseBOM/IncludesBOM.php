@@ -8,6 +8,7 @@ use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\Exceptions\RuntimeException;
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
+use exface\Core\DataTypes\StringDataType;
 
 class IncludesBOM extends LicenseBOM implements LicenseBOMInterface 
 {
@@ -43,6 +44,11 @@ class IncludesBOM extends LicenseBOM implements LicenseBOMInterface
         return $this;
     }
     
+    public function getPackageName() : string
+    {
+        return StringDataType::substringAfter($this->getFilePath(), $this->vendorFolderPath . DIRECTORY_SEPARATOR);
+    }
+
     /**
      * 
      * @return string

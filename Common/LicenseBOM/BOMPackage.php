@@ -98,11 +98,12 @@ class BOMPackage implements BOMPackageInterface
     
     /**
      * 
-     * @return string|NULL
+     * {@inheritDoc}
+     * @see \axenox\PackageManager\Interfaces\BOMPackageInterface::getLicenseFile()
      */
-    public function getLicenseFile(string $licenseUsed) : ?string
+    public function getLicenseFile() : ?string
     {
-        return $this->packageArray['license_file'][$licenseUsed] ?? null;
+        return $this->packageArray['license_file'] ?? null;
     }
     
     /**
@@ -176,7 +177,7 @@ class BOMPackage implements BOMPackageInterface
      */
     public function hasLicenseText() : bool
     {
-        if(null !== $this->packageArray['license_text'][$this->getLicenseUsed()] && $this->packageArray['license_text'][$this->getLicenseUsed()] !== ""){
+        if(null !== $this->packageArray['license_link'][$this->getLicenseUsed()] || null !== $this->packageArray['license_text'][$this->getLicenseUsed()] && $this->packageArray['license_text'][$this->getLicenseUsed()] !== ""){
             return true;
         } else return false;
     }
