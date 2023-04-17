@@ -3,12 +3,16 @@ namespace axenox\PackageManager\Common\LicenseBOM;
 
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
-use exface\Core\DataTypes\JsonDataType;
-use exface\Core\CommonLogic\Filemanager;
-use exface\Core\DataTypes\FilePathDataType;
-use exface\Core\Exceptions\RuntimeException;
-use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
+use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 
+/**
+ * Base class for license bills of materials
+ * 
+ * Contains packages with metadata similar to the composer package descriptions.
+ * 
+ * @author andrej.kabachnik
+ *
+ */
 class LicenseBOM implements LicenseBOMInterface
 {
     private $filePath = null; 
@@ -20,7 +24,7 @@ class LicenseBOM implements LicenseBOMInterface
     /**
      * Merge LicenseBOM with otherBOM in method-argument
      * {@inheritDoc}
-     * @see \axenox\IDE\Interfaces\LicenseBOMInterface::merge()
+     * @see \axenox\PackageManager\Interfaces\LicenseBOMInterface::merge()
      */
     public function merge(LicenseBOMInterface $mergingBOM) : LicenseBOMInterface
     {
@@ -38,10 +42,10 @@ class LicenseBOM implements LicenseBOMInterface
     
     /**
      * 
-     * @param unknown $enricher
+     * @param BOMPackageEnricherInterface $enricher
      * @return LicenseBOMInterface
      */
-    public function addEnricher($enricher) : LicenseBOMInterface
+    public function addEnricher(BOMPackageEnricherInterface $enricher) : LicenseBOMInterface
     {
         $this->enricher[] = $enricher;
         return $this;
@@ -59,7 +63,7 @@ class LicenseBOM implements LicenseBOMInterface
     /**
      * 
      * {@inheritDoc}
-     * @see \axenox\IDE\Interfaces\LicenseBOMInterface::hasPackage()
+     * @see \axenox\PackageManager\Interfaces\LicenseBOMInterface::hasPackage()
      */
     public function hasPackage(string $name) : bool
     {
@@ -69,7 +73,7 @@ class LicenseBOM implements LicenseBOMInterface
     /**
      * 
      * {@inheritDoc}
-     * @see \axenox\IDE\Interfaces\LicenseBOMInterface::addPackage()
+     * @see \axenox\PackageManager\Interfaces\LicenseBOMInterface::addPackage()
      */
     public function addPackage(BOMPackageInterface $package) : LicenseBOMInterface
     {
@@ -83,7 +87,7 @@ class LicenseBOM implements LicenseBOMInterface
     /**
      * Get all packages
      * {@inheritDoc}
-     * @see \axenox\IDE\Interfaces\LicenseBOMInterface::getPackages()
+     * @see \axenox\PackageManager\Interfaces\LicenseBOMInterface::getPackages()
      */
     public function getPackages(): array
     {

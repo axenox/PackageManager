@@ -2,10 +2,14 @@
 namespace axenox\PackageManager\Common\LicenseBOM;
 
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
-use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\Exceptions\RuntimeException;
-use Symfony\Component\Cache\Adapter\NullAdapter;
 
+/**
+ * A single package inside a BOM
+ * 
+ * @author Thomas Ressel
+ *
+ */
 class BOMPackage implements BOMPackageInterface
 {
     /**
@@ -27,7 +31,7 @@ class BOMPackage implements BOMPackageInterface
      *  }
      * }
      * 
-     * @var unknown
+     * @var array $packageArray
      */
     private $packageArray = null;
     
@@ -39,7 +43,7 @@ class BOMPackage implements BOMPackageInterface
     /**
      *
      * {@inheritDoc}
-     * @see \axenox\IDE\Interfaces\BOMPackageInterface::merge()
+     * @see \axenox\PackageManager\Interfaces\BOMPackageInterface::merge()
      */
     public function merge(BOMPackageInterface $otherPackage): BOMPackageInterface
     {
@@ -53,7 +57,7 @@ class BOMPackage implements BOMPackageInterface
     /**
      *
      * {@inheritDoc}
-     * @see \axenox\IDE\Interfaces\BOMPackageInterface::getName()
+     * @see \axenox\PackageManager\Interfaces\BOMPackageInterface::getName()
      */
     public function getName(): string
     {
@@ -119,7 +123,7 @@ class BOMPackage implements BOMPackageInterface
     /**
      *
      * {@inheritDoc}
-     * @see \axenox\IDE\Interfaces\BOMPackageInterface::getLicenseNames()
+     * @see \axenox\PackageManager\Interfaces\BOMPackageInterface::getLicenseNames()
      */
     public function getLicenseNames(): array
     {
@@ -151,7 +155,7 @@ class BOMPackage implements BOMPackageInterface
     /**
      *
      * {@inheritDoc}
-     * @see \axenox\IDE\Interfaces\BOMPackageInterface::setLicenseText()
+     * @see \axenox\PackageManager\Interfaces\BOMPackageInterface::setLicenseText()
      */
     public function setLicenseText(string $licenseName, string $text) : BOMPackageInterface
     {
@@ -162,7 +166,7 @@ class BOMPackage implements BOMPackageInterface
     /**
      * 
      * {@inheritDoc}
-     * @see \axenox\IDE\Interfaces\BOMPackageInterface::hasLicense()
+     * @see \axenox\PackageManager\Interfaces\BOMPackageInterface::hasLicense()
      */
     public function hasLicense() : bool
     {
@@ -185,7 +189,7 @@ class BOMPackage implements BOMPackageInterface
     /**
      * 
      * {@inheritDoc}
-     * @see \axenox\IDE\Interfaces\BOMPackageInterface::toComposerArray()
+     * @see \axenox\PackageManager\Interfaces\BOMPackageInterface::toComposerArray()
      */
     public function toComposerArray(): array
     {

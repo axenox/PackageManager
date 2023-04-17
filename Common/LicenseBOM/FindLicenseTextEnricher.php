@@ -1,17 +1,32 @@
 <?php
 namespace axenox\PackageManager\Common\LicenseBOM;
 
-use axenox\IDE\Interfaces\BOMPackageInterface;
 use exface\Core\DataTypes\FilePathDataType;
-use exface\Core\Exceptions\RuntimeException;
-use Symfony\Component\Cache\Adapter\NullAdapter;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 
+/**
+ * Searches for a license file within the directory of a package.
+ * 
+ * Examples:
+ * 
+ * - LICENSE.md
+ * - LICENCE.md
+ * - LICENSE
+ * - MIT_LICENSE.md
+ * - ...
+ * 
+ * @author Thomas Ressel
+ *
+ */
 class FindLicenseTextEnricher implements BOMPackageEnricherInterface
 {
     private $vendorPath = null;
     
-    public function __construct($vendorPath)
+    /**
+     * 
+     * @param string $vendorPath
+     */
+    public function __construct(string $vendorPath)
     {
         $this->vendorPath = $vendorPath;
     }

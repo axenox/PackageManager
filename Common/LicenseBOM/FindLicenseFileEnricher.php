@@ -1,12 +1,14 @@
 <?php
 namespace axenox\PackageManager\Common\LicenseBOM;
 
-use axenox\PackageManager\Interfaces\BOMPackageInterface;
-use exface\Core\DataTypes\FilePathDataType;
-use exface\Core\Exceptions\RuntimeException;
-use Symfony\Component\Cache\Adapter\NullAdapter;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 
+/**
+ * Reads the license text from the `license_file` specified for the package
+ * 
+ * @author Thomas Ressel
+ *
+ */
 class FindLicenseFileEnricher implements BOMPackageEnricherInterface
 {
     private $filePath = null;

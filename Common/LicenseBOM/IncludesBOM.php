@@ -3,13 +3,14 @@ namespace axenox\PackageManager\Common\LicenseBOM;
 
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
 use exface\Core\DataTypes\JsonDataType;
-use exface\Core\CommonLogic\Filemanager;
-use exface\Core\DataTypes\FilePathDataType;
-use exface\Core\Exceptions\RuntimeException;
-use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
-use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use exface\Core\DataTypes\StringDataType;
 
+/**
+ * This license BOM parses an includes.json file containing additional licenses not managed by Composer.
+ * 
+ * @author andrej.kabachnik
+ *
+ */
 class IncludesBOM extends LicenseBOM implements LicenseBOMInterface 
 {
     private $filePath = null;
@@ -18,6 +19,11 @@ class IncludesBOM extends LicenseBOM implements LicenseBOMInterface
     
     private $json = null;
     
+    /**
+     * 
+     * @param string $includesJsonPath
+     * @param string $vendorPath
+     */
     public function __construct(string $includesJsonPath, string $vendorPath)
     {
         $this->filePath = $includesJsonPath;
@@ -43,11 +49,6 @@ class IncludesBOM extends LicenseBOM implements LicenseBOMInterface
         }
         return $this;
     }
-    
-    public function getPackageName() : string
-    {
-        return StringDataType::substringAfter($this->getFilePath(), $this->vendorFolderPath . DIRECTORY_SEPARATOR);
-    }
 
     /**
      * 
@@ -55,6 +56,6 @@ class IncludesBOM extends LicenseBOM implements LicenseBOMInterface
      */
     public function getFilePath() : string
     {
-        return $this->filePath;
+        return StringDataType::substringAfter($this->filePath, $this->vendorFolderPath . DIRECTORY_SEPARATOR);
     }
 }

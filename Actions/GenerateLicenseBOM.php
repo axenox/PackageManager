@@ -112,7 +112,7 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         }
         // show all includes-BOMs with includes-jsons
         foreach($includesArray as $includesBOM) {
-            yield $includesBOM->getPackageName(). PHP_EOL;
+            yield $includesBOM->getFilePath(). PHP_EOL;
             $this->emptyBuffer();
         }
         // Show packages without license as a list

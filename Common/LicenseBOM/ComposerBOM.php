@@ -3,13 +3,13 @@ namespace axenox\PackageManager\Common\LicenseBOM;
 
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
 use exface\Core\DataTypes\JsonDataType;
-use exface\Core\CommonLogic\Filemanager;
-use exface\Core\DataTypes\FilePathDataType;
-use exface\Core\Exceptions\RuntimeException;
-use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
-use exface\Core\DataTypes\StringDataType;
-use axenox;
 
+/**
+ * Special license BOM generated from composer.lock
+ * 
+ * @author Thomas Ressel
+ *
+ */
 class ComposerBOM extends LicenseBOM implements LicenseBOMInterface
 {
     private $filePath = null;
