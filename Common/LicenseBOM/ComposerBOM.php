@@ -43,13 +43,4 @@ class ComposerBOM extends LicenseBOM implements LicenseBOMInterface
     {
         return $this->filePath;
     }
-
-    /**
-     * return all packages
-     * @return array
-     */
-    public function getPackageData() : array
-    {
-        return $this->getPackages();
-    }
 }

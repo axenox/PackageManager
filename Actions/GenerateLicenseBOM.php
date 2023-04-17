@@ -79,7 +79,7 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         $bigBOM->merge($composerBOM);
         // merge all includes-jsons with bigBOM
         $includesArray = [];
-        foreach($composerBOM->getPackageData() as $package) {
+        foreach($composerBOM->getPackages() as $package) {
             $filePath = $vendorPath . DIRECTORY_SEPARATOR . $package->getName() . DIRECTORY_SEPARATOR . "includes.json";
             if(file_get_contents($filePath) !== false){
                 // find license_text if license_file is set
@@ -164,5 +164,14 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
     protected function printLineDelimiter() : string
     {
         return PHP_EOL . '--------------------------------' . PHP_EOL . PHP_EOL;
+    }
+    
+    /**
+     * 
+     * @return \Generator
+     */
+    public function generateMarkdownBOM() : \Generator
+    {
+        yield from $this->performDeferred();
     }
 }
