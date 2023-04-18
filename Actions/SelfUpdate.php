@@ -125,6 +125,5 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
     public function getCliOptions() : array
     {
         return [];
-    }
-    
+    } 
 }

@@ -2,9 +2,6 @@
 namespace axenox\PackageManager\Common;
 
 use Symfony\Component\Process\Process;
-use exface\Core\Formulas\Date;
-use exface\Core\Formulas\Time;
-use GuzzleHttp\Client;
 
 class SelfUpdateInstaller {
     
@@ -12,49 +9,54 @@ class SelfUpdateInstaller {
     
     private $timestamp = null;
     
-    private $installationSuccess = false;
+    private $installationStatus = false;
     
     private $output = null;
 
-        public function install(string $command, string $filePath) : string
+        public function install(string $command, string $filePath)
         {
             $cmd = $command . " " . $filePath;
-            $output = "Installing " . end(explode("/", $filePath)) . "..." .PHP_EOL .PHP_EOL;
+            yield "Installing " . end(explode("/", $filePath)) . "..." .PHP_EOL .PHP_EOL;
             /* @var $process \Symfony\Component\Process\Process */
             $process = Process::fromShellCommandline($cmd, null, null, null, 600);
             $process->start();
             $this->timestamp = time();
             while ($process->isRunning()) {
                 if ($process->getOutput() !== $this->statusMessage){
-                    $output .= $this->printProgress($process->getOutput());
+                    yield $this->printProgress($process->getOutput());
                 } else {
-                    $output .= $this->printLoadTimer();
+                    yield $this->printLoadTimer();
                 }
             }
-            $output .= $this->printLineDelimiter();
+            yield $this->printLineDelimiter();
+            
             $this->output = $process->getOutput();
             $this->setInstallationResult($process->IsSuccessful());
+            
             if($this->getInstallationResult()){
-                $output .= "Installation successful!";
+                yield "Installation successful!";
             } else {
-                $output .= "Installation failed!";
+                yield "Installation failed!";
             }
-            return $output;
         }
-        
-    public function getInstallationOutput() : ?string
+
+    /**
+     * 
+     * @param string $output
+     * @return string
+     */
+    protected function printProgress(string $output) : string
     {
-        return $this->output;
-    }
-        
-    protected function printProgress($output) : string
-    {
-        $progress = PHP_EOL . substr($output, strlen($this->statusMessage));
+        $progress = substr($output, strlen($this->statusMessage));
         $this->emptyBuffer();
         $this->statusMessage = $output;
         return $progress;
     }
     
+    /**
+     * 
+     * @return string|NULL
+     */
     protected function printLoadTimer() : ?string
     {
         $diffTimestamp = time();
@@ -62,32 +64,47 @@ class SelfUpdateInstaller {
             $loadingOutput = ".";
             $this->timestamp = $diffTimestamp;
         } else {
-            $loadingOutput = "";
+            $loadingOutput = null;
         }
         $this->emptyBuffer();
         return $loadingOutput;
     }
     
-    public function getInstallationResult()
+    /**
+     * 
+     * @return string
+     */
+    public function getInstallationResult() : string
     {
-        return $this->installationSuccess;
+        return $this->installationStatus;
     }
     
+    /**
+     * 
+     * @param bool $isSuccessful
+     */
     protected function setInstallationResult(bool $isSuccessful) 
     {
         if($isSuccessful){
-            $this->installationSuccess = true;
+            $this->installationStatus = "Success";
         } else {
-            $this->installationSuccess = false;
+            $this->installationStatus = "Failure";
         }
     }
     
+    /**
+     * 
+     */
     protected function emptyBuffer()
     {
         ob_flush();
         flush();
     }
     
+    /**
+     * 
+     * @return string
+     */
     protected function printLineDelimiter() : string
     {
         return PHP_EOL . '--------------------------------' . PHP_EOL . PHP_EOL;

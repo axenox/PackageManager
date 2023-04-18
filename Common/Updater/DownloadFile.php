@@ -2,9 +2,7 @@
 namespace axenox\PackageManager\Common\Updater;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
-use axenox\PackageManager\Common\SelfUpdateInstaller;
-use Psr\Http\Message\ResponseInterface;
+use GuzzleHttp\Psr7\Response;
 
 class DownloadFile
 {
@@ -21,7 +19,15 @@ class DownloadFile
     private $timeStamp = null;
     
     /**
-     * 
+     *
+     */
+    public function __construct()
+    {
+        $this->timeStamp = date("Y-m-d") . "_" . date("His");
+    }
+    
+    /**
+     *
      * @param string $url
      * @param string $username
      * @param string $password
@@ -32,85 +38,101 @@ class DownloadFile
     {
         $client = new Client();
         /* @var $client \GuzzleHttp\Client */
-        $this->timestamp = time();
         $response = $client->request('GET', $url, ['auth' => [$username, $password]],
             ['progress' => function($downloadTotal,$downloadedBytes)
             {
                 $this->progress($downloadTotal,$downloadedBytes);
             }
             ]);
-
+        
         if ($response->getStatusCode() === 200) {
-            $this->setStatusCode($response->getStatusCode());
+            $this->setStatus($response->getStatusCode());
             $content = $response->getBody();
             $this->headers = $response->getHeaders();
             $this->contentSize = $this->getContentSizeFromResponse($response);
             $fileName = $this->getFileName();
             file_put_contents($downloadPath . $fileName, $content);
         } else {
-            $this->setStatusCode($response->getStatusCode());
+            $this->setStatus($response->getStatusCode());
         }
+        
         $this->download = $this;
     }
-
-    protected function printLoadTimer() : ?string
-    {
-        $diffTimestamp = time();
-        if ($diffTimestamp > ($this->timestamp + 1)){
-            $loadingOutput = ".";
-            $this->timestamp = $diffTimestamp;
-        } else {
-            $loadingOutput = "";
-        }
-        $this->emptyBuffer();
-        return $loadingOutput;
-    }
     
-    public function getDownload()
+    /**
+     *
+     * @return \axenox\PackageManager\Common\Updater\DownloadFile
+     */
+    public function getDownloadObject()
     {
         return $this->download;
     }
     
-    public function getFileName()
+    /**
+     *
+     * @return string
+     */
+    public function getFileName() : string
     {
         $header = $this->headers['Content-Disposition'][0];
         return end(explode("filename=", $header));
     }
     
-    public function getHeaders()
+    /**
+     *
+     * @return array
+     */
+    public function getHeaders() : array
     {
         return $this->headers;
     }
     
-    public function getContentSize()
-    {
-        return $this->contentSize;
-    }
-
     /**
-     * 
-     * @param unknown $statuscode
-     */
-    protected function setStatusCode($statuscode)
-    {
-        $this->statusCode = $statuscode;
-    }
-
-    /**
-     * 
+     *
      * @return string
      */
-    public function getStatusCode() : string
+    public function getTimestamp() : string
     {
-        return $this->statusCode;
+        return $this->timeStamp;
     }
     
     /**
-     * 
-     * @param unknown $response
+     *
+     * @return int
+     */
+    public function getContentSize() : int
+    {
+        return (int) $this->contentSize;
+    }
+    
+    /**
+     *
+     * @param int $statuscode
+     */
+    protected function setStatus(int $statuscode)
+    {
+        if($statuscode === 200){
+            $this->status = "Success";
+        } else {
+            $this->status = "Failure";
+        }
+    }
+    
+    /**
+     *
      * @return string
      */
-    protected function getContentSizeFromResponse($response) : string
+    public function getStatus() : string
+    {
+        return $this->status;
+    }
+    
+    /**
+     *
+     * @param Response $response
+     * @return string
+     */
+    protected function getContentSizeFromResponse(Response $response) : string
     {
         if ($response->hasHeader('content-length')){
             $contentLength = $response->getHeader('content-length')[0];
@@ -119,7 +141,7 @@ class DownloadFile
     }
     
     /**
-     * 
+     *
      * @param unknown $downloadTotal
      * @param int $downloadedBytes
      */

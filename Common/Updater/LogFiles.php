@@ -2,7 +2,6 @@
 namespace axenox\PackageManager\Common\Updater;
 
 use exface\Core\DataTypes\JsonDataType;
-use exface\Core\CommonLogic\Filemanager;
 use exface\Core\DataTypes\DateTimeDataType;
 
 
@@ -32,6 +31,52 @@ class LogFiles
             ];
         }
         return JsonDataType::encodeJson($array, true);
+    }
+
+    /**
+     * Creates log-file for each upload (not for each uploaded file!)
+     * @param string $logsPath
+     * @return string
+     */
+    public function createLogFileUpload($uploadedFiles, string $logsPath) : string
+    {
+        $fileNumber = 1;
+        foreach($uploadedFiles as $file){
+            $log = "Uploaded file " . $fileNumber . ":" . PHP_EOL;
+            $log.= "Filename: " . $file->getClientFilename() . PHP_EOL;
+            $log.= "Filesize: " . $file->getSize() . PHP_EOL;
+            $log.= "Timestamp: " . $this->timeStamp . PHP_EOL;
+            $log.= "Upload-Status: " . $file->status . PHP_EOL;
+            $logFileName= "{$this->timeStamp}_upload_{$file->status}.txt";
+            $log.= "Logfile-Name: " . "log" . DIRECTORY_SEPARATOR . $logFileName . PHP_EOL;
+            $log .= PHP_EOL;
+            $logFilePath = $logsPath . $logFileName;
+            file_put_contents($logFilePath, $log, FILE_APPEND);
+            $fileNumber++;
+            return $log;
+        }
+    }
+    
+    /**
+     * 
+     * @param DownloadFile $downloadFile
+     * @param string $installationStatus
+     * @param string $logsPath
+     * @return string
+     */
+    public function createLogFileSelfUpdate(DownloadFile $downloadFile, string $installationStatus, string $logsPath) : string
+    {
+        $log= "Filename: " . $downloadFile->getFileName() . PHP_EOL;
+        $log.= "Filesize: " . $downloadFile->getContentSize() . PHP_EOL;
+        $log.= "Timestamp: " . $downloadFile->getTimestamp() . PHP_EOL;
+        $log.= "Download-Status: " . $downloadFile->getStatus() . PHP_EOL;
+        $log.= "Installation-Status: " . $installationStatus . PHP_EOL;
+        $logFileName= "{$downloadFile->getTimestamp()}_download_{$installationStatus}.txt";
+        $log.= "Logfile-Name: " . "log" . DIRECTORY_SEPARATOR . $logFileName . PHP_EOL;
+        $log .= PHP_EOL;
+        $logFilePath = $logsPath . $logFileName;
+        file_put_contents($logFilePath, $log, FILE_APPEND);
+        return $log;
     }
 
     /**

@@ -9,6 +9,8 @@ class UploadFile
     
     private $timeStamp = null;
     
+    private $uploadedFiles = null;
+    
     public function __construct($request, $pathInFacade)
     {
         $this->request = $request;
@@ -17,7 +19,7 @@ class UploadFile
     }
     
     /**
-     * Moves uploaded files to folder and sets Upload-Status
+     * Moves uploaded files to folder and sets upload-Status
      * @param string $uploadPath
      * @return NULL
      */
@@ -27,33 +29,20 @@ class UploadFile
             /* @var $uploadedFile \GuzzleHttp\Psr7\UploadedFile */
             $fileName = $uploadedFile->getClientFilename();
             $uploadedFile->moveTo($uploadPath.$fileName);
+            $this->uploadedFiles = $this->request->getUploadedFiles();
             $this->setSuccess($uploadedFile);
         }
     }
     
     /**
-     * Creates log-file for each upload (not for each uploaded file!)
-     * @param string $logsPath
-     * @return NULL
+     * 
+     * @return unknown
      */
-    public function createLogFile(string $logsPath)
+    public function getUploadedFiles()
     {
-        $fileNumber = 1;
-        foreach($this->request->getUploadedFiles() as $uploadedFile){
-            $log = "Uploaded file " . $fileNumber . ":" . PHP_EOL;
-            $log.= "Filename: " . $uploadedFile->getClientFilename() . PHP_EOL;
-            $log.= "Filesize: " . $uploadedFile->getSize() . PHP_EOL;
-            $log.= "Timestamp: " . $this->timeStamp . PHP_EOL;
-            $log.= "Upload-Status: " . $uploadedFile->status . PHP_EOL;
-            $logFileName= $this->timeStamp . "_" . $this->pathInFacade . "_" . $uploadedFile->status . ".txt";
-            $log.= "Logfile-Name: " . "log" . DIRECTORY_SEPARATOR . $logFileName . PHP_EOL;
-            $log .= PHP_EOL;
-            $logFilePath = $logsPath . $logFileName;
-            file_put_contents($logFilePath, $log, FILE_APPEND);
-            $fileNumber++;
-        }
+        return $this->uploadedFiles;
     }
-    
+
     /**
      *
      * @return string
