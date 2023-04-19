@@ -14,8 +14,6 @@ class DownloadFile
     
     private $contentSize = null;
     
-    private $download = null;
-    
     private $timeStamp = null;
     
     /**
@@ -41,7 +39,7 @@ class DownloadFile
         $response = $client->request('GET', $url, ['auth' => [$username, $password]],
             ['progress' => function($downloadTotal,$downloadedBytes)
             {
-                $this->progress($downloadTotal,$downloadedBytes);
+                $this->progress(((int) $downloadTotal),$downloadedBytes);
             }
             ]);
         
@@ -55,17 +53,6 @@ class DownloadFile
         } else {
             $this->setStatus($response->getStatusCode());
         }
-        
-        $this->download = $this;
-    }
-    
-    /**
-     *
-     * @return \axenox\PackageManager\Common\Updater\DownloadFile
-     */
-    public function getDownloadObject()
-    {
-        return $this->download;
     }
     
     /**
@@ -98,11 +85,11 @@ class DownloadFile
     
     /**
      *
-     * @return int
+     * @return string
      */
-    public function getContentSize() : int
+    public function getContentSize() : string
     {
-        return (int) $this->contentSize;
+        return $this->contentSize;
     }
     
     /**
@@ -111,7 +98,7 @@ class DownloadFile
      */
     protected function setStatus(int $statuscode)
     {
-        if($statuscode === 200){
+        if($statuscode === 200) {
             $this->status = "Success";
         } else {
             $this->status = "Failure";
@@ -134,32 +121,24 @@ class DownloadFile
      */
     protected function getContentSizeFromResponse(Response $response) : string
     {
-        if ($response->hasHeader('content-length')){
+        if ($response->hasHeader('content-length')) {
             $contentLength = $response->getHeader('content-length')[0];
             return $contentLength;
-        } return "Unknown";
-    }
-    
-    /**
-     *
-     * @param unknown $downloadTotal
-     * @param int $downloadedBytes
-     */
-    protected function progress($downloadTotal,int $downloadedBytes)
-    {
-        if ($downloadedBytes !== $this->downloadedBytes){
-            yield "Downloadprogress: " . $downloadedBytes . " bytes" . PHP_EOL;
-            $this->downloadedBytes = $downloadedBytes;
-            $this->emptyBuffer();
+        }  else {
+            return "Unknown";
         }
     }
     
     /**
      *
+     * @param int $downloadTotal
+     * @param int $downloadedBytes
      */
-    protected function emptyBuffer()
+    protected function progress(int $downloadTotal, int $downloadedBytes)
     {
-        ob_flush();
-        flush();
+        if ($downloadedBytes !== $this->downloadedBytes) {
+            yield "Downloadprogress: " . $downloadedBytes . " bytes" . PHP_EOL;
+            $this->downloadedBytes = $downloadedBytes;
+        }
     }
 }

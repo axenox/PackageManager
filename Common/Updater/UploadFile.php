@@ -5,17 +5,14 @@ class UploadFile
 {
     private $request = null;
     
-    private $pathInFacade = null;
-    
     private $timeStamp = null;
     
     private $uploadedFiles = null;
     
-    public function __construct($request, $pathInFacade)
+    public function __construct($request)
     {
         $this->request = $request;
         $this->timeStamp = date("Y-m-d") . "_" . date("His");
-        $this->pathInFacade = $pathInFacade;
     }
     
     /**
@@ -25,20 +22,29 @@ class UploadFile
      */
     public function moveUploadedFiles(string $uploadPath)
     {
-        foreach($this->request->getUploadedFiles() as $uploadedFile){
+        foreach($this->request->getUploadedFiles() as $uploadedFile) {
             /* @var $uploadedFile \GuzzleHttp\Psr7\UploadedFile */
             $fileName = $uploadedFile->getClientFilename();
             $uploadedFile->moveTo($uploadPath.$fileName);
-            $this->uploadedFiles = $this->request->getUploadedFiles();
             $this->setSuccess($uploadedFile);
         }
+        $this->uploadedFiles = $this->request->getUploadedFiles();
     }
     
     /**
      * 
-     * @return unknown
+     * @return string
      */
-    public function getUploadedFiles()
+    public function getTimestamp() : string
+    {
+        return $this->timeStamp;
+    }
+    
+    /**
+     * 
+     * @return array
+     */
+    public function getUploadedFiles() : array
     {
         return $this->uploadedFiles;
     }
@@ -51,7 +57,7 @@ class UploadFile
     {
         if($this->request->getUploadedFiles() !== []){
             $output = PHP_EOL. "Uploaded files:" . PHP_EOL . PHP_EOL;
-            foreach($this->request->getUploadedFiles() as $uploadedFile){
+            foreach($this->request->getUploadedFiles() as $uploadedFile) {
                 /* @var $uploadedFile \GuzzleHttp\Psr7\UploadedFile */
                 $output .= "Filename: " . $uploadedFile->getClientFilename() . PHP_EOL;
                 $output .= "Filesize: " . $uploadedFile->getSize() . PHP_EOL;
@@ -64,15 +70,13 @@ class UploadFile
     /**
      * Sets status if moving of file/upload was successful
      * @param UploadFile $uploadedFile
-     * @return string
      */
     protected function setSuccess($uploadedFile)
     {
-        if($uploadedFile->isMoved()){
+        if($uploadedFile->isMoved()) {
             $uploadedFile->status = "Success";
         } else {
             $uploadedFile->status = "Failure";
         }
-        return $uploadedFile;
     }
 }

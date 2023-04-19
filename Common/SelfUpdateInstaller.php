@@ -10,8 +10,6 @@ class SelfUpdateInstaller {
     private $timestamp = null;
     
     private $installationStatus = false;
-    
-    private $output = null;
 
         public function install(string $command, string $filePath)
         {
@@ -22,18 +20,16 @@ class SelfUpdateInstaller {
             $process->start();
             $this->timestamp = time();
             while ($process->isRunning()) {
-                if ($process->getOutput() !== $this->statusMessage){
-                    yield $this->printProgress($process->getOutput());
+                if ($process->getOutput() !== $this->statusMessage) {
+                    yield from $this->printProgress($process->getOutput());
                 } else {
-                    yield $this->printLoadTimer();
+                    yield from $this->printLoadTimer();
                 }
             }
             yield $this->printLineDelimiter();
+            $this->setInstallationStatus($process->IsSuccessful());
             
-            $this->output = $process->getOutput();
-            $this->setInstallationResult($process->IsSuccessful());
-            
-            if($this->getInstallationResult()){
+            if($this->getInstallationStatus()) {
                 yield "Installation successful!";
             } else {
                 yield "Installation failed!";
@@ -43,38 +39,32 @@ class SelfUpdateInstaller {
     /**
      * 
      * @param string $output
-     * @return string
+     * @return Generator
      */
-    protected function printProgress(string $output) : string
+    protected function printProgress(string $output)
     {
-        $progress = substr($output, strlen($this->statusMessage));
-        $this->emptyBuffer();
+        yield substr($output, strlen($this->statusMessage));
         $this->statusMessage = $output;
-        return $progress;
     }
     
     /**
      * 
-     * @return string|NULL
+     * @return Generator
      */
-    protected function printLoadTimer() : ?string
+    protected function printLoadTimer()
     {
         $diffTimestamp = time();
-        if ($diffTimestamp > ($this->timestamp + 1)){
-            $loadingOutput = ".";
+        if ($diffTimestamp > ($this->timestamp + 1)) {
+            yield ".";
             $this->timestamp = $diffTimestamp;
-        } else {
-            $loadingOutput = null;
         }
-        $this->emptyBuffer();
-        return $loadingOutput;
     }
     
     /**
      * 
      * @return string
      */
-    public function getInstallationResult() : string
+    public function getInstallationStatus() : string
     {
         return $this->installationStatus;
     }
@@ -83,24 +73,15 @@ class SelfUpdateInstaller {
      * 
      * @param bool $isSuccessful
      */
-    protected function setInstallationResult(bool $isSuccessful) 
+    protected function setInstallationStatus(bool $isSuccessful) 
     {
-        if($isSuccessful){
+        if($isSuccessful) {
             $this->installationStatus = "Success";
         } else {
             $this->installationStatus = "Failure";
         }
     }
-    
-    /**
-     * 
-     */
-    protected function emptyBuffer()
-    {
-        ob_flush();
-        flush();
-    }
-    
+
     /**
      * 
      * @return string

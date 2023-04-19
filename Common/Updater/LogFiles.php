@@ -4,13 +4,8 @@ namespace axenox\PackageManager\Common\Updater;
 use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\DateTimeDataType;
 
-
 class LogFiles
 {
-    public function __construct()
-    {
-    }
-
     /**
      * Creates Json for Log
      * @param string $jsonPath
@@ -38,23 +33,23 @@ class LogFiles
      * @param string $logsPath
      * @return string
      */
-    public function createLogFileUpload($uploadedFiles, string $logsPath) : string
+    public function createLogFileUpload(UploadFile $uploadFile, string $logsPath) : string
     {
         $fileNumber = 1;
-        foreach($uploadedFiles as $file){
-            $log = "Uploaded file " . $fileNumber . ":" . PHP_EOL;
+        $log = "";
+        foreach ($uploadFile->getUploadedFiles() as $file) {
+            $log.= "Uploaded file {$fileNumber}:" . PHP_EOL;
             $log.= "Filename: " . $file->getClientFilename() . PHP_EOL;
             $log.= "Filesize: " . $file->getSize() . PHP_EOL;
-            $log.= "Timestamp: " . $this->timeStamp . PHP_EOL;
+            $log.= "Timestamp: " . $uploadFile->getTimestamp() . PHP_EOL;
             $log.= "Upload-Status: " . $file->status . PHP_EOL;
-            $logFileName= "{$this->timeStamp}_upload_{$file->status}.txt";
-            $log.= "Logfile-Name: " . "log" . DIRECTORY_SEPARATOR . $logFileName . PHP_EOL;
-            $log .= PHP_EOL;
+            $logFileName= "{$uploadFile->getTimestamp()}_upload_{$file->status}.txt";
+            $log.= "Logfile-Name: log" . DIRECTORY_SEPARATOR . $logFileName . PHP_EOL . PHP_EOL;
             $logFilePath = $logsPath . $logFileName;
-            file_put_contents($logFilePath, $log, FILE_APPEND);
+            file_put_contents($logFilePath, $log);
             $fileNumber++;
-            return $log;
         }
+        return $log;
     }
     
     /**
@@ -72,13 +67,25 @@ class LogFiles
         $log.= "Download-Status: " . $downloadFile->getStatus() . PHP_EOL;
         $log.= "Installation-Status: " . $installationStatus . PHP_EOL;
         $logFileName= "{$downloadFile->getTimestamp()}_download_{$installationStatus}.txt";
-        $log.= "Logfile-Name: " . "log" . DIRECTORY_SEPARATOR . $logFileName . PHP_EOL;
-        $log .= PHP_EOL;
+        $log.= "Logfile-Name: log" . DIRECTORY_SEPARATOR . $logFileName . PHP_EOL;
         $logFilePath = $logsPath . $logFileName;
         file_put_contents($logFilePath, $log, FILE_APPEND);
         return $log;
     }
 
+    /**
+     * 
+     * @param string $releasesPath
+     * @param DownloadFile $downloadFile
+     */
+    public function addNewDeployment(string $releasesPath, DownloadFile $downloadFile)
+    {
+        $timeStamp = str_replace(['_', '-'], "", $downloadFile->getTimestamp());
+        $fileName = trim($downloadFile->getFileName(), ".phx");
+        $newDeployment = PHP_EOL . "{$timeStamp},{$fileName}";
+        file_put_contents($releasesPath, $newDeployment, FILE_APPEND);
+    }
+    
     /**
      * 
      * @param string $releasesPath
@@ -88,7 +95,7 @@ class LogFiles
     {
         $fileContent = file_get_contents($releasesPath);
         $arrayDeployments = preg_split("/\r\n|\n|\r/", $fileContent);
-        if(end($arrayDeployments) !== "" && end($arrayDeployments) !== null){
+        if(end($arrayDeployments) !== "" && end($arrayDeployments) !== null) {
             $lastDeployment = end($arrayDeployments);
         } else {
             end($arrayDeployments);
@@ -109,7 +116,7 @@ class LogFiles
         $logFiles = array_map('strtolower', scandir($logPath));
         // If filename of pathInFacade exists, return content of log-file
         $fileName = explode("/", $topics)[1];
-        if(in_array($fileName, $logFiles)){
+        if(in_array($fileName, $logFiles)) {
             $filePath = $logPath . $fileName;
             return file_get_contents($filePath);
         } else {
@@ -127,7 +134,7 @@ class LogFiles
         $files = scandir($logsPath, SCANDIR_SORT_DESCENDING);
         $output = "Last uploaded files (" . $files[0] . "):" . PHP_EOL. PHP_EOL;
         $output .= file_get_contents($logsPath . $files[0]);
-        if(file_get_contents($logsPath . $files[0]) !== false){
+        if(file_get_contents($logsPath . $files[0]) !== false) {
             return $output;
         } else {
             return null;
@@ -143,7 +150,7 @@ class LogFiles
     {
         $jsonFileName = $jsonPath . $this->pathInFacade . ".json";
         $jsonContent = file_get_contents($jsonFileName);
-        if(file_get_contents($jsonFileName) !== false){
+        if(file_get_contents($jsonFileName) !== false) {
             return $jsonContent;
         } else {
             return null;
