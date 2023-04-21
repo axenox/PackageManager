@@ -7,10 +7,11 @@ use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
-use axenox\PackageManager\Common\Updater\DownloadFile;
-use axenox\PackageManager\Common\Updater\LogFiles;
-use axenox\PackageManager\Common\Updater\PostRequest;
-use axenox\PackageManager\Common\SelfUpdateInstaller;
+use axenox\PackageManager\Common\Updater\UpdateDownloader;
+use axenox\PackageManager\Common\Updater\ReleaseLogEntry;
+use axenox\PackageManager\Common\Updater\ReleaseLog;
+use axenox\PackageManager\Common\Updater\InstallationResponse;
+use axenox\PackageManager\Common\Updater\SelfUpdateInstaller;
 
 /**
  * 
@@ -20,7 +21,6 @@ use axenox\PackageManager\Common\SelfUpdateInstaller;
  */
 class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
 {
-    
     /**
      *
      * {@inheritDoc}
@@ -57,46 +57,52 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         // Download file
         yield PHP_EOL . "Downloading file...";
         yield PHP_EOL . PHP_EOL;
-        $downloadFile = new DownloadFile();
-        $downloadFile->download($url, $username, $password, $downloadPath);
-        if($downloadFile->getStatus() !== "Success") {
+        $downloader = new UpdateDownloader($url, $username, $password, $downloadPath);
+        $downloader->download();
+        $logArray = $downloader->fillLogFileFormat();
+        if($downloader->getStatusCode() != 200) {
             yield "No update available.";
             return;
         }
-        yield "Downloaded file: " . $downloadFile->getFileName() . PHP_EOL;
-        yield "Filesize: "  . ($downloadFile->getContentSize() !== "Unknown" ? $downloadFile->getContentSize() . " bytes": $downloadFile->getContentSize()) . PHP_EOL;
+        yield "Downloaded file: " . $downloader->getFileName() . PHP_EOL;
+        yield "Filesize: "  . $downloader->getFileSize() . " bytes" . PHP_EOL;
         yield $this->printLineDelimiter();
         
         // install file
-        $selfUpdateInstaller = new SelfUpdateInstaller();
-        $installationFilePath = $downloadPath . $downloadFile->getFileName();
-        $command = 'php -d memory_limit=2G';
-        yield from $selfUpdateInstaller->install($command, $installationFilePath);
-        $installationStatus = $selfUpdateInstaller->getInstallationStatus();
-        $logFiles = new LogFiles();
-        $logsPath = __DIR__ . '/../../../../.dep/log/';
-        $log = $logFiles->createLogFileSelfUpdate($downloadFile, $installationStatus, $logsPath);
-        if($installationStatus === "Success") {
-            $releasesPath = __DIR__ . '/../../../../.dep/releases';
-            $logFiles->addNewDeployment($releasesPath, $downloadFile);
+        $installationFilePath = $downloadPath . $downloader->getFileName();
+        $selfUpdateInstaller = new SelfUpdateInstaller($installationFilePath, $this->getWorkbench()->filemanager()->getPathToCacheFolder());
+        yield from $selfUpdateInstaller->install();
+        $logArray = $selfUpdateInstaller->fillLogFileFormat($logArray);
+        yield $this->printLineDelimiter();
+        
+        // log
+        $releaseLog = new ReleaseLog($this->getWorkbench());
+        $releaseLogEntry = new ReleaseLogEntry($releaseLog);
+        $releaseLogEntry->addEntry($logArray);
+        
+        // update release file
+        $installationSuccess = $selfUpdateInstaller->getInstallationSuccess();
+        if($installationSuccess) {
+            $releaseLogEntry->addNewDeployment($downloader->getTimestamp(), $downloader->getFileName());
         }
         
         // post request
-        $postRequest = new PostRequest();
-        //Placeholder-URL
+        $postRequest = new InstallationResponse();
+        // placeholder-URL
         $localUrl = "localhost:80/exface/exface/api/deployer/ota";
-        // Placeholder-Login
+        // placeholder-Login
         $username = admin;
         $password = admin;
-        $response = $postRequest->sendRequest($localUrl, $username, $password, $log, $installationStatus);
-        yield $this->printLineDelimiter();
-        yield "Post request content: " . PHP_EOL . PHP_EOL . $log;
+        $response = $postRequest->sendRequest($localUrl, $username, $password, $releaseLogEntry->getEntry(), $installationSuccess);
+        yield "Post request content: " . PHP_EOL . PHP_EOL . $releaseLogEntry->getEntry();
+        
+        // server-response
         yield $this->printLineDelimiter();
         yield "Response (Placeholder): " . PHP_EOL . PHP_EOL . $response->getBody();
     }
     
     /**
-     *
+     * empties output buffer for real-time output
      */
     protected function emptyBuffer()
     {

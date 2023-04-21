@@ -7,15 +7,10 @@ use exface\Core\Facades\AbstractHttpFacade\AbstractHttpFacade;
 use exface\Core\DataTypes\StringDataType;
 use GuzzleHttp\Psr7\Response;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
-use exface\Core\Facades\AbstractHttpFacade\IteratorStream;
-use exface\Core\Formulas\DateTime;
-use axenox\PackageManager\Common\Updater\UploadFile;
-use axenox\PackageManager\Common\Updater\DownloadFile;
-use axenox\PackageManager\Common\Updater\LogFiles;
-use axenox\PackageManager\Common\Updater\PostLog;
-use GuzzleHttp\Client;
-use axenox\PackageManager\Actions\SelfUpdate;
-use axenox\PackageManager\Common\SelfUpdateInstaller;
+use axenox\PackageManager\Common\Updater\UploadedRelease;
+use axenox\PackageManager\Common\Updater\ReleaseLog;
+use axenox\PackageManager\Common\Updater\SelfUpdateInstaller;
+use axenox\PackageManager\Common\Updater\ReleaseLogEntry;
 
 /**
  * HTTP facade to allow remote updates (deployment) on this server
@@ -25,7 +20,6 @@ use axenox\PackageManager\Common\SelfUpdateInstaller;
  */
 class UpdaterFacade extends AbstractHttpFacade
 {
-   
     /**
      *
      * {@inheritDoc}
@@ -39,39 +33,37 @@ class UpdaterFacade extends AbstractHttpFacade
         
         switch (true) {
             
-            case $pathInFacade === 'download':
-                
-                $downloader = new DownloadFile();
-                $downloadPath = __DIR__ . '/../../../../Download/';
-                //$url = 'http://sdrexf2.salt-solutions.de/buildsrv/data/deployer/test_updater/builds/1.0+20230328095613_UpdaterTest_bei_Thomas.phx';
-                $url = $this->getConfig()->getOption('UPDATE_URL');
-                $username = $this->getConfig()->getOption('USERNAME');
-                $password = $this->getConfig()->getOption('PASSWORD');
-                $return = $downloader->download($url, $username, $password, $downloadPath);
-                $headers = ['Content-Type' => 'text/plain-stream'];
-                return new Response(200, $headers, $return);
-            
-            case $pathInFacade === 'install':
-                $filePath = __DIR__ . '/../../../../Download/0x11edaf48defa39fcaf48005056be9857.phx';
-                $command = 'php -d memory_limit=2G';
-                $installer = new SelfUpdateInstaller();
-                $headers = ['Content-Type' => 'text/plain-stream'];
-                return new Response(200, $headers, $installer->install($command, $filePath));
-                
             case $pathInFacade === 'upload-file':
-                $uploadFiles = new UploadFile($request, $pathInFacade);
-                // Move uploaded files to uploadPath
-                $uploadPath = __DIR__ . '/../../../../Upload/';
-                $uploadFiles->moveUploadedFiles($uploadPath);
-                // Create LogFile for uploaded files
-                $logsPath = __DIR__ . '/../../../../.dep/log/';
-                $uploadFiles->createLogFile($logsPath);
-                // Get output of last uploaded file for Response
-                $output = $uploadFiles->getCurlOutput();
                 
+                // Move uploaded files to uploadPath
+                $uploader = new UploadedRelease($request);
+                $uploadPath = __DIR__ . '/../../../../Upload/';
+                $uploader->moveUploadedFiles($uploadPath);
+                $logArray = $uploader->fillLogFileFormat();
+                
+                // install
+                $installationFilePath = $uploadPath . $uploader->getInstallationFileName();
+                $selfUpdateInstaller = new SelfUpdateInstaller($installationFilePath, $this->getWorkbench()->filemanager()->getPathToCacheFolder());
+                $logArray = $selfUpdateInstaller->fillLogFileFormat($logArray);
+                
+                // logfile
+                $log = new ReleaseLog($this->getWorkbench());
+                $releaseLogEntry = new ReleaseLogEntry($log);
+                $releaseLogEntry->addEntry($logArray);
+                
+                // update release file
+                $installationSuccess = $selfUpdateInstaller->getInstallationSuccess();
+                if($installationSuccess) {
+                    $releaseLogEntry->addNewDeployment($uploader->getTimestamp(), $uploader->getInstallationFileName());
+                }
+                
+                $headers = ['Content-Type' => 'text/plain-stream'];
+                return new Response(200, $headers, $releaseLogEntry->getEntry());
+                
+                /*
                 // Simulate installation with sleep-timer
                 $generator = function ($bytes) use($output) {
-                yield $output;
+                    yield $output;
                     for ($i = 0; $i < $bytes; $i++) {
                         sleep(1);
                         yield '.'.$i.'.';
@@ -81,33 +73,29 @@ class UpdaterFacade extends AbstractHttpFacade
                 };
                 
                 $stream = new IteratorStream($generator(5));
-                $headers = ['Content-Type' => 'text/plain-stream'];
-                return new Response(200, $headers, $stream);
+                $stream = new IteratorStream($installer->install());
+                */
                 
             case $pathInFacade === 'status':
-                $deployedFiles = new LogFiles();
-                $releasesPath = __DIR__ . '/../../../../.dep/releases';
-                $output = "Last Deployment: " . $deployedFiles->getLatestDeployment($releasesPath)  . PHP_EOL. PHP_EOL;
-                $logsPath = __DIR__ . '/../../../../.dep/log/';
-                $output .= $deployedFiles->getLatestLog($logsPath);
+                $releaseLog = new ReleaseLog($this->getWorkbench());
+                $output = "Last Deployment: " . $releaseLog->getLatestDeployment() . PHP_EOL. PHP_EOL;
+                $output .= $releaseLog->getLatestLog();
                 $headers = ['Content-Type' => 'text/plain-stream'];
                 return new Response(200, $headers, $output);
                 
             // Shows log-entries for all uploaded files
             case $pathInFacade === 'log':
                 // Gets log-entries for all uploaded files as Json
-                $deployedFiles = new LogFiles();
+                $releaseLog = new ReleaseLog($this->getWorkbench());
                 $headers = ['Content-Type' => 'application/json'];
-                $jsonPath = __DIR__ . '/../../../../.dep/log';
-                return new Response(200, $headers, $deployedFiles->createJson($jsonPath));
+                return new Response(200, $headers, json_encode($releaseLog->getLogEntries(), JSON_PRETTY_PRINT));
                 
             // Search for pathInFacade in log-directory
             default:
-                $deployedFiles = new LogFiles();
-                $logPath = __DIR__ . '/../../../../.dep/log/';
-                if($deployedFiles->getLogContent($logPath, $pathInFacade) !== null){
+                $releaseLog = new ReleaseLog($this->getWorkbench());
+                if($releaseLog->getLogContent($pathInFacade) !== null) {
                     $headers = ['Content-Type' => 'text/plain-stream'];
-                    return new Response(200, $headers, $deployedFiles->getLogContent($logPath, $pathInFacade));
+                    return new Response(200, $headers, $releaseLog->getLogContent($pathInFacade));
                 }
         }
         return new Response(404);
