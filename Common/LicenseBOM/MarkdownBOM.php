@@ -3,39 +3,73 @@ namespace axenox\PackageManager\Common\LicenseBOM;
 
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
-use exface\Core\Exceptions\RuntimeException;
 
+/**
+ * This bill-of-material can create a well-readable markdown file listing its packages and their licenses
+ * 
+ * @author Thomas Ressel
+ *
+ */
 class MarkdownBOM implements LicenseBOMInterface
 {
     private $innerBOM = null;
     
     private $licenseArray = [];
     
+    /**
+     * 
+     * @param LicenseBOMInterface $innerBOM
+     */
     public function __construct(LicenseBOMInterface $innerBOM)
     {
         $this->innerBOM = $innerBOM;
     }
     
+    /**
+     * 
+     * @param string $name
+     * @return BOMPackageInterface
+     */
     public function getPackage(string $name): BOMPackageInterface
     {
         return $this->innerBOM->getPackage($name);
     }
 
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \axenox\PackageManager\Interfaces\LicenseBOMInterface::hasPackage()
+     */
     public function hasPackage(string $name): bool
     {
         return $this->innerBOM->hasPackage($name);
     }
 
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \axenox\PackageManager\Interfaces\LicenseBOMInterface::merge()
+     */
     public function merge(LicenseBOMInterface $mergingBOM): LicenseBOMInterface
     {
         return $this->innerBOM->merge($mergingBOM);
     }
 
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \axenox\PackageManager\Interfaces\LicenseBOMInterface::addPackage()
+     */
     public function addPackage(BOMPackageInterface $package): LicenseBOMInterface
     {
         return $this->innerBOM->addPackage($package);
     }
 
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \axenox\PackageManager\Interfaces\LicenseBOMInterface::getPackages()
+     */
     public function getPackages(): array
     {
         return $this->innerBOM->getPackages();
@@ -77,15 +111,15 @@ class MarkdownBOM implements LicenseBOMInterface
      * @return array
      */
     public function orderByLicense(array $packageArray) : array
-     {
-     $arrayWithOnlyFirstLicense = [];
-     
-     foreach($packageArray as $package){
+    {
+        $arrayWithOnlyFirstLicense = [];
+        
+        foreach($packageArray as $package){
          array_push($arrayWithOnlyFirstLicense, ($package->getLicenseUsed()));
-     }
-     array_multisort($arrayWithOnlyFirstLicense, SORT_ASC, $packageArray);
-     return $packageArray;
-     }
+        }
+        array_multisort($arrayWithOnlyFirstLicense, SORT_ASC, $packageArray);
+        return $packageArray;
+    }
      
      /**
       * Writes unique license-names into markdown for method 'toMarkdown'
@@ -104,18 +138,17 @@ class MarkdownBOM implements LicenseBOMInterface
                  
                  $md .= PHP_EOL . "## " . ($licenseUsed)
                  . PHP_EOL . PHP_EOL;
-                 $md .= '| Package | Version | Description | License-Text |' . PHP_EOL;
+                 $md .= '| Package | Version | Description | License variant |' . PHP_EOL;
                  $md .= '| ------- | ------- | ----------- | ----------- |' . PHP_EOL;
                  array_push($processedLics, $licenseUsed);
              }
-             $count = $this->countVariant($packageArray, $package);
-             $countMessage = "See version " . $count . ": " . ($licenseUsed) . " below";
+             
              // Writes packages underneath correct license-value
              $md .= "| {$package->getName()} | " . ($package->getVersion() ?? '') . "| "
                  . ($package->getDescription() ?? '') . " |";
              // If license_text is set, return 'See version XX: YY below'
              if($package->hasLicenseText()){
-                 $md .= $countMessage . PHP_EOL;
+                 $md .= $this->getLicenseVariantName($packageArray, $package) . PHP_EOL;
              } else if(null !== $package->getLicenseLink($licenseUsed)) {
                  // If license_link is set, return '[licenseUsed]' as link
                  $md .= "See Link: [" . $licenseUsed . "](" . $package->getLicenseLink($licenseUsed) . ")" . PHP_EOL;
@@ -129,7 +162,7 @@ class MarkdownBOM implements LicenseBOMInterface
     
     /**
      * Lists variants for license-text underneath unique package-licenses for method 'toMarkdown'
-     * @param array $packageArray
+     * @param BOMPackageInterface[] $packageArray
      * @return string
      */
     public function writeLicenseTextVariants(array $packageArray) : string
@@ -139,32 +172,38 @@ class MarkdownBOM implements LicenseBOMInterface
         $processedLicsVariants = [];
 
         foreach ($packageArray as $package) {
-            $count = $this->countVariant($packageArray, $package);
             $licenseUsed = $package->getLicenseUsed();
             // Writes new license-name for License-text variants if license-name does not exist yet
-            if(!in_array($package->getLicenseUsed(), $processedLicsHeader)){
-                $md .= PHP_EOL . "## " . "License-text variants for " 
-                    . ($package->getLicenseUsed())
+            if(! in_array($package->getLicenseUsed(), $processedLicsHeader)) {
+                $md .= PHP_EOL 
+                    . "## " . $package->getLicenseUsed()
                     . PHP_EOL . PHP_EOL;
-                    array_push($processedLicsHeader, $package->getLicenseUsed());
+                array_push($processedLicsHeader, $package->getLicenseUsed());
             }
-            // Writes version-number beneath License-text variant if license-tet does not exist yet
-            if(!in_array($package->getLicenseText($licenseUsed), $processedLicsVariants)){
-                $md .= PHP_EOL . "## " . "Version " . $count . ": " . ($package->getLicenseUsed()) . PHP_EOL . PHP_EOL;
+            // Writes version-number beneath License-text variant if license-text does not exist yet
+            if(! in_array($package->getLicenseText($licenseUsed), $processedLicsVariants)) {
+                $md .= PHP_EOL . "### {$this->getLicenseVariantName($packageArray, $package)}" . PHP_EOL . PHP_EOL;
                 array_push($processedLicsVariants, $package->getLicenseText($licenseUsed));
                 $md .= PHP_EOL . ($package->getLicenseText($licenseUsed) ?? ''). PHP_EOL;
             }
         }
         return $md;
     }
+    
+    protected function getLicenseVariantName(array $packageArray, BOMPackageInterface $package) : string
+    {
+        $count = $this->countVariant($packageArray, $package);
+        return "{$package->getLicenseUsed()}<sup>*{$count}</sup>";
+    }
 
     /**
      * Counts unique license-text variants for method 'toMarkdown'
-     * @param array $packageArray
-     * @param array $item
+     * @param BOMPackageInterface[] $packageArray
+     * @param BOMPackageInterface $item
      * @return string
      */
-    protected function countVariant(array $packageArray, BOMPackage $package) : string {
+    protected function countVariant(array $packageArray, BOMPackage $package) : string 
+    {
         $count = 0;
         $licenseUsed = $package->getLicenseUsed();
         $licenseTextArray = $this->readLicenseArray($packageArray);

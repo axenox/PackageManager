@@ -3,23 +3,21 @@ namespace axenox\PackageManager\Common\LicenseBOM;
 
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
 use exface\Core\DataTypes\JsonDataType;
-use exface\Core\CommonLogic\Filemanager;
-use exface\Core\DataTypes\FilePathDataType;
-use exface\Core\Exceptions\RuntimeException;
-use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
-use axenox;
 
+/**
+ * Special license BOM generated from composer.lock
+ * 
+ * @author Thomas Ressel
+ *
+ */
 class ComposerBOM extends LicenseBOM implements LicenseBOMInterface
 {
     private $filePath = null;
     
-    private $vendorFolderPath = null;
-    
-    public function __construct(string $composerLockPath, string $vendorPath)
+    public function __construct(string $composerLockPath)
     {
         $this->filePath = $composerLockPath;
-        $this->vendorFolderPath = $vendorPath;
-        // reads composerJson and fills BOM with packages
+        // reads composerJson and fills BOM with packages        
         $this->readComposerJson($this->filePath);
     }
     
@@ -40,19 +38,14 @@ class ComposerBOM extends LicenseBOM implements LicenseBOMInterface
 
     /**
      * 
-     * @return string
+     * @return bool
      */
-    public function getFilePath() : string
+    public function hasFile() : bool
     {
-        return $this->filePath;
-    }
-
-    /**
-     * return all packages
-     * @return array
-     */
-    public function getPackageData() : array
-    {
-        return $this->getPackages();
+        if(file_exists($this->filePath)){
+            return true;
+        } else {
+            return false;
+        }
     }
 }

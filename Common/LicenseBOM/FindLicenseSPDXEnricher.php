@@ -1,12 +1,14 @@
 <?php
 namespace axenox\PackageManager\Common\LicenseBOM;
 
-use axenox\PackageManager\Interfaces\BOMPackageInterface;
-use exface\Core\DataTypes\FilePathDataType;
-use exface\Core\Exceptions\RuntimeException;
-use Symfony\Component\Cache\Adapter\NullAdapter;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 
+/**
+ * Searches for a license text for each of the licenses of a package in the SPDX database
+ * 
+ * @author Thomas Ressel
+ *
+ */
 class FindLicenseSPDXEnricher implements BOMPackageEnricherInterface
 {
     private $vendorPath = null;
