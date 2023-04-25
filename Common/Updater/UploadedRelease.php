@@ -51,39 +51,12 @@ class UploadedRelease
     {
         return $this->getUploadedFiles()['file1']->getClientFilename();
     }
-    
-    /**
-     * 
-     * @return array
-     */
-    public function fillLogFileFormat() : array
-    {
-        $fileNumber = 1;
-        $logArray = [];
-        $logArray['Timestamp'] = $this->formatTimeStamp();
-        foreach ($this->getUploadedFiles() as $file) {
-            $logArray[$fileNumber]['Filename'] = $file->getClientFilename();
-            $logArray[$fileNumber]['Filesize'] = $file->getSize();
-            $logArray[$fileNumber]['Upload status'] = $this->formatStatusMessage($file->UploadSuccess);
-            $fileNumber++;
-        }
-        return $logArray;
-    }
-    
-    /**
-     * 
-     * @return string
-     */
-    protected function formatTimeStamp() : string
-    {
-        return date('Y-m-d_His', $this->timeStamp);
-    }
-    
+
     /**
      *
      * @return string
      */
-    protected function formatStatusMessage(bool $success) : string
+    public function getFormatedStatusMessage(bool $success) : string
     {
         return $success === true  ? "Success" : "Failure";
     }
@@ -101,7 +74,7 @@ class UploadedRelease
      * 
      * @return array
      */
-    protected function getUploadedFiles() : array
+    public function getUploadedFiles() : array
     {
         return $this->uploadedFiles;
     }

@@ -39,17 +39,17 @@ class UpdaterFacade extends AbstractHttpFacade
                 $uploader = new UploadedRelease($request);
                 $uploadPath = __DIR__ . '/../../../../Upload/';
                 $uploader->moveUploadedFiles($uploadPath);
-                $logArray = $uploader->fillLogFileFormat();
+                $log = new ReleaseLog($this->getWorkbench());
+                $releaseLogEntry = new ReleaseLogEntry($log);
+                $releaseLogEntry->fillLogFileFormatUpload($uploader);
                 
                 // install
                 $installationFilePath = $uploadPath . $uploader->getInstallationFileName();
                 $selfUpdateInstaller = new SelfUpdateInstaller($installationFilePath, $this->getWorkbench()->filemanager()->getPathToCacheFolder());
-                $logArray = $selfUpdateInstaller->fillLogFileFormat($logArray);
+                $releaseLogEntry->fillLogFileFormatInstallation($selfUpdateInstaller);
                 
                 // logfile
-                $log = new ReleaseLog($this->getWorkbench());
-                $releaseLogEntry = new ReleaseLogEntry($log);
-                $releaseLogEntry->addEntry($logArray);
+                $releaseLogEntry->addEntry();
                 
                 // update release file
                 $installationSuccess = $selfUpdateInstaller->getInstallationSuccess();

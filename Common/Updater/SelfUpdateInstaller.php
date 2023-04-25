@@ -85,26 +85,12 @@ class SelfUpdateInstaller {
             $this->statusMessage = $output;
         }
     }
-    
-    /**
-     *
-     * @param array $logArray
-     * @return array
-     */
-    public function fillLogFileFormat(array $logArray) : array
-    {
-        $installArray = [];
-        $installArray['Logfile name'] = $logArray['Timestamp'] . "_" . (array_key_exists('Download status', $logArray[0]) === true ? "download" : "upload") . "_" . $this->getStatusMessage() . ".txt";
-        $installArray['Logfile route'] = "log" . DIRECTORY_SEPARATOR . $installArray['Logfile name'];
-        $installArray['Installation status'] = $this->getStatusMessage();
-        return $installArray + $logArray;
-    }
-    
+
     /**
      *
      * @return string
      */
-    protected function getStatusMessage() : string
+    public function getFormatedStatusMessage() : string
     {
         return $this->getInstallationSuccess() == 1 ? "Success" : "Failure";
     }

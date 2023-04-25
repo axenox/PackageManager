@@ -59,35 +59,12 @@ class UpdateDownloader
             file_put_contents($this->downloadPath . $this->getFileName(), $content);
         }
     }
-    
-    /**
-     *
-     * @return array
-     */
-    public function fillLogFileFormat($fileNumber = 1) : array
-    {
-        $logArray = [];
-        $logArray['Timestamp'] = $this->formatTimeStamp();
-        $logArray[$fileNumber]['Filename'] = $this->getFileName();
-        $logArray[$fileNumber]['Filesize'] = $this->getFileSize();
-        $logArray[$fileNumber]['Download status'] = $this->formatStatusMessage();
-        return $logArray;
-    }
-    
+
     /**
      * 
      * @return string
      */
-    protected function formatTimeStamp() : string
-    {
-        return date('Y-m-d_His', $this->timeStamp);
-    }
-    
-    /**
-     * 
-     * @return string
-     */
-    protected function formatStatusMessage() : string
+    public function getFormatedStatusMessage() : string
     {
         return $this->getStatusCode() == 200 ? "Success" : "Failure";
     }
