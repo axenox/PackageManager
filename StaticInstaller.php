@@ -28,6 +28,8 @@ class StaticInstaller
     const PACKAGE_MANAGER_BACKUP_ACTION_ALIAS = 'axenox.PackageManager.BackupApp';
 
     const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'axenox.PackageManager.UninstallApp';
+    
+    const PACAKGE_MANAGER_GENERATE_LIC_BOM_ALIAS = 'axenox.PackageManger.GenerateLicenseBOM';
 
     private $workbench = null;
 
@@ -85,6 +87,8 @@ class StaticInstaller
         }
         
         self::setTempFile([]);
+        
+        self::generateLicenseBOM();
         
         return empty($installedAppAliases) === true ? "No apps to update.\n" : "Installed " . count($installedAppAliases) . " apps.\n";
     }
@@ -165,6 +169,8 @@ class StaticInstaller
         unset($temp['update']);
         unset($temp['install']);
         self::setTempFile($temp);
+        
+        self::generateLicenseBOM();
 
         return empty($processed_aliases) === true ? "No apps to update.\n" : "Updated/installed " . count($processed_aliases) . " apps.\n";
     }
@@ -349,11 +355,31 @@ class StaticInstaller
         }
         return $this->workbench;
     }
+    
+    public static function generateLicenseBOM()
+    {
+        $installer = new self();
+        try {
+            $exface = $installer->getWorkbench();
+            $action = ActionFactory::createFromString($exface, self::PACAKGE_MANAGER_GENERATE_LIC_BOM_ALIAS);
+            
+            self::printToStdout('Generating license BOM' . PHP_EOL . PHP_EOL);
+            
+            foreach ($action->generateMarkdownBOM() as $output) {
+                self::printToStdout($output);
+            }
+        } catch (\Throwable $e) {
+            $installer::printToStdout('FAILED generating license BOM!');
+            $installer::printException($e);
+            $exface->getLogger()->logException($e);
+        }
+    }
 
     protected static function getTempFilePathAbsolute()
     {
         return dirname(__FILE__) . DIRECTORY_SEPARATOR . 'LastInstall.temp.json';
     }
+    
     protected function copyTempFile($backuptime){
         $exface = $this->getWorkbench();
         $exface->filemanager()->copy(self::getTempFilePathAbsolute(),$exface->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backuptime.DIRECTORY_SEPARATOR."LastInstall.json");

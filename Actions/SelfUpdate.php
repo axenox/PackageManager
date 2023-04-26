@@ -12,6 +12,7 @@ use axenox\PackageManager\Common\Updater\ReleaseLogEntry;
 use axenox\PackageManager\Common\Updater\ReleaseLog;
 use axenox\PackageManager\Common\Updater\InstallationResponse;
 use axenox\PackageManager\Common\Updater\SelfUpdateInstaller;
+use exface\Core\Exceptions\Actions\ActionConfigurationError;
 
 /**
  * 
@@ -53,6 +54,10 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         $url = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.URL');
         $username = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.USERNAME');
         $password = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.PASSWORD');
+        
+        if (! $url || ! $username || ! $password) {
+            throw new ActionConfigurationError($this, 'Incomplete self-update configuration: make sure `SELF_UPDATE.SOURCE.xxx` options are set in `axenox.PackageManager.config.json`');
+        }
         
         // Download file
         $downloader = new UpdateDownloader($url, $username, $password, $downloadPath);
