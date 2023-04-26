@@ -6,7 +6,7 @@ use GuzzleHttp\Client;
 class InstallationResponse
 {
     /**
-     * 
+     * TODO
      * @param string $url
      * @param string $username
      * @param string $password

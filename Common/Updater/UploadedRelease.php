@@ -63,15 +63,6 @@ class UploadedRelease
     
     /**
      * 
-     * @return string
-     */
-    public function getTimestamp() : string
-    {
-        return $this->timeStamp;
-    }
-    
-    /**
-     * 
      * @return array
      */
     public function getUploadedFiles() : array

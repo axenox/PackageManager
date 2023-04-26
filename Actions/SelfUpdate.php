@@ -49,55 +49,80 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
      */
     protected function performDeferred() : \Generator
     {
-        $downloadPath = __DIR__ . '/../../../../Download/';
-        $url = $this->getWorkbench()->getConfig()->getOption('UPDATE_URL');
-        $username = $this->getWorkbench()->getConfig()->getOption('USERNAME');
-        $password = $this->getWorkbench()->getConfig()->getOption('PASSWORD');
+        $downloadPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.DOWNLOAD_PATH');
+        $url = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.URL');
+        $username = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.USERNAME');
+        $password = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.PASSWORD');
         
         // Download file
-        yield PHP_EOL . "Downloading file...";
-        yield PHP_EOL . PHP_EOL;
         $downloader = new UpdateDownloader($url, $username, $password, $downloadPath);
-        $downloader->download();
         $releaseLog = new ReleaseLog($this->getWorkbench());
-        $releaseLogEntry = new ReleaseLogEntry($releaseLog);
-        $releaseLogEntry->fillLogFileFormatDownload($downloader);
+        $releaseLogEntry = $releaseLog->createLogEntry();
+        
+        foreach ($this->processDownload($downloader, $releaseLogEntry) as $output) {
+            $releaseLogEntry->addUpdaterOutput($output);
+            yield $output;
+        }
+        
+        $releaseLog->saveEntry($releaseLogEntry);
+        
+        yield from $this->installationResponse($releaseLog);
+    }
+
+    /**
+     * 
+     * @param UpdateDownloader $downloader
+     * @param ReleaseLogEntry $releaseLogEntry
+     * @return \Generator
+     */
+    protected function processDownload(UpdateDownloader $downloader, ReleaseLogEntry $releaseLogEntry) : \Generator
+    {
+        yield PHP_EOL . "Downloading file...";
+        yield PHP_EOL;
+        $downloader->download();
+        
         if($downloader->getStatusCode() != 200) {
             yield "No update available.";
             return;
         }
-        yield "Downloaded file: " . $downloader->getFileName() . PHP_EOL;
-        yield "Filesize: "  . $downloader->getFileSize() . " bytes" . PHP_EOL;
+        
+        // save download infos in $releaseLogEntry->logArray
+        $releaseLogEntry->addDownload($downloader);
+        yield from $releaseLogEntry->getCurrentLogText();
         yield $this->printLineDelimiter();
         
         // install file
-        $installationFilePath = $downloadPath . $downloader->getFileName();
-        $selfUpdateInstaller = new SelfUpdateInstaller($installationFilePath, $this->getWorkbench()->filemanager()->getPathToCacheFolder());
+        $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder());
         yield from $selfUpdateInstaller->install();
-        yield $this->printLineDelimiter();
-        $releaseLogEntry->fillLogFileFormatInstallation($selfUpdateInstaller);
+        // save installation infos in $releaseLogEntry->logArray
+        $releaseLogEntry->addInstallation($selfUpdateInstaller);
         
-        // log
-        $releaseLogEntry->addEntry();
-        
-        // update release file
-        $installationSuccess = $selfUpdateInstaller->getInstallationSuccess();
-        if($installationSuccess) {
-            $releaseLogEntry->addNewDeployment($downloader->getTimestamp(), $downloader->getFileName());
+        // update release file if installation was successful
+        if($selfUpdateInstaller->getInstallationSuccess()) {
+            // TODO wo gehört das hin?
+            $releaseLogEntry->addDeploymentSuccess($selfUpdateInstaller->getTimestamp(), $downloader->getFileName());
         }
-        
+    }
+    
+    /**
+     * TODO
+     * @param ReleaseLogEntry $releaseLogEntry
+     * @return \Generator
+     */
+    protected function installationResponse(ReleaseLog $releaseLog) : \Generator
+    {
         // post request
-        $postRequest = new InstallationResponse();
+        $installationResponse = new InstallationResponse();
         // placeholder-URL
         $localUrl = "localhost:80/exface/exface/api/deployer/ota";
         // placeholder-Login
         $username = admin;
         $password = admin;
-        $response = $postRequest->sendRequest($localUrl, $username, $password, $releaseLogEntry->getEntry(), $installationSuccess);
-        yield "Post request content: " . PHP_EOL . PHP_EOL . $releaseLogEntry->getEntry();
-        
-        // server-response
+        $response = $installationResponse->sendRequest($localUrl, $username, $password, $releaseLog->getCurrentLog(), "Success");
         yield $this->printLineDelimiter();
+        yield "Post request content: " . PHP_EOL . PHP_EOL . $releaseLog->getCurrentLog();
+        yield $this->printLineDelimiter();
+        // server-response
         yield "Response (Placeholder): " . PHP_EOL . PHP_EOL . $response->getBody();
     }
     
@@ -111,7 +136,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
     }
     
     /**
-     * 
+     * Prints NEWLINE ------------------------ NEWLINE
      * @return string
      */
     protected function printLineDelimiter() : string

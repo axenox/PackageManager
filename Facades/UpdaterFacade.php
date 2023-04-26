@@ -11,6 +11,7 @@ use axenox\PackageManager\Common\Updater\UploadedRelease;
 use axenox\PackageManager\Common\Updater\ReleaseLog;
 use axenox\PackageManager\Common\Updater\SelfUpdateInstaller;
 use axenox\PackageManager\Common\Updater\ReleaseLogEntry;
+use axenox\PackageManager\Common\Updater\ZipFile;
 
 /**
  * HTTP facade to allow remote updates (deployment) on this server
@@ -40,20 +41,21 @@ class UpdaterFacade extends AbstractHttpFacade
                 $uploadPath = __DIR__ . '/../../../../Upload/';
                 $uploader->moveUploadedFiles($uploadPath);
                 $log = new ReleaseLog($this->getWorkbench());
+                // fills logFile with information about the upload
                 $releaseLogEntry = new ReleaseLogEntry($log);
                 $releaseLogEntry->fillLogFileFormatUpload($uploader);
                 
                 // install
                 $installationFilePath = $uploadPath . $uploader->getInstallationFileName();
                 $selfUpdateInstaller = new SelfUpdateInstaller($installationFilePath, $this->getWorkbench()->filemanager()->getPathToCacheFolder());
+                // fills logFile with information about the installation
                 $releaseLogEntry->fillLogFileFormatInstallation($selfUpdateInstaller);
                 
-                // logfile
-                $releaseLogEntry->addEntry();
+                // logfile: generates logEntry from LogFileFormat
+                $releaseLogEntry->createEntry();
                 
-                // update release file
-                $installationSuccess = $selfUpdateInstaller->getInstallationSuccess();
-                if($installationSuccess) {
+                // update release file if installation was successful
+                if($selfUpdateInstaller->getInstallationSuccess()) {
                     $releaseLogEntry->addNewDeployment($uploader->getTimestamp(), $uploader->getInstallationFileName());
                 }
                 
@@ -90,6 +92,10 @@ class UpdaterFacade extends AbstractHttpFacade
                 $headers = ['Content-Type' => 'application/json'];
                 return new Response(200, $headers, json_encode($releaseLog->getLogEntries(), JSON_PRETTY_PRINT));
                 
+            case $pathInFacade === 'zip':
+                $zip = new ZipFile();
+                $zip->zip();
+
             // Search for pathInFacade in log-directory
             default:
                 $releaseLog = new ReleaseLog($this->getWorkbench());

@@ -8,7 +8,7 @@ class SelfUpdateInstaller {
     
     private $statusMessage = null;
     
-    private $timestamp = null;
+    private $timeStamp = null;
     
     private $installationSuccess = false;
     
@@ -40,7 +40,7 @@ class SelfUpdateInstaller {
         $process = Process::fromShellCommandline($cmd, null, $envVars, null, 600);
         $process->start();
         
-        $this->timestamp = time();
+        $this->timeStamp = time();
         $outputBuffer = [];
         $msgBuffer = '';
         foreach ($process as $msg) {
@@ -79,9 +79,9 @@ class SelfUpdateInstaller {
     protected function printLoadTimer($output)
     {
         $diffTimestamp = time();
-        if ($diffTimestamp > ($this->timestamp + 1) || $output !== $this->statusMessage) {
+        if ($diffTimestamp > ($this->timeStamp + 1) || $output !== $this->statusMessage) {
             yield ".";
-            $this->timestamp = $diffTimestamp;
+            $this->timeStamp = $diffTimestamp;
             $this->statusMessage = $output;
         }
     }
@@ -94,10 +94,19 @@ class SelfUpdateInstaller {
     {
         return $this->getInstallationSuccess() == 1 ? "Success" : "Failure";
     }
+    
+    /**
+     *
+     * @return int
+     */
+    public function getTimestamp() : int
+    {
+        return $this->timeStamp;
+    }
 
     /**
      * 
-     * @return string
+     * @return bool
      */
     public function getInstallationSuccess() : bool
     {
@@ -114,20 +123,11 @@ class SelfUpdateInstaller {
     }
 
     /**
-     * 
+     * Prints NEWLINE ------------------------ NEWLINE
      * @return string
      */
     protected function printLineDelimiter() : string
     {
         return PHP_EOL . '--------------------------------' . PHP_EOL . PHP_EOL;
-    }
-    
-    /**
-     * empties output buffer for real-time output
-     */
-    protected function emptyBuffer()
-    {
-        ob_flush();
-        flush();
     }
 }

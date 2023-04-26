@@ -64,6 +64,15 @@ class UpdateDownloader
      * 
      * @return string
      */
+    public function getPathAbsolute() : string
+    {
+        return $this->downloadPath . $this->getFileName();
+    }
+    
+    /**
+     * 
+     * @return string
+     */
     public function getFormatedStatusMessage() : string
     {
         return $this->getStatusCode() == 200 ? "Success" : "Failure";
@@ -79,15 +88,6 @@ class UpdateDownloader
         return StringDataType::substringAfter($header, 'attachment; filename=');
     }
 
-    /**
-     *
-     * @return int
-     */
-    public function getTimestamp() : int
-    {
-        return $this->timeStamp;
-    }
-    
     /**
      *
      * @return string

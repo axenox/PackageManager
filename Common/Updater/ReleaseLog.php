@@ -12,6 +12,8 @@ class ReleaseLog
     
     private $releasePath = null;
     
+    private $currentLog = null;
+    
     /**
      * 
      * @param WorkbenchInterface $workbench
@@ -21,6 +23,38 @@ class ReleaseLog
         $this->workbench = $workbench;
         $this->logsPath = $workbench->getInstallationPath() . DIRECTORY_SEPARATOR . '.dep' . DIRECTORY_SEPARATOR . 'log' . DIRECTORY_SEPARATOR;
         $this->releasePath = $workbench->getInstallationPath() . DIRECTORY_SEPARATOR . '.dep' . DIRECTORY_SEPARATOR . 'releases';
+    }
+    
+    /**
+     * 
+     * @param ReleaseLogEntry $releaseLogEntry
+     */
+    public function saveEntry(ReleaseLogEntry $releaseLogEntry)
+    {
+        $log = "";
+        foreach($releaseLogEntry->getEntry() as $logArrayKey => $logElement) {
+            if(! is_numeric($logArrayKey)) {
+                $log .= "{$logArrayKey}: {$logElement}" . PHP_EOL;
+            } else {
+                $log .= PHP_EOL . "File number: {$logArrayKey}" . PHP_EOL;
+                foreach($logElement as $logElementKey => $fileValue) {
+                    $log .= "{$logElementKey}: {$fileValue}" . PHP_EOL;
+                }
+            }
+        }
+        $log .= PHP_EOL . "Updater Output: " . PHP_EOL . $releaseLogEntry->getUpdaterOutput();
+        $this->currentLog = $log;
+        $logFilePath = $this->logsPath . $releaseLogEntry->getLogFileName();
+        file_put_contents($logFilePath, $this->currentLog);
+    }
+
+    /**
+     * 
+     * @return ReleaseLogEntry
+     */
+    public function createLogEntry() : ReleaseLogEntry
+    {
+        return new ReleaseLogEntry($this);
     }
     
     /**
@@ -80,6 +114,15 @@ class ReleaseLog
     }
     
     /**
+     * 
+     * @return string
+     */
+    public function getCurrentLog() : string
+    {
+        return $this->currentLog;
+    }
+    
+    /**
      *
      * @param string $logsPath
      * @return string|NULL
@@ -105,7 +148,7 @@ class ReleaseLog
     {
         // Scan all files in log-directory & make them lowercase
         $logFiles = array_map('strtolower', scandir($this->logsPath));
-        // If filename of pathInFacade exists, return content of log-file
+        // If filename of pathInFacade exists, return content of log file
         $fileName = explode("/", $fileNamePath)[1];
         if(in_array($fileName, $logFiles)) {
             $filePath = $this->logsPath . $fileName;
@@ -113,5 +156,14 @@ class ReleaseLog
         } else {
             return null;
         }
+    }
+    
+    /**
+     * saves logFile in $this->logsPath
+     */
+    public function __destruct()
+    {
+        $logFilePath = $this->logsPath . $this->logFileName;
+        file_put_contents($logFilePath, $this->logEntry);
     }
 }

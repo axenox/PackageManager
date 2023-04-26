@@ -15,6 +15,8 @@ class ReleaseLogEntry
     
     private $logArray = null;
     
+    private $updaterOutput = null;
+    
     /**
      * 
      * @param ReleaseLog $log
@@ -27,31 +29,63 @@ class ReleaseLogEntry
 
     /**
      * 
+     * @param string $output
+     */
+    public function addUpdaterOutput(string $output)
+    {
+        $log = $this->updaterOutput;
+        $log .= $output;
+        $this->updaterOutput = $log;
+    }
+    
+    /**
+     * 
+     * @return string
+     */
+    public function getUpdaterOutput() : string
+    {
+        return $this->updaterOutput;
+    }
+
+    /**
+     * 
+     * @return \Generator
+     */
+    public function getCurrentLogText() : \Generator
+    {
+        foreach($this->logArray as $logArrayKey => $logElement) {
+            if(! is_numeric($logArrayKey)) {
+                yield "{$logArrayKey}: {$logElement}" . PHP_EOL;
+            } else {
+                yield PHP_EOL . "File number: {$logArrayKey}" . PHP_EOL;
+                foreach($logElement as $logElementKey => $fileValue) {
+                    yield "{$logElementKey}: {$fileValue}" . PHP_EOL;
+                }
+            }
+        }
+    }
+
+    /**
+     * 
      * @param UpdateDownloader $updateDownloader
      * @param number $fileNumber
-     * @return ReleaseLogEntry
      */
-    public function fillLogFileFormatDownload(UpdateDownloader $updateDownloader, $fileNumber = 1) : ReleaseLogEntry
+    public function addDownload(UpdateDownloader $updateDownloader, $fileNumber = 1)
     {
         $logArray = [];
-        $logArray['Timestamp'] = $this->formatTimeStamp($updateDownloader->getTimestamp());
         $logArray[$fileNumber]['Filename'] = $updateDownloader->getFileName();
         $logArray[$fileNumber]['Filesize'] = $updateDownloader->getFileSize();
         $logArray[$fileNumber]['Download status'] = $updateDownloader->getFormatedStatusMessage();
         $this->logArray = $logArray;
-        return $this;
     }
     
     /**
      * 
      * @param UploadedRelease $uploadedRelease
-     * @return ReleaseLogEntry
      */
-    public function fillLogFileFormatUpload(UploadedRelease $uploadedRelease) : ReleaseLogEntry
+    public function addUpload(UploadedRelease $uploadedRelease, $fileNumber = 1)
     {
-        $fileNumber = 1;
         $logArray = [];
-        $logArray['Timestamp'] = $this->formatTimeStamp($uploadedRelease->getTimestamp());
         foreach ($uploadedRelease->getUploadedFiles() as $file) {
             $logArray[$fileNumber]['Filename'] = $file->getClientFilename();
             $logArray[$fileNumber]['Filesize'] = $file->getSize();
@@ -59,24 +93,23 @@ class ReleaseLogEntry
             $fileNumber++;
         }
         $this->logArray = $logArray;
-        return $this;
     }
 
     /**
      * 
      * @param SelfUpdateInstaller $selfUpdateInstaller
-     * @return ReleaseLogEntry
      */
-    public function fillLogFileFormatInstallation(SelfUpdateInstaller $selfUpdateInstaller) : ReleaseLogEntry
+    public function addInstallation(SelfUpdateInstaller $selfUpdateInstaller)
     {
         $installArray = [];
         $logArray = $this->logArray;
+        $timeStamp = $this->formatTimeStamp($selfUpdateInstaller->getTimestamp());
         $requestType = array_key_exists('Download status', $logArray[1]) === true ? "download" : "upload";
-        $this->logFileName = $installArray['Logfile name'] = $logArray['Timestamp'] . "_" . $requestType . "_" . $selfUpdateInstaller->getFormatedStatusMessage() . ".txt";
+        $this->logFileName = $installArray['Logfile name'] = $timeStamp . "_" . $requestType . "_" . $selfUpdateInstaller->getFormatedStatusMessage() . ".txt";
         $installArray['Logfile route'] = "log" . DIRECTORY_SEPARATOR . $installArray['Logfile name'];
         $installArray['Installation status'] = $selfUpdateInstaller->getFormatedStatusMessage();
-        $this->logArray = $installArray + $logArray;
-        return $this;
+        $installArray['Timestamp'] = $timeStamp;
+        $this->logArray = $installArray;
     }
     
     /**
@@ -91,23 +124,20 @@ class ReleaseLogEntry
 
     /**
      * 
-     * @return ReleaseLogEntry
+     * @return string
      */
-    public function addEntry() : ReleaseLogEntry
+    public function getLogFileName() : string
     {
-        $log = "";
-        foreach($this->logArray as $logArrayKey => $logElement) {
-            if(! is_numeric($logArrayKey)) {
-                $log .= "{$logArrayKey}: {$logElement}" . PHP_EOL;
-            } else {
-                $log .= PHP_EOL . "File number: {$logArrayKey}" . PHP_EOL;
-                foreach($logElement as $logElementKey => $fileValue) {
-                    $log .= "{$logElementKey}: {$fileValue}" . PHP_EOL;
-                }
-            }  
-        }
-        $this->logEntry = $log;
-        return $this;
+        return $this->logFileName;
+    }
+    
+    /**
+     *
+     * @return array
+     */
+    public function getEntry() : array
+    {
+        return $this->logArray;
     }
     
     /**
@@ -115,29 +145,11 @@ class ReleaseLogEntry
      * @param string $timeStamp
      * @param string $fileName
      */
-    public function addNewDeployment(string $timeStamp, string $fileName)
+    public function addDeploymentSuccess(string $timeStamp, string $fileName)
     {
         $date = date('YmdHis', $timeStamp);
         $fileName = trim($fileName, ".phx");
         $newDeployment = PHP_EOL . "{$date},{$fileName}";
         file_put_contents($this->releasePath, $newDeployment, FILE_APPEND);
-    }
-    
-    /**
-     *
-     * @return string
-     */
-    public function getEntry() : string
-    {
-        return $this->logEntry;
-    }
-
-    /**
-     * saves logFile in $this->logsPath
-     */
-    public function __destruct()
-    {
-        $logFilePath = $this->logsPath . $this->logFileName;
-        file_put_contents($logFilePath, $this->logEntry);
     }
 }
