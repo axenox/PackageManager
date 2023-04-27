@@ -29,7 +29,7 @@ class StaticInstaller
 
     const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'axenox.PackageManager.UninstallApp';
     
-    const PACAKGE_MANAGER_GENERATE_LIC_BOM_ALIAS = 'axenox.PackageManger.GenerateLicenseBOM';
+    const PACAKGE_MANAGER_GENERATE_LIC_BOM_ALIAS = 'axenox.PackageManager.GenerateLicenseBOM';
 
     private $workbench = null;
 
