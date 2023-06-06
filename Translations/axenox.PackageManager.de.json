@@ -2,11 +2,13 @@
 	"ACTION.BACKUPAPP.NAME": "Backup erstellen",
 	"ACTION.COMPOSERCLEANUPPREVIOUSACTIONS.NAME": "Composer-Cleanup",
 	"ACTION.EXPORTAPPMODEL.NAME": "Modell exportieren",
+	"ACTION.GENERATELICENSEBOM.NAME": "Lizenz-BOM generieren",
 	"ACTION.INSTALLAPP.NAME": "Installieren",
 	"ACTION.IMPORTAPPMODEL.NAME": "Modell reparieren",
 	"ACTION.UNINSTALLAPP.NAME": "Deinstallieren",
 	"ACTION.LISTAPPS.NAME": "Apps listen",
 	"ACTION.INSTALLPAYLOAD.NAME": "Payload-App installieren",
+	"ACTION.SELFUPDATE.NAME": "Selbst-Update",
 	
 	"DATATYPE.PACKAGE.PUBLISHED_PACKAGE": "Published app",
     "DATATYPE.PACKAGE.PHP_COMPOSER": "Composer (PHP)",

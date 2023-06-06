@@ -55,82 +55,68 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
     protected function performDeferred() : \Generator
     {
         $vendorPath = $this->getWorkbench()->filemanager()->getPathToVendorFolder();
+        $BOMFilename = 'Licenses.md';
+        $markdownPath = $vendorPath . DIRECTORY_SEPARATOR . $BOMFilename;
+        yield "Generating license BOM in {$BOMFilename}" . PHP_EOL;
+        yield '  Found BOMs:' . PHP_EOL;
+        $this->emptyBuffer();
+        
         // Create empty BigBom
         $bigBOM = new LicenseBOM();
-        yield "LicenseBOM created" .PHP_EOL;
-        $this->emptyBuffer();
         // find license_text if licensefile is found in packagepath
         $bigBOM->addEnricher(new FindLicenseTextEnricher($vendorPath));
-        yield "FindLicenseTextEnricher created" .PHP_EOL;
-        $this->emptyBuffer();
         // find license_text if Github-link is set
         $bigBOM->addEnricher(new FindLicenseGithubEnricher($vendorPath));
-        yield "FindLicenseGithubEnricher created" .PHP_EOL;
-        $this->emptyBuffer();
         // find license_text from SPDX-Github-Repository if licenseName is set
         $bigBOM->addEnricher(new FindLicenseSPDXEnricher($vendorPath));
-        yield "FindLicenseSPDXEnricher created" .PHP_EOL;
-        $this->emptyBuffer();
+        $bigBOM->addEnricher(new FindLicenseFileEnricher($vendorPath));
+        
         // Create BOM from Composer.lock
         $composerLockPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'composer.lock';
-        $composerBOM = new ComposerBOM($composerLockPath);
-        yield "ComposerBOM created" .PHP_EOL;
+        if (file_exists($composerLockPath)) {
+            yield '  - composer.lock' . PHP_EOL;
+            $composerBOM = new ComposerBOM($composerLockPath);
+            // Merge BigBom with Composer-BOM
+            $bigBOM->merge($composerBOM);
+        }
         $this->emptyBuffer();
-        // Merge BigBom with Composer-BOM
-        $bigBOM->merge($composerBOM);
+        
         // merge all includes-jsons with bigBOM
-        $includesArray = [];
-        foreach($composerBOM->getPackages() as $package) {
+        foreach($bigBOM->getPackages() as $package) {
             $filePath = $vendorPath . DIRECTORY_SEPARATOR . $package->getName() . DIRECTORY_SEPARATOR . "includes.json";
-            if(file_get_contents($filePath) !== false){
+            if(file_exists($filePath) && file_get_contents($filePath) !== false){
                 // find license_text if license_file is set
-                $bigBOM->addEnricher(new FindLicenseFileEnricher($vendorPath));
-                $includesArray[$package->getName()] = new IncludesBOM($filePath, $vendorPath);
-                yield PHP_EOL. "IncludesBOM created from: {$package->getName()}" .PHP_EOL.PHP_EOL;
-                $packages = json_decode(file_get_contents($filePath));
-                foreach($packages as $packageName){
-                    yield "\t\t\t\t\t\t- " . $packageName->name . PHP_EOL;
-                }
+                $includesBOM = new IncludesBOM($filePath, $vendorPath);
+                $bigBOM->merge($includesBOM);
+                yield "  - {$includesBOM->getFilePath()}/includes.json" .PHP_EOL;
                 $this->emptyBuffer();
-                $bigBOM->merge($includesArray[$package->getName()]);
             }
         }
-        yield $this->printLineDelimiter();
+        $this->emptyBuffer();
 
         // save complete markdown as file
-        $markdownPath = $vendorPath . DIRECTORY_SEPARATOR . 'Licenses.md';
         $markdownBOM = new MarkdownBOM($bigBOM);
         $markdownBOM->saveMarkdown($markdownPath);
         
-        // Show all Bill of materials (BOMs) found
-        yield '# Found BOMs:' . PHP_EOL. PHP_EOL;
-        $this->emptyBuffer();
-        // show composer.phar if file exists
-        if($composerBOM->hasFile()){
-            yield end(explode(DIRECTORY_SEPARATOR, $composerLockPath)) . PHP_EOL;
-            $this->emptyBuffer();
-        }
-        // show all includes-BOMs with includes-jsons
-        foreach($includesArray as $includesBOM) {
-            yield $includesBOM->getFilePath(). PHP_EOL;
-            $this->emptyBuffer();
-        }
         // Show packages without license as a list
-        yield PHP_EOL . "# Packages without License:" . PHP_EOL . PHP_EOL;
+        yield "  MISSING license information:" . PHP_EOL;
         $this->emptyBuffer();
         foreach ($bigBOM->getPackages() as $package) {
-            yield $this->displayPackageWithouthLicense($package);
+            if ($package->hasLicense() === false) {
+                yield '  - ' . $this->printPackageInfo($package) . PHP_EOL;
+            }
             $this->emptyBuffer();
         }
         // Show packages without license-text as a list
-        yield PHP_EOL . "# Packages without License-Text:" . PHP_EOL . PHP_EOL;
+        yield "  MISSING license text:" . PHP_EOL;
         $this->emptyBuffer();
         foreach ($bigBOM->getPackages() as $package) {
-            yield $this->displayPackageWithouthLicenseText($package);
+            if ($package->hasLicenseText() === false) {
+                yield '  - ' . $this->printPackageInfo($package) . PHP_EOL;
+            }
             $this->emptyBuffer();
         }
-        yield $this->printLineDelimiter();
-        yield "Refreshed license information in Licenses.md";
+        yield "DONE generating license BOM in {$BOMFilename}";
     }
     
     /**
@@ -138,33 +124,9 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
      * @param BOMPackage $package
      * @return string|NULL
      */
-    protected function displayPackageWithouthLicense(BOMPackage $package) : ?string
+    protected function printPackageInfo(BOMPackage $package) : ?string
     {
-        if ($package->hasLicense() === false) {
-            $output = 'Name: ' . $package->getName() . PHP_EOL;
-            $output .= 'Version: ' . $package->getVersion() . PHP_EOL;
-            $output .= 'Source: ' . $package->getSource() . PHP_EOL. PHP_EOL;
-            return $output;
-        } else {
-            return null;
-        }
-    }
-    
-    /**
-     * 
-     * @param BOMPackage $package
-     * @return string|NULL
-     */
-    protected function displayPackageWithouthLicenseText(BOMPackage $package) : ?string
-    {
-        if ($package->hasLicenseText() === false) {
-            $output = 'Name: ' . $package->getName() . PHP_EOL;
-            $output .= 'Version: ' . $package->getVersion() . PHP_EOL;
-            $output .= 'Source: ' . $package->getSource() . PHP_EOL. PHP_EOL;
-            return $output;
-        } else {
-            return null;
-        }
+        return "{$package->getName()}, {$package->getVersion()} ({$package->getSource()})";
     }
 
     /**
