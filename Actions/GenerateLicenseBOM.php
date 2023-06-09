@@ -75,11 +75,11 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         $composerLockPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'composer.lock';
         if (file_exists($composerLockPath)) {
             yield '  - composer.lock' . PHP_EOL;
+            $this->emptyBuffer();
             $composerBOM = new ComposerBOM($composerLockPath);
             // Merge BigBom with Composer-BOM
             $bigBOM->merge($composerBOM);
         }
-        $this->emptyBuffer();
         
         // merge all includes-jsons with bigBOM
         foreach($bigBOM->getPackages() as $package) {
@@ -92,7 +92,6 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
                 $this->emptyBuffer();
             }
         }
-        $this->emptyBuffer();
 
         // save complete markdown as file
         $markdownBOM = new MarkdownBOM($bigBOM);
@@ -104,8 +103,8 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         foreach ($bigBOM->getPackages() as $package) {
             if ($package->hasLicense() === false) {
                 yield '  - ' . $this->printPackageInfo($package) . PHP_EOL;
+                $this->emptyBuffer();
             }
-            $this->emptyBuffer();
         }
         // Show packages without license-text as a list
         yield "  MISSING license text:" . PHP_EOL;
@@ -113,8 +112,8 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         foreach ($bigBOM->getPackages() as $package) {
             if ($package->hasLicenseText() === false) {
                 yield '  - ' . $this->printPackageInfo($package) . PHP_EOL;
+                $this->emptyBuffer();
             }
-            $this->emptyBuffer();
         }
         yield "DONE generating license BOM in {$BOMFilename}";
     }
