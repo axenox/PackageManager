@@ -10,8 +10,8 @@
     "replaces_page_selector": null,
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2020-04-17 12:40:39",
-    "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-    "modified_on": "2023-03-31 10:33:04",
+    "modified_by_user_selector": "0x31000000000000000000000000000000",
+    "modified_on": "2023-06-14 12:05:31",
     "contents": {
         "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
         "widget_type": "SplitHorizontal",
@@ -161,7 +161,7 @@
                     {
                         "id": "InfraTable",
                         "widget_type": "DataTable",
-                        "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
+                        "object_alias": "axenox.PackageManager.PACKAGE_LICENSE_BOM",
                         "paginate": false,
                         "nowrap": false,
                         "filters": [
@@ -183,13 +183,10 @@
                                 "attribute_alias": "version"
                             },
                             {
-                                "attribute_alias": "license:LIST"
+                                "attribute_alias": "license_used"
                             },
                             {
                                 "attribute_alias": "description"
-                            },
-                            {
-                                "attribute_alias": "time"
                             },
                             {
                                 "attribute_alias": "app_alias"

@@ -16,6 +16,11 @@ use axenox\PackageManager\Common\LicenseBOM\ComposerBOM;
 use axenox\PackageManager\Common\LicenseBOM\FindLicenseFileEnricher;
 use axenox\PackageManager\Common\LicenseBOM\IncludesBOM;
 use axenox\PackageManager\Common\LicenseBOM\MarkdownBOM;
+use exface\Core\CommonLogic\UxonObject;
+use exface\Core\Exceptions\Actions\ActionConfigurationError;
+use axenox\PackageManager\Common\LicenseBOM\JsonBOM;
+use exface\Core\DataTypes\FilePathDataType;
+use exface\Core\DataTypes\StringDataType;
 
 /**
  * 
@@ -25,6 +30,14 @@ use axenox\PackageManager\Common\LicenseBOM\MarkdownBOM;
  */
 class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledFromCLI
 {
+    const FORMAT_MARKDOWN = 'markdown';
+    
+    const FORMAT_JSON = 'json';
+    
+    private $saveTo = [
+        "vendor/Licenses.md" => "markdown", 
+        "vendor/licenses.json" => "json"
+    ];
 
     /**
      * 
@@ -55,9 +68,7 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
     protected function performDeferred() : \Generator
     {
         $vendorPath = $this->getWorkbench()->filemanager()->getPathToVendorFolder();
-        $BOMFilename = 'Licenses.md';
-        $markdownPath = $vendorPath . DIRECTORY_SEPARATOR . $BOMFilename;
-        yield "Generating license BOM in {$BOMFilename}" . PHP_EOL;
+        yield "Generating license BOMs" . PHP_EOL;
         yield '  Found BOMs:' . PHP_EOL;
         $this->emptyBuffer();
         
@@ -81,21 +92,34 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
             $bigBOM->merge($composerBOM);
         }
         
+        
         // merge all includes-jsons with bigBOM
-        foreach($bigBOM->getPackages() as $package) {
-            $filePath = $vendorPath . DIRECTORY_SEPARATOR . $package->getName() . DIRECTORY_SEPARATOR . "includes.json";
-            if(file_exists($filePath) && file_get_contents($filePath) !== false){
-                // find license_text if license_file is set
-                $includesBOM = new IncludesBOM($filePath, $vendorPath);
-                $bigBOM->merge($includesBOM);
-                yield "  - {$includesBOM->getFilePath()}/includes.json" .PHP_EOL;
-                $this->emptyBuffer();
-            }
+        // Get the subfolders within the "vendor" directory
+        $includes = glob($vendorPath . '/*/*/includes.json');
+        foreach ($includes as $include) {
+            // find license_text if license_file is set
+            $includesBOM = new IncludesBOM($include, $vendorPath);
+            $bigBOM->merge($includesBOM);
+            yield "  - " . StringDataType::substringAfter($include, $vendorPath . '/') .  PHP_EOL;
+            $this->emptyBuffer();
         }
 
         // save complete markdown as file
-        $markdownBOM = new MarkdownBOM($bigBOM);
-        $markdownBOM->saveMarkdown($markdownPath);
+        foreach ($this->getSaveTo() as $path => $format) {
+            yield '  Saving ' . $format . ' to ' . $path . PHP_EOL;
+            switch (strtolower($format)) {
+                case self::FORMAT_MARKDOWN:
+                    $markdownBOM = new MarkdownBOM($bigBOM);
+                    $markdownBOM->saveMarkdown($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
+                    break;
+                case self::FORMAT_JSON:
+                    $markdownBOM = new JsonBOM($bigBOM);
+                    $markdownBOM->saveJSON($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
+                    break;
+                default:
+                    throw new ActionConfigurationError($this, 'Invalid license BOM export format "' . $format . '"!');
+            }
+        }
         
         // Show packages without license as a list
         yield "  MISSING license information:" . PHP_EOL;
@@ -115,7 +139,7 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
                 $this->emptyBuffer();
             }
         }
-        yield "DONE generating license BOM in {$BOMFilename}";
+        yield "DONE generating license BOM";
     }
     
     /**
@@ -173,5 +197,31 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
     public function generateMarkdownBOM() : \Generator
     {
         yield from $this->performDeferred();
+    }
+    
+    /**
+     * 
+     * @return string[]
+     */
+    protected function getSaveTo() : array
+    {
+        return $this->saveTo;
+    }
+    
+    /**
+     * List of file paths relative to the installation folder and corresponding formats
+     * 
+     * @uxon-property save_to_files
+     * @uxon-type object
+     * @uxon-template {"vendor/Licenses.md": "markdown", "vendor/licenses.json": "json"}
+     * @uxon-default {"vendor/Licenses.md": "markdown", "vendor/licenses.json": "json"}
+     * 
+     * @param UxonObject|string[] $value
+     * @return GenerateLicenseBOM
+     */
+    public function setSaveToFiles($uxonOrArray) : GenerateLicenseBOM
+    {
+        $this->saveTo = $uxonOrArray instanceof UxonObject ? $uxonOrArray->toArray() : $uxonOrArray;
+        return $this;
     }
 }
