@@ -70,7 +70,6 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         $vendorPath = $this->getWorkbench()->filemanager()->getPathToVendorFolder();
         yield "Generating license BOMs" . PHP_EOL;
         yield '  Found BOMs:' . PHP_EOL;
-        $this->emptyBuffer();
         
         // Create empty BigBom
         $bigBOM = new LicenseBOM();
@@ -86,7 +85,6 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         $composerLockPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'composer.lock';
         if (file_exists($composerLockPath)) {
             yield '  - composer.lock' . PHP_EOL;
-            $this->emptyBuffer();
             $composerBOM = new ComposerBOM($composerLockPath);
             // Merge BigBom with Composer-BOM
             $bigBOM->merge($composerBOM);
@@ -101,7 +99,6 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
             $includesBOM = new IncludesBOM($include, $vendorPath);
             $bigBOM->merge($includesBOM);
             yield "  - " . StringDataType::substringAfter($include, $vendorPath . '/') .  PHP_EOL;
-            $this->emptyBuffer();
         }
 
         // save complete markdown as file
@@ -123,20 +120,16 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         
         // Show packages without license as a list
         yield "  MISSING license information:" . PHP_EOL;
-        $this->emptyBuffer();
         foreach ($bigBOM->getPackages() as $package) {
             if ($package->hasLicense() === false) {
                 yield '  - ' . $this->printPackageInfo($package) . PHP_EOL;
-                $this->emptyBuffer();
             }
         }
         // Show packages without license-text as a list
         yield "  MISSING license text:" . PHP_EOL;
-        $this->emptyBuffer();
         foreach ($bigBOM->getPackages() as $package) {
             if ($package->hasLicenseText() === false) {
                 yield '  - ' . $this->printPackageInfo($package) . PHP_EOL;
-                $this->emptyBuffer();
             }
         }
         yield "DONE generating license BOM";
