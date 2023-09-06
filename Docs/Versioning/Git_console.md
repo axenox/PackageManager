@@ -66,6 +66,7 @@ Assuming you already have a remote git repository for your app (e.g. on GitHub),
 	- `git init` to make the folder a git repo
 	- `git remote add origin <Remote repository URL preferrably with access token>` to connect it to the remote git server. A repo URL with an access token looks like this: `https://username:CcVuWsM6xrGcsdfsdfzkex@git.yourdomain.com/vendor/package.git`
 	- `git clean -f *` to remove the exported files again in preparation to pull from the remote
+	- `git pull` to get the current remotes
 	- `git switch main` to pull the `main` branch from the remote. Replace the branch name as needed.
 5. Export the app again to overwrite files pulled from the remote with the local state of the app
 6. Open the `git Console` again to get a diff.
@@ -84,6 +85,10 @@ If you created the app folder by cloning an existing repo, you will need to add 
 To enable debug output for git commands, set the following environment variables before running the command: `GIT_CURL_VERBOSE=1 GIT_TRACE=1`
 
 - On Windows: `SET GIT_CURL_VERBOSE=1`, `SET GIT_TRACE=1`
+
+### Missing upstream configuration
+
+- If you cannot push because there is no upstream set up, use `git push --set-upstream origin main` where `origin` is the remote and `main` is the branch.
 
 ### Connection/SSL issues
 
