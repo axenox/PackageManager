@@ -7,18 +7,14 @@ use exface\Core\Interfaces\AppInterface;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\AppInstallers\MetaModelInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
-use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
-use exface\Core\Interfaces\Tasks\ResultInterface;
-use exface\Core\Factories\ResultFactory;
-use exface\Core\CommonLogic\Tasks\ResultMessageStream;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
-use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\Interfaces\AppInstallerInterface;
 
 /**
- * Saves the metamodel for the selected apps as JSON files in the apps folder.
+ * Saves the metamodel for the selected apps as JSON files in the corresponding vendor folders.
  *
  * @author Andrej Kabachnik
  *        
@@ -62,19 +58,20 @@ class ExportAppModel extends AbstractActionDeferred
         foreach ($apps->getRows() as $row) {
             yield 'Exporting app ' . $row['ALIAS'] . '...' . PHP_EOL;
             
-            $app_selector = new AppSelector($this->getWorkbench(), $row['ALIAS']);
             $app = $this->getWorkbench()->getApp($row['ALIAS']);
             if (! file_exists($app->getDirectoryAbsolutePath())) {
                 $this->getApp()->createAppFolder($app);
             }
-            
-            $installer = new MetaModelInstaller($app_selector);
-            // Run the custom app installer logic here in case it will make any changes to the
-            // metamodel installer (e.g. via MetaModelAdditionInstaller)
-            $app->getInstaller($installer);
+
+            // Make sure to fully instantiate the installers of an app here before fetching
+            // the model installer - in case other installers will modify it or listen to its
+            // events (like the DataInstaller)
+            $modelInstaller = $app->getInstaller()->extract(function(AppInstallerInterface $inst){
+                return ($inst instanceof MetaModelInstaller);
+            });
             
             $backupDir = $this->getModelFolderPathAbsolute($app);
-            yield from $installer->backup($backupDir);
+            yield from $modelInstaller->backup($backupDir);
             
             $exported_counter ++;
             

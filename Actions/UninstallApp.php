@@ -6,7 +6,6 @@ use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
-use exface\Core\CommonLogic\AppInstallers\MetaModelInstaller;
 
 /**
  * This action uninstalls one or more apps
@@ -86,7 +85,7 @@ class UninstallApp extends InstallApp
     public function uninstallApp(AppSelectorInterface $app_selector) : \Traversable
     {
         $app = AppFactory::create($app_selector);
-        $installer = $app->getInstaller(new MetaModelInstaller($app_selector));
+        $installer = $app->getInstaller();
         $installer_result = $installer->uninstall();
         if ($installer_result instanceof \Traversable) {
             yield from $installer_result;

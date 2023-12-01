@@ -4,7 +4,6 @@ namespace axenox\PackageManager\Actions;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
-use exface\Core\CommonLogic\AppInstallers\MetaModelInstaller;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
@@ -222,7 +221,7 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
     public function installApp(AppSelectorInterface $app_selector) : \Traversable
     {
         $app = AppFactory::create($app_selector);
-        $installer = $app->getInstaller(new MetaModelInstaller($app_selector));
+        $installer = $app->getInstaller();
         $installer_result = $installer->install($this->getAppAbsolutePath($app_selector));
         if ($installer_result instanceof \Traversable) {
             yield from $installer_result;

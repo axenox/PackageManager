@@ -2,7 +2,6 @@
 namespace axenox\PackageManager\Actions;
 
 use exface\Core\Factories\AppFactory;
-use exface\Core\CommonLogic\AppInstallers\MetaModelInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
@@ -64,7 +63,7 @@ class BackupApp extends InstallApp
     {
         $app = AppFactory::create($appSelector);
         
-        $installer = $app->getInstaller(new MetaModelInstaller($appSelector));
+        $installer = $app->getInstaller();
         $directory = $appSelector->getFolderRelativePath();
         if ($this->getBackupPath() == '') {
             $backupDir = $app->getWorkbench()->filemanager()->getPathToBackupFolder();
