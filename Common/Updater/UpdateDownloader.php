@@ -170,7 +170,7 @@ class UpdateDownloader
         }
     }
     
-    public function uploadLog(string $log) : UpdateDownloader
+    public function uploadLog(string $log) : ResponseInterface
     {
         return $this->sendHttpRequest('POST', $log);
     }
