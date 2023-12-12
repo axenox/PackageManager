@@ -4,6 +4,7 @@ namespace axenox\PackageManager\Common\Updater;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Response;
 use exface\Core\DataTypes\StringDataType;
+use Psr\Http\Message\ResponseInterface;
 
 class UpdateDownloader
 {
@@ -37,27 +38,50 @@ class UpdateDownloader
         $this->downloadPath = $downloadPath;
     }
     
+    protected function sendHttpRequest(string $method, string $body = null) : ResponseInterface
+    {
+        /* @var $client \GuzzleHttp\Client */
+        $client = new Client();
+        
+        $options = [
+            'auth' => [
+                $this->username,
+                $this->password
+            ],
+            'verify' => false/*,
+            'progress' => function($dl_total_size, $dl_size_so_far, $ul_total_size, $ul_size_so_far) {
+            $this->progress(((int) $dl_total_size),$dl_size_so_far);
+            }*/
+        ];
+        
+        if ($body !== null) {
+            $options['body'] = $body;
+        }
+        
+        $response = $client->request(
+            $method,
+            $this->url,
+            $options
+        );
+        
+        return $response;
+    }
+    
     /**
      * 
      */
-    public function download()
+    public function download() : ResponseInterface
     {
-        $client = new Client();
-        /* @var $client \GuzzleHttp\Client */
-        $response = $client->request('GET', $this->url, ['auth' => [$this->username, $this->password]],
-            ['progress' => function($downloadTotal,$downloadedBytes)
-            {
-                $this->progress(((int) $downloadTotal),$downloadedBytes);
-            }
-            ]);
-        
-        $this->setStatusCode($response->getStatusCode());
-        if ($response->getStatusCode() === 200) {
+        $response = $this->sendHttpRequest('GET');
+        $status = $response->getStatusCode();
+        $this->setStatusCode($status);
+        if ($status === 200) {
             $content = $response->getBody();
             $this->headers = $response->getHeaders();
             $this->fileSize = $this->getFileSizeFromResponse($response);
             file_put_contents($this->downloadPath . $this->getFileName(), $content);
         }
+        return $response;
     }
 
     /**
@@ -82,17 +106,20 @@ class UpdateDownloader
      * 
      * @return string
      */
-    public function getFileName() : string
+    public function getFileName() : ?string
     {
+        if (empty($this->headers)) {
+            return null;
+        }
         $header = $this->headers['Content-Disposition'][0];
         return StringDataType::substringAfter($header, 'attachment; filename=');
     }
 
     /**
-     *
-     * @return string
+     * 
+     * @return int|NULL
      */
-    public function getFileSize() : int
+    public function getFileSize() : ?int
     {
         return $this->fileSize;
     }
@@ -108,9 +135,9 @@ class UpdateDownloader
     
     /**
      *
-     * @return string
+     * @return string|NULL
      */
-    public function getStatusCode() : string
+    public function getStatusCode() : ?string
     {
         return $this->statusCode;
     }
@@ -138,8 +165,26 @@ class UpdateDownloader
     protected function progress(int $downloadTotal, int $downloadedBytes)
     {
         if ($downloadedBytes !== $this->downloadedBytes) {
-            yield "Downloadprogress: " . $downloadedBytes . " bytes" . PHP_EOL;
+            yield "Download progress: " . $downloadedBytes . " bytes" . PHP_EOL;
             $this->downloadedBytes = $downloadedBytes;
         }
+    }
+    
+    public function uploadLog(string $log) : UpdateDownloader
+    {
+        return $this->sendHttpRequest('POST', $log);
+    }
+    
+    /**
+     * 
+     * @return string
+     */
+    public function __toString() : string
+    {
+        return <<<TEXT
+Download: {$this->getFormatedStatusMessage()}
+    Filename: {$this->getFileName()}
+    Size: {$this->getFileSize()}
+TEXT;
     }
 }
