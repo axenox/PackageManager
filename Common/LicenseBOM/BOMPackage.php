@@ -90,14 +90,21 @@ class BOMPackage implements BOMPackageInterface
     {
         return $this->packageArray['source']['url'];
     }
-    
+
     /**
-     * 
+     *
      * @return string|NULL
      */
     public function getLicenseLink(string $licenseUsed) : ?string
     {
-        return $this->packageArray['license_link'][$licenseUsed] ?? null;
+        if(! array_key_exists('license_link', $this->packageArray)) {
+            return null;
+        }
+        if(is_array($this->packageArray['license_link'])) {
+            return $this->packageArray['license_link'][$licenseUsed];
+        } else {
+            return $this->packageArray['license_link'];
+        }
     }
     
     /**
@@ -176,16 +183,16 @@ class BOMPackage implements BOMPackageInterface
     }
     
     /**
-     * 
+     *
      * @return bool
      */
     public function hasLicenseText() : bool
     {
-        if(null !== $this->packageArray['license_link'][$this->getLicenseUsed()] || null !== $this->packageArray['license_text'][$this->getLicenseUsed()] && $this->packageArray['license_text'][$this->getLicenseUsed()] !== ""){
+        if(null !== $this->packageArray['license_text'][$this->getLicenseUsed()] && $this->packageArray['license_text'][$this->getLicenseUsed()] !== ""){
             return true;
         } else return false;
     }
-    
+
     /**
      * 
      * {@inheritDoc}
