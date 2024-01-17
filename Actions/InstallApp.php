@@ -51,6 +51,9 @@ use exface\Core\Events\Installer\OnAppInstallEvent;
  * 
  * ```
  *
+ * @triggers \exface\Core\Events\Installer\OnBeforeAppInstallEvent
+ * @triggers \exface\Core\Events\Installer\OnAppInstallEvent
+ *
  * @method \axenox\PackageManager\PackageManagerApp getApp()
  *        
  * @author Andrej Kabachnik

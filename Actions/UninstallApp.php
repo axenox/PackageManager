@@ -12,6 +12,9 @@ use exface\Core\Events\Installer\OnAppUninstallEvent;
 /**
  * This action uninstalls one or more apps
  *
+ * @triggers \exface\Core\Events\Installer\OnBeforeAppUninstallEvent
+ * @triggers \exface\Core\Events\Installer\OnAppUninstallEvent
+ *
  * @author Andrej Kabachnik
  *        
  */

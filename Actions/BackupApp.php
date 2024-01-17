@@ -10,6 +10,9 @@ use exface\Core\Events\Installer\OnAppBackupEvent;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
+ * 
+ * @triggers \exface\Core\Events\Installer\OnBeforeAppBackupEvent
+ * @triggers \exface\Core\Events\Installer\OnAppBackupEvent
  *
  * @method \axenox\PackageManager\PackageManagerApp getApp()
  *        

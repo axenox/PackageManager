@@ -18,6 +18,9 @@ use exface\Core\Events\Installer\OnAppBackupEvent;
 /**
  * Saves the metamodel for the selected apps as JSON files in the corresponding vendor folders.
  *
+ * @triggers \exface\Core\Events\Installer\OnBeforeAppBackupEvent
+ * @triggers \exface\Core\Events\Installer\OnAppBackupEvent
+ *
  * @author Andrej Kabachnik
  *        
  */

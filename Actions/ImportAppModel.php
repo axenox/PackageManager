@@ -11,6 +11,9 @@ use exface\Core\Events\Installer\OnAppInstallEvent;
 /**
  * Imports the models of one or more apps from JSON files without executing any other installers
  *
+ * @triggers \exface\Core\Events\Installer\OnBeforeAppInstallEvent
+ * @triggers \exface\Core\Events\Installer\OnAppInstallEvent
+ *
  * @author Andrej Kabachnik
  *        
  */
