@@ -5,13 +5,15 @@ use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
-use exface\Core\CommonLogic\AppInstallers\MetaModelInstaller;
+use exface\Core\CommonLogic\AppInstallers\DataInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\AppInstallerInterface;
+use exface\Core\Events\Installer\OnBeforeAppBackupEvent;
+use exface\Core\Events\Installer\OnAppBackupEvent;
 
 /**
  * Saves the metamodel for the selected apps as JSON files in the corresponding vendor folders.
@@ -62,16 +64,28 @@ class ExportAppModel extends AbstractActionDeferred
             if (! file_exists($app->getDirectoryAbsolutePath())) {
                 $this->getApp()->createAppFolder($app);
             }
+            $backupDir = $this->getModelFolderPathAbsolute($app);
 
             // Make sure to fully instantiate the installers of an app here before fetching
             // the model installer - in case other installers will modify it or listen to its
             // events (like the DataInstaller)
             $modelInstaller = $app->getInstaller()->extract(function(AppInstallerInterface $inst){
-                return ($inst instanceof MetaModelInstaller);
+                return ($inst instanceof DataInstaller);
             });
             
-            $backupDir = $this->getModelFolderPathAbsolute($app);
+            $event = new OnBeforeAppBackupEvent($app->getSelector(), $backupDir);
+            $this->getWorkbench()->eventManager()->dispatch($event);
+            foreach ($event->getPreprocessors() as $proc) {
+                yield from $proc;
+            }
+            
             yield from $modelInstaller->backup($backupDir);
+            
+            $event = new OnAppBackupEvent($app->getSelector(), $backupDir);
+            $this->getWorkbench()->eventManager()->dispatch($event);
+            foreach ($event->getPostprocessors() as $proc) {
+                yield from $proc;
+            }
             
             $exported_counter ++;
             

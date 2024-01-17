@@ -5,6 +5,8 @@ use exface\Core\Factories\AppFactory;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
+use exface\Core\Events\Installer\OnBeforeAppBackupEvent;
+use exface\Core\Events\Installer\OnAppBackupEvent;
 
 /**
  * This action installs one or more apps including their meta model, custom installer, etc.
@@ -79,7 +81,19 @@ class BackupApp extends InstallApp
         }
         $backupDir = $app->getWorkbench()->filemanager()->pathNormalize($backupDir, DIRECTORY_SEPARATOR);
         
+        $event = new OnBeforeAppBackupEvent($app->getSelector(), $backupDir);
+        $this->getWorkbench()->eventManager()->dispatch($event);
+        foreach ($event->getPreprocessors() as $proc) {
+            yield from $proc;
+        }
+        
         yield from $installer->backup($backupDir);
+        
+        $event = new OnAppBackupEvent($app->getSelector(), $backupDir);
+        $this->getWorkbench()->eventManager()->dispatch($event);
+        foreach ($event->getPostprocessors() as $proc) {
+            yield from $proc;
+        }
     }
 
     /**
