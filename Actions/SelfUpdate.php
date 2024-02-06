@@ -73,7 +73,11 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         yield PHP_EOL . "Downloading file...";
         yield PHP_EOL;
         
-        $downloader->download();
+        try {
+            $downloader->download();
+        } catch (\Throwable $e) {
+            yield 'FAILED to download: ' . $e->getMessage();
+        }
         
         if($downloader->getStatusCode() != 200) {
             yield "No update available: " . $downloader->getStatusCode();
@@ -89,7 +93,9 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         */
         
         if ($task->hasParameter('download-only')) {
-            yield 'Download-only mode: stopping after download. Download location: ' . $downloader->getPathAbsolute();
+            $msg = PHP_EOL . 'Download-only mode: stopping after download. Download location: ' . $downloader->getPathAbsolute();
+            $log .= $msg;
+            yield $msg;
             // $releaseLog->saveEntry($releaseLogEntry);
             $downloader->uploadLog($downloader->__toString());
             return;
@@ -97,26 +103,45 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         
         // install file
         $log = $downloader->__toString();
-        $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder());
-        foreach ($selfUpdateInstaller->install() as $line) {
-            $log .= $line;
+        
+        try {
+            $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder());
+            foreach ($selfUpdateInstaller->install() as $line) {
+                $log .= $line;
+                yield $line;
+            }
+        
+            /*
+            // save installation infos in $releaseLogEntry->logArray
+            $releaseLogEntry->addInstallation($selfUpdateInstaller);
+            
+            // update release file if installation was successful
+            if($selfUpdateInstaller->getInstallationSuccess()) {
+                // TODO wo gehört das hin?
+                $releaseLogEntry->addDeploymentSuccess($selfUpdateInstaller->getTimestamp(), $downloader->getFileName());
+            }
+            
+            $releaseLog->saveEntry($releaseLogEntry);
+            
+            // $downloader->uploadLog($releaseLogEntry->???); 
+            */
+        } catch (\Throwable $e) {
+            $eMsg = PHP_EOL . PHP_EOL . 'ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+            $log .= $eMsg;
+            yield $eMsg;
+            $this->getWorkbench()->getLogger()->logException($e);
         }
         
-        /*
-        // save installation infos in $releaseLogEntry->logArray
-        $releaseLogEntry->addInstallation($selfUpdateInstaller);
-        
-        // update release file if installation was successful
-        if($selfUpdateInstaller->getInstallationSuccess()) {
-            // TODO wo gehört das hin?
-            $releaseLogEntry->addDeploymentSuccess($selfUpdateInstaller->getTimestamp(), $downloader->getFileName());
+        // Upload results to the OTA server
+        try {
+            $downloader->uploadLog($log);
+            yield PHP_EOL . 'Uploaded log to OTA server';
+        } catch (\Throwable $e) {
+            yield PHP_EOL . PHP_EOL . 'ERROR when uploading installation log: '  . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
         }
+            
+        yield PHP_EOL . PHP_EOL . 'Finished self-update successfully!';
         
-        $releaseLog->saveEntry($releaseLogEntry);
-        
-        // $downloader->uploadLog($releaseLogEntry->???); 
-        */
-        $downloader->uploadLog($log);
         return;
     }
     
