@@ -14,6 +14,7 @@ use axenox\PackageManager\Common\Updater\InstallationResponse;
 use axenox\PackageManager\Common\Updater\SelfUpdateInstaller;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\DataTypes\FilePathDataType;
 
 /**
  * 
@@ -53,8 +54,9 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
      */
     protected function performDeferred(TaskInterface $task = null) : \Generator
     {
-        $downloadPath = $this->getWorkbench()->getInstallationPath() 
-            . DIRECTORY_SEPARATOR . $this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.DOWNLOAD_PATH') 
+        $downloadPathRelative = FilePathDataType::normalize($this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.DOWNLOAD_PATH'), DIRECTORY_SEPARATOR);
+        $downloadPathAbsolute = $this->getWorkbench()->getInstallationPath() 
+            . DIRECTORY_SEPARATOR . $downloadPathRelative
             . DIRECTORY_SEPARATOR;
         $url = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.URL');
         $username = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.USERNAME');
@@ -65,7 +67,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         }
         
         // Download file
-        $downloader = new UpdateDownloader($url, $username, $password, $downloadPath);
+        $downloader = new UpdateDownloader($url, $username, $password, $downloadPathAbsolute);
         /*$releaseLog = new ReleaseLog($this->getWorkbench());
         $releaseLogEntry = $releaseLog->createLogEntry();
         */
@@ -75,6 +77,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         
         try {
             $downloader->download();
+            yield 'Downloaded to "' . $downloadPathRelative . '"';
         } catch (\Throwable $e) {
             yield 'FAILED to download: ' . $e->getMessage();
         }
