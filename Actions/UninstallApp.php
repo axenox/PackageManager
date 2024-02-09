@@ -6,9 +6,14 @@ use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\Events\Installer\OnBeforeAppUninstallEvent;
+use exface\Core\Events\Installer\OnAppUninstallEvent;
 
 /**
  * This action uninstalls one or more apps
+ *
+ * @triggers \exface\Core\Events\Installer\OnBeforeAppUninstallEvent
+ * @triggers \exface\Core\Events\Installer\OnAppUninstallEvent
  *
  * @author Andrej Kabachnik
  *        
@@ -36,7 +41,21 @@ class UninstallApp extends InstallApp
             $app_selector = new AppSelector($this->getWorkbench(), $app_alias);
             try {
                 $installed_counter ++;
+                
+                $event = new OnBeforeAppUninstallEvent($app_selector);
+                $this->getWorkbench()->eventManager()->dispatch($event);
+                foreach ($event->getPreprocessors() as $proc) {
+                    yield from $proc;
+                }
+                
                 yield from $this->uninstallApp($app_selector);
+                
+                $event = new OnAppUninstallEvent($app_selector);
+                $this->getWorkbench()->eventManager()->dispatch($event);
+                foreach ($event->getPostprocessors() as $proc) {
+                    yield from $proc;
+                }
+                
                 yield "..." . $app_alias . " successfully uninstalled." . PHP_EOL;
             } catch (\Exception $e) {
                 $installed_counter --;

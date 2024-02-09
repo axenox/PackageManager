@@ -19,6 +19,8 @@ use exface\Core\Exceptions\Actions\ActionInputMissingError;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 use exface\Core\Interfaces\Actions\iModifyData;
+use exface\Core\Events\Installer\OnBeforeAppInstallEvent;
+use exface\Core\Events\Installer\OnAppInstallEvent;
 
 /**
  * Installs/updates one or more apps including their meta model, custom installer, etc.
@@ -48,6 +50,9 @@ use exface\Core\Interfaces\Actions\iModifyData;
  * vendor/bin/action axenox.packagemanager:installapp exface.Core,axenox.PackageManager
  * 
  * ```
+ *
+ * @triggers \exface\Core\Events\Installer\OnBeforeAppInstallEvent
+ * @triggers \exface\Core\Events\Installer\OnAppInstallEvent
  *
  * @method \axenox\PackageManager\PackageManagerApp getApp()
  *        
@@ -222,12 +227,26 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
     {
         $app = AppFactory::create($app_selector);
         $installer = $app->getInstaller();
-        $installer_result = $installer->install($this->getAppAbsolutePath($app_selector));
+        $path = $this->getAppAbsolutePath($app_selector);
+        
+        $event = new OnBeforeAppInstallEvent($app_selector, $path);
+        $this->getWorkbench()->eventManager()->dispatch($event);
+        foreach ($event->getPreprocessors() as $proc) {
+            yield from $proc;
+        }
+        
+        $installer_result = $installer->install($path);
         if ($installer_result instanceof \Traversable) {
             yield from $installer_result;
         } else {
             yield $installer_result . (substr($installer_result, - 1) != '.' ? '.' : '');
         
+        }
+        
+        $event = new OnAppInstallEvent($app_selector, $path);
+        $this->getWorkbench()->eventManager()->dispatch($event);
+        foreach ($event->getPostprocessors() as $proc) {
+            yield from $proc;
         }
     }
 

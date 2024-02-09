@@ -31,7 +31,8 @@ class UpdaterFacade extends AbstractHttpFacade
         $uri = $request->getUri();
         $path = $uri->getPath();
         $pathInFacade = mb_strtolower(StringDataType::substringAfter($path, $this->getUrlRouteDefault() . '/'));
-        
+        $headers = $this->buildHeadersCommon();
+                
         switch (true) {
             
             case $pathInFacade === 'upload-file':
@@ -58,8 +59,7 @@ class UpdaterFacade extends AbstractHttpFacade
                 if($selfUpdateInstaller->getInstallationSuccess()) {
                     $releaseLogEntry->addNewDeployment($uploader->getTimestamp(), $uploader->getInstallationFileName());
                 }
-                
-                $headers = ['Content-Type' => 'text/plain-stream'];
+                $headers['Content-Type'] = 'text/plain-stream';
                 return new Response(200, $headers, $releaseLogEntry->getEntry());
                 
                 /*
@@ -82,14 +82,14 @@ class UpdaterFacade extends AbstractHttpFacade
                 $releaseLog = new ReleaseLog($this->getWorkbench());
                 $output = "Last Deployment: " . $releaseLog->getLatestDeployment() . PHP_EOL. PHP_EOL;
                 $output .= $releaseLog->getLatestLog();
-                $headers = ['Content-Type' => 'text/plain-stream'];
+                $headers['Content-Type'] = 'text/plain-stream';
                 return new Response(200, $headers, $output);
                 
             // Shows log-entries for all uploaded files
             case $pathInFacade === 'log':
                 // Gets log-entries for all uploaded files as Json
                 $releaseLog = new ReleaseLog($this->getWorkbench());
-                $headers = ['Content-Type' => 'application/json'];
+                $headers['Content-Type'] = 'application/json';
                 return new Response(200, $headers, json_encode($releaseLog->getLogEntries(), JSON_PRETTY_PRINT));
                 
             case $pathInFacade === 'zip':
@@ -100,7 +100,7 @@ class UpdaterFacade extends AbstractHttpFacade
             default:
                 $releaseLog = new ReleaseLog($this->getWorkbench());
                 if($releaseLog->getLogContent($pathInFacade) !== null) {
-                    $headers = ['Content-Type' => 'text/plain-stream'];
+                    $headers['Content-Type'] = 'text/plain-stream';
                     return new Response(200, $headers, $releaseLog->getLogContent($pathInFacade));
                 }
         }

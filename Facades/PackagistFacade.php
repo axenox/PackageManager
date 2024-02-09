@@ -46,7 +46,7 @@ class PackagistFacade extends AbstractHttpFacade
         } elseif ($topics[0]) {
             return $this->buildResponsePackage($topics);
         }
-        return new Response(404);
+        return new Response(404, $this->buildHeadersCommon());
     }
     
     /**
@@ -98,7 +98,7 @@ class PackagistFacade extends AbstractHttpFacade
             $json['packages'][$composerJson['name']][self::BRANCH_NAME] = $composerJson;
             
         }        
-        $headers = [];
+        $headers = $this->buildHeadersCommon();
         $headers['Content-type'] = 'application/json;charset=utf-8';
         $body = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         return new Response(200, $headers, $body);
@@ -120,7 +120,7 @@ class PackagistFacade extends AbstractHttpFacade
         $ds->dataRead();
         if ($ds->isEmpty()) {
             $packageAlias = str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '/', $packageAlias);
-            return new Response(404, [], "The package '{$packageAlias}' does not exist or is not puplished!");
+            return new Response(404, $this->buildHeadersCommon(), "The package '{$packageAlias}' does not exist or is not puplished!");
         }
         $app = AppFactory::createFromAlias($packageAlias, $workbench);        
         $backupAction = ActionFactory::createFromString($workbench, StaticInstaller::PACKAGE_MANAGER_BACKUP_ACTION_ALIAS);
@@ -132,17 +132,17 @@ class PackagistFacade extends AbstractHttpFacade
             continue;
         }
         if (!is_dir($path)) {
-            return new Response(404, [], "The package '{$packageAlias}' could not be exported!");
+            return new Response(404, $this->buildHeadersCommon(), "The package '{$packageAlias}' could not be exported!");
         }
         $zip = new ArchiveManager($workbench, $path . '.zip');
         $zip->addFolder($path);
         $zip->close();
-        $headers = [
+        $headers = array_merge($this->buildHeadersCommon(), [
             "Content-type" => "application/zip",
             "Content-Transfer-Encoding"=> "Binary",
-        ];
+        ]);
         if (!is_file($path . '.zip')) {
-            return new Response(404, [], "The zip file for package '{$packageAlias}' could not be created!");
+            return new Response(404, $headers, "The zip file for package '{$packageAlias}' could not be created!");
         }
         $filemanager->deleteDir($path);
         return new Response(200, $headers, readfile($path . '.zip'));

@@ -34,8 +34,13 @@ class SelfUpdateInstaller {
     public function install()
     {
         $cmd = 'php -d memory_limit=2G ' . $this->installationFilePath;
-        yield "Installing " . end(explode("/", $this->installationFilePath)) . "..." .PHP_EOL .PHP_EOL;
+        $pathArr = explode("/", $this->installationFilePath);
+        $phxName = end($pathArr);
+        
+        // Make sure composer is runnable by adding required environment variables
         $envVars = ['COMPOSER_HOME' => $this->tmpFolderPath . DIRECTORY_SEPARATOR . '.composer'];
+        
+        yield "Extracting " . $phxName . "..." .PHP_EOL .PHP_EOL;
         /* @var $process \Symfony\Component\Process\Process */
         $process = Process::fromShellCommandline($cmd, null, $envVars, null, 600);
         $process->start();
