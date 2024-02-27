@@ -77,9 +77,9 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         
         try {
             $downloader->download();
-            yield 'Downloaded to "' . $downloadPathRelative . '"';
+            yield 'Downloaded to "' . $downloadPathRelative . '"' . PHP_EOL;
         } catch (\Throwable $e) {
-            yield 'FAILED to download: ' . $e->getMessage();
+            yield 'FAILED to download: ' . $e->getMessage() . PHP_EOL;
         }
         
         if($downloader->getStatusCode() != 200) {
@@ -96,7 +96,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         */
         
         if ($task->hasParameter('download-only')) {
-            $msg = PHP_EOL . 'Download-only mode: stopping after download. Download location: ' . $downloader->getPathAbsolute();
+            $msg = 'Download-only mode: stopping after download. Download location: ' . $downloader->getPathAbsolute();
             $log .= $msg;
             yield $msg;
             // $releaseLog->saveEntry($releaseLogEntry);
