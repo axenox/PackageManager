@@ -46,14 +46,14 @@ class ImportAppModel extends InstallApp
                 $modelInstaller = $app->getInstaller()->extract(function(AppInstallerInterface $inst){
                     return ($inst instanceof DataInstaller);
                 });
-                
+                $path = $this->getAppAbsolutePath($app_selector);
                 $event = new OnBeforeAppInstallEvent($app_selector, $path);
                 $this->getWorkbench()->eventManager()->dispatch($event);
                 foreach ($event->getPreprocessors() as $proc) {
                     yield from $proc;
                 }
                 
-                yield from $modelInstaller->install($this->getAppAbsolutePath($app_selector));
+                yield from $modelInstaller->install($path);
                 
                 $event = new OnAppInstallEvent($app_selector, $path);
                 $this->getWorkbench()->eventManager()->dispatch($event);
