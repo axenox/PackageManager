@@ -15,7 +15,7 @@ interface BOMPackageInterface
     
     public function getLicenseLink(string $licenseUsed) : ?string;
     
-    public function getLicenseFile() : ?string;
+    public function getLicenseFile(string $licenseUsed = null) : ?string;
     
     public function getLicenseText(string $licenseUsed) : ?string;
     
