@@ -27,7 +27,7 @@ class BOMPackage implements BOMPackageInterface
      *      "MIT": "..."
      *  },
      *  "license_file": {
-     *      "MIT": "c:\wamp\www\exface\exface\vendor\axenox\ide\Atheos\Docs\LICENSE.md
+     *      "MIT": "axenox/ide/Atheos/Docs/LICENSE.md
      *  }
      * }
      * 
