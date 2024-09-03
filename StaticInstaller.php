@@ -6,7 +6,6 @@ use exface\Core\CommonLogic\Workbench;
 use Composer\Script\Event;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
-use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\ActionFactory;
 use axenox\PackageManager\Actions\ListApps;
 
@@ -307,7 +306,9 @@ class StaticInstaller
             $result = 'FAILED - ' . $e->getMessage() . '!';
             $this::printToStdout('FAILED installing ' . $app_alias . '!');
             $this::printException($e);
-            $exface->getLogger()->logException($e);
+            if ($exface !== null) {
+                $exface->getLogger()->logException($e);
+            }
         }
         return $result;
     }
@@ -324,7 +325,9 @@ class StaticInstaller
             $result = 'FAILED - ' . $e->getMessage() . '!';
             $this::printToStdout('FAILED uninstalling ' . $app_alias . '!');
             $this::printException($e);
-            $exface->getLogger()->logException($e);
+            if ($exface !== null) {
+                $exface->getLogger()->logException($e);
+            }
         }
         return $result;
     }

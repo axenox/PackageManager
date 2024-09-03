@@ -29,7 +29,7 @@ class FindLicenseGithubEnricher implements BOMPackageEnricherInterface
             foreach($package->getLicenseNames() as $licenseName){
                 $link = $package->getLicenseLink($licenseName);
                 // if license_link contains 'raw.githubusercontent.com' and license_text for licenseName is empty
-                if(str_contains($link, "raw.githubusercontent.com") && null === $package->getLicenseText($licenseName))
+                if($link !== null && str_contains($link, "raw.githubusercontent.com") && null === $package->getLicenseText($licenseName))
                 {
                     $content = file_get_contents($link);
                     if($content !== false){

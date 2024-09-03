@@ -27,7 +27,7 @@ class BOMPackage implements BOMPackageInterface
      *      "MIT": "..."
      *  },
      *  "license_file": {
-     *      "MIT": "c:\wamp\www\exface\exface\vendor\axenox\ide\Atheos\Docs\LICENSE.md
+     *      "MIT": "axenox/ide/Atheos/Docs/LICENSE.md
      *  }
      * }
      * 
@@ -105,9 +105,24 @@ class BOMPackage implements BOMPackageInterface
      * {@inheritDoc}
      * @see \axenox\PackageManager\Interfaces\BOMPackageInterface::getLicenseFile()
      */
-    public function getLicenseFile() : ?string
+    public function getLicenseFile(string $licenseUsed = null) : ?string
     {
-        return $this->packageArray['license_file'] ?? null;
+        $prop = $this->packageArray['license_file'] ?? null;
+        switch (true) {
+            case is_array($prop):
+                if ($licenseUsed !== null) {
+                    $path = $prop[$licenseUsed] ?? null;
+                } else {
+                    $path = reset($prop);
+                }
+                break;
+            case $prop === null: 
+            case is_string($prop):
+            default:
+                $path = $prop;
+                break;
+        }
+        return $path;
     }
     
     /**
