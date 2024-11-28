@@ -25,7 +25,16 @@ Here is where to find the system git config on different servers. You can create
 These global options are recommended. Use `git config --global core.autocrlf input` or similar to set them.
 
 - `core.autocrlf = input` to avoid strange diffs due to different line endings locally and on the remote
-- `user.name = ` helps avoid warnings about missing global user info when committing. The actual name is not important, it will be overwritte by the current user on every commit anyway.
+- `user.name = <server name>` helps avoid warnings about missing global user info when committing. The actual name is not important, it will be overwritte by the current user on every commit anyway.
+- `user-email = <email of user responsible for this server>`
+
+Corresponding git commands:
+
+```
+git config --global core.autocrlf input
+git config --global user.name "Mustermann, Max"
+git config --global user.email "max.mustermann@domain.com"
+```
 
 #### Using local repos created by another user
 
@@ -42,6 +51,7 @@ In short, you can place the following in the users-scope or system-scope .gitcon
 	directory = *
 [user]
 	name = <computer network name>
+	email = <email of responsible person>
 [credential "https://git.yourdomain.com"]
 	provider = generic
 [credential]
@@ -55,7 +65,24 @@ Make sure, the user running PHP has full access to the folder of the app - inclu
 
 ## Sync a local app with a remote git repo
 
-### Connect to git via git Console
+### Create a new git repo for exported app
+
+1. Go to your git server (e.g. Gitlab or Github) and create a new repo/project
+2. Add an access key with the rights to read and write the repo
+4. On your workbench UI go to Administration > Metamodel > Apps
+5. Find your app and press `Export model`
+6. Press `Git console`
+7. Perform the following commands
+
+```
+git init --initial-branch=main
+git remote add origin <url to git repo>
+git add .
+git commit -m "Initial commit"
+git push --set-upstream origin main
+```
+
+### Connect to existing git repo via git Console
 
 Assuming you already have a remote git repository for your app (e.g. on GitHub), follow these steps to put your locally designed app into that repo. Don't worry if the repo is not empty, you will get a diff with the local app at the end.
 
