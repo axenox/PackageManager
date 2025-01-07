@@ -107,6 +107,12 @@ If you created the app folder by cloning an existing repo, you will need to add 
 
 ## Troubleshooting git
 
+### View git configs
+
+To check the current git configuraion open the git console an run to command below. This will show not only all configurations, but also the files where they are located, which is very usefull.
+
+`git config --list --show-origin --show-scope`
+
 ### Debugging git
 
 To enable debug output for git commands, set the following environment variables before running the command: `GIT_CURL_VERBOSE=1 GIT_TRACE=1`
