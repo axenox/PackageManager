@@ -108,7 +108,7 @@ class PackageManagerApp extends App
         if (! $base_path) {
             $base_path = Filemanager::FOLDER_NAME_VENDOR . DIRECTORY_SEPARATOR;
         }
-        return $base_path . ($app ? $app->getVendor() . DIRECTORY_SEPARATOR . str_replace($app->getVendor() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '', $app->getAlias()) : '');
+        return $base_path . mb_strtolower($app ? $app->getVendor() . DIRECTORY_SEPARATOR . str_replace($app->getVendor() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, '', $app->getAlias()) : '');
     }
 
     public function getPathToAppAbsolute(AppInterface $app = null, $base_path = '')
