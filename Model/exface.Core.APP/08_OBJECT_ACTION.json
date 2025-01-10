@@ -106,7 +106,7 @@
                                     "caption": "Diff",
                                     "hint": "Show differences - type `*` to diff across all files",
                                     "commands": [
-                                        "git diff <File (path or wildcard expr.)>"
+                                        "git diff --color=always <File (path or wildcard expr.)>"
                                     ]
                                 },
                                 {
