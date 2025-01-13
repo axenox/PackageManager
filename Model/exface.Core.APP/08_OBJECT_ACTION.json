@@ -2,6 +2,11 @@
     "object_alias": "exface.Core.OBJECT_ACTION",
     "columns": [
         {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "LABEL"
+        },
+        {
             "name": "CREATED_ON",
             "attribute_alias": "CREATED_ON"
         },
@@ -60,13 +65,14 @@
     ],
     "rows": [
         {
+            "_EXPORT_SUMMARY": "App: Git Console",
             "CREATED_ON": "2019-05-13 09:02:35",
-            "MODIFIED_ON": "2022-11-11 11:34:55",
+            "MODIFIED_ON": "2025-01-10 21:37:59",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e9755dcd59222586490205857feb80",
             "OBJECT": "0x35370000000000000000000000000000",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
+            "ACTION_PROTOTYPE": "exface/Core/Actions/ShowDialog.php",
             "ALIAS": "ShowAppGitConsoleDialog",
             "NAME": "Git Console",
             "SHORT_DESCRIPTION": "Shows a GIT console for a selected app",
@@ -84,10 +90,10 @@
                                 "GIT_SSL_NO_VERIFY": true
                             },
                             "allowed_commands": [
-                                "\/dir\/",
-                                "\/cd .*\/",
-                                "\/git .*\/ ",
-                                "\/.*\/ "
+                                "/dir/",
+                                "/cd .*/",
+                                "/git .*/ ",
+                                "/.*/ "
                             ],
                             "start_commands": [
                                 "git status"
@@ -189,13 +195,14 @@
             "DOCS": ""
         },
         {
+            "_EXPORT_SUMMARY": "App: Repair",
             "CREATED_ON": "2019-10-21 14:49:29",
             "MODIFIED_ON": "2021-04-09 15:40:58",
             "CREATED_BY_USER": "0x11e9ea7fa76e99698f24847beb3e34e8",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e9f40138c8fa1c9132847beb3e34e8",
             "OBJECT": "0x35370000000000000000000000000000",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
+            "ACTION_PROTOTYPE": "exface/Core/Actions/ShowDialog.php",
             "ALIAS": "ShowAppRepairConsole",
             "NAME": "Repair",
             "SHORT_DESCRIPTION": "",
@@ -212,7 +219,7 @@
                             "start_commands": [
                                 "action axenox.PackageManager:InstallApp [#ALIAS#]"
                             ],
-                            "working_directory_path": "vendor\/bin"
+                            "working_directory_path": "vendor/bin"
                         }
                     ]
                 },
@@ -225,13 +232,14 @@
             "DOCS": ""
         },
         {
+            "_EXPORT_SUMMARY": "App: Uninstall",
             "CREATED_ON": "2019-11-10 07:06:45",
             "MODIFIED_ON": "2021-04-09 15:41:15",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ea03884f0a6400b7580205857feb80",
             "OBJECT": "0x35370000000000000000000000000000",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
+            "ACTION_PROTOTYPE": "exface/Core/Actions/ShowDialog.php",
             "ALIAS": "ShowAppUninstallConsole",
             "NAME": "Uninstall",
             "SHORT_DESCRIPTION": "",
@@ -248,7 +256,7 @@
                             "start_commands": [
                                 "action axenox.PackageManager:UninstallApp [#ALIAS#]"
                             ],
-                            "working_directory_path": "vendor\/bin"
+                            "working_directory_path": "vendor/bin"
                         }
                     ]
                 },
@@ -261,13 +269,14 @@
             "DOCS": ""
         },
         {
+            "_EXPORT_SUMMARY": "App: PackageManager Console",
             "CREATED_ON": "2019-11-10 10:35:14",
             "MODIFIED_ON": "2025-01-07 11:20:07",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ea03a56e51344cb7580205857feb80",
             "OBJECT": "0x35370000000000000000000000000000",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
+            "ACTION_PROTOTYPE": "exface/Core/Actions/ShowDialog.php",
             "ALIAS": "ShowPackageManagerConsole",
             "NAME": "PackageManager Console",
             "SHORT_DESCRIPTION": "",
@@ -319,10 +328,10 @@
                                 }
                             ],
                             "allowed_commands": [
-                                "\/action list axenox.PackageManager\/",
-                                "\/action axenox.PackageManager.*\/"
+                                "/action list axenox.PackageManager/",
+                                "/action axenox.PackageManager.*/"
                             ],
-                            "working_directory_path": "vendor\/bin"
+                            "working_directory_path": "vendor/bin"
                         }
                     ]
                 },
@@ -335,13 +344,14 @@
             "DOCS": ""
         },
         {
+            "_EXPORT_SUMMARY": "App: Package URL",
             "CREATED_ON": "2021-06-09 15:59:27",
             "MODIFIED_ON": "2021-08-04 14:17:06",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11eb9e12e91c029e9e12025041000001",
             "OBJECT": "0x35370000000000000000000000000000",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
+            "ACTION_PROTOTYPE": "exface/Core/Actions/ShowDialog.php",
             "ALIAS": "ShowPackageUrl",
             "NAME": "Package URL",
             "SHORT_DESCRIPTION": "Shows a dialog with the Composer setup required to install this app",
@@ -366,7 +376,7 @@
                         },
                         {
                             "widget_type": "Text",
-                            "value": "=WorkbenchURL('api\/packagist\/packages')",
+                            "value": "=WorkbenchURL('api/packagist/packages')",
                             "caption": "Repository URL",
                             "width": "max"
                         },
@@ -376,7 +386,21 @@
                             "caption": "Example composer.json",
                             "widgets": [
                                 {
-                                    "value": "=ReplacePlaceholders('\n{\n    \"require\": {\n        \"[#PACKAGE#]\": \"*\"\n    },\n    \"repositories\": {\n        \"[#PACKAGE#]\": {\n            \"type\": \"composer\",\n            \"url\": \"[#=WorkbenchURL(\\'api\/packagist\/packages\\')#]\"\n        }\n    }\n}')",
+                                    "value": [
+                                        "// Multiline text delimited by `\n`",
+                                        "=ReplacePlaceholders('",
+                                        "{",
+                                        "    \"require\": {",
+                                        "        \"[#PACKAGE#]\": \"*\"",
+                                        "    },",
+                                        "    \"repositories\": {",
+                                        "        \"[#PACKAGE#]\": {",
+                                        "            \"type\": \"composer\",",
+                                        "            \"url\": \"[#=WorkbenchURL(\\'api/packagist/packages\\')#]\"",
+                                        "        }",
+                                        "    }",
+                                        "}')"
+                                    ],
                                     "disabled": true,
                                     "width": "max",
                                     "height": 10,
@@ -393,13 +417,14 @@
             "DOCS": ""
         },
         {
+            "_EXPORT_SUMMARY": "App: Unpublish",
             "CREATED_ON": "2021-06-21 08:42:08",
             "MODIFIED_ON": "2021-06-21 08:44:15",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11eb974fccb776a8974f025041000001",
             "OBJECT": "0x35370000000000000000000000000000",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/UpdateData.php",
+            "ACTION_PROTOTYPE": "exface/Core/Actions/UpdateData.php",
             "ALIAS": "UnpublishApp",
             "NAME": "Unpublish",
             "SHORT_DESCRIPTION": "Makes published apps local again",
@@ -422,13 +447,14 @@
             "DOCS": ""
         },
         {
+            "_EXPORT_SUMMARY": "App: Publish",
             "CREATED_ON": "2021-06-21 08:43:43",
             "MODIFIED_ON": "2021-06-21 08:45:46",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11eb8d4905c8cd5c8d49025041000001",
             "OBJECT": "0x35370000000000000000000000000000",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/UpdateData.php",
+            "ACTION_PROTOTYPE": "exface/Core/Actions/UpdateData.php",
             "ALIAS": "PublishApp",
             "NAME": "Publish",
             "SHORT_DESCRIPTION": "Publishes an app, so it can be downloaded from this server by the package manager of another workbench or via PHP Composer",

@@ -2,6 +2,11 @@
     "object_alias": "exface.Core.APP",
     "columns": [
         {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "LABEL"
+        },
+        {
             "name": "CREATED_ON",
             "attribute_alias": "CREATED_ON"
         },
@@ -36,6 +41,7 @@
     ],
     "rows": [
         {
+            "_EXPORT_SUMMARY": "axenox Package Manager [axenox.PackageManager]",
             "CREATED_ON": "2007-01-01 00:00:00",
             "MODIFIED_ON": "2016-03-18 14:18:40",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",

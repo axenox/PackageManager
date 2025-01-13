@@ -2,6 +2,11 @@
     "object_alias": "exface.Core.ATTRIBUTE",
     "columns": [
         {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "LABEL"
+        },
+        {
             "name": "CREATED_ON",
             "attribute_alias": "CREATED_ON"
         },
@@ -172,6 +177,7 @@
     ],
     "rows": [
         {
+            "_EXPORT_SUMMARY": "Version [VERSION_NO]",
             "CREATED_ON": "2007-01-01 00:00:00",
             "MODIFIED_ON": "2007-01-01 00:00:00",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -205,10 +211,10 @@
             "HIDDENFLAG": 0,
             "EDITABLEFLAG": 0,
             "REQUIREDFLAG": 0,
-            "RELATED_OBJ": "",
+            "RELATED_OBJ": null,
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
@@ -216,6 +222,7 @@
             "CUSTOM_DATA_TYPE": null
         },
         {
+            "_EXPORT_SUMMARY": "Name [NAME]",
             "CREATED_ON": "2007-01-01 00:00:00",
             "MODIFIED_ON": "2007-01-01 00:00:00",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -249,10 +256,10 @@
             "HIDDENFLAG": 0,
             "EDITABLEFLAG": 0,
             "REQUIREDFLAG": 0,
-            "RELATED_OBJ": "",
+            "RELATED_OBJ": null,
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
@@ -260,6 +267,7 @@
             "CUSTOM_DATA_TYPE": null
         },
         {
+            "_EXPORT_SUMMARY": "Description [DESCRIPTION]",
             "CREATED_ON": "2007-01-01 00:00:00",
             "MODIFIED_ON": "2007-01-01 00:00:00",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -293,10 +301,10 @@
             "HIDDENFLAG": 0,
             "EDITABLEFLAG": 0,
             "REQUIREDFLAG": 0,
-            "RELATED_OBJ": "",
+            "RELATED_OBJ": null,
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
@@ -304,6 +312,7 @@
             "CUSTOM_DATA_TYPE": null
         },
         {
+            "_EXPORT_SUMMARY": "ID [id]",
             "CREATED_ON": "2007-01-01 00:00:00",
             "MODIFIED_ON": "2007-01-01 00:00:00",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -337,10 +346,10 @@
             "HIDDENFLAG": 1,
             "EDITABLEFLAG": 0,
             "REQUIREDFLAG": 0,
-            "RELATED_OBJ": "",
+            "RELATED_OBJ": null,
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
@@ -348,6 +357,7 @@
             "CUSTOM_DATA_TYPE": null
         },
         {
+            "_EXPORT_SUMMARY": "Package Repository [PKG_REPO]",
             "CREATED_ON": "2007-01-01 00:00:00",
             "MODIFIED_ON": "2017-10-25 05:01:19",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -384,7 +394,7 @@
             "RELATED_OBJ": "0x31333100000000000000000000000000",
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
@@ -392,6 +402,7 @@
             "CUSTOM_DATA_TYPE": null
         },
         {
+            "_EXPORT_SUMMARY": "Prerelease [PRERELEASE]",
             "CREATED_ON": "2007-01-01 00:00:00",
             "MODIFIED_ON": "2007-01-01 00:00:00",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -425,10 +436,10 @@
             "HIDDENFLAG": 0,
             "EDITABLEFLAG": 0,
             "REQUIREDFLAG": 0,
-            "RELATED_OBJ": "",
+            "RELATED_OBJ": null,
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "Marks a version a not intended for production",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
@@ -436,6 +447,7 @@
             "CUSTOM_DATA_TYPE": null
         },
         {
+            "_EXPORT_SUMMARY": "Published at [PUBLISHED_AT]",
             "CREATED_ON": "2007-01-01 00:00:00",
             "MODIFIED_ON": "2007-01-01 00:00:00",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -469,10 +481,10 @@
             "HIDDENFLAG": 0,
             "EDITABLEFLAG": 0,
             "REQUIREDFLAG": 0,
-            "RELATED_OBJ": "",
+            "RELATED_OBJ": null,
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "Marks a version a not intended for production",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",

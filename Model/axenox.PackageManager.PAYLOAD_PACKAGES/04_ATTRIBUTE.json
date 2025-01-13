@@ -2,6 +2,11 @@
     "object_alias": "exface.Core.ATTRIBUTE",
     "columns": [
         {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "LABEL"
+        },
+        {
             "name": "CREATED_ON",
             "attribute_alias": "CREATED_ON"
         },
@@ -172,6 +177,7 @@
     ],
     "rows": [
         {
+            "_EXPORT_SUMMARY": "App alias [APP]",
             "CREATED_ON": "2021-05-07 13:22:18",
             "MODIFIED_ON": "2021-05-20 11:42:12",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
@@ -196,7 +202,7 @@
             "COPYABLEFLAG": 1,
             "ALIAS": "APP",
             "DATATYPE": "0x30000000000000000000000000000000",
-            "DATA_ADDRESS": "REPLACE([#~alias#].name, '\/', '.')",
+            "DATA_ADDRESS": "REPLACE([#~alias#].name, '/', '.')",
             "OBJECT": "0x11eb965cf182543a965c747827c0cc68",
             "FORMATTER": "",
             "DISPLAYORDER": null,
@@ -218,6 +224,7 @@
             }
         },
         {
+            "_EXPORT_SUMMARY": "Required Version [VERSION]",
             "CREATED_ON": "2021-05-07 13:22:18",
             "MODIFIED_ON": "2021-06-07 13:42:32",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
@@ -251,10 +258,10 @@
             "HIDDENFLAG": 0,
             "EDITABLEFLAG": 1,
             "REQUIREDFLAG": 1,
-            "RELATED_OBJ": "",
+            "RELATED_OBJ": null,
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "'*'",
@@ -264,6 +271,7 @@
             }
         },
         {
+            "_EXPORT_SUMMARY": "Repository Type [TYPE]",
             "CREATED_ON": "2021-05-07 13:22:18",
             "MODIFIED_ON": "2021-06-07 13:39:09",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
@@ -297,10 +305,10 @@
             "HIDDENFLAG": 0,
             "EDITABLEFLAG": 1,
             "REQUIREDFLAG": 1,
-            "RELATED_OBJ": "",
+            "RELATED_OBJ": null,
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
@@ -310,6 +318,7 @@
             }
         },
         {
+            "_EXPORT_SUMMARY": "Repository Url [URL]",
             "CREATED_ON": "2021-05-07 13:22:18",
             "MODIFIED_ON": "2021-06-08 09:08:16",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
@@ -343,10 +352,10 @@
             "HIDDENFLAG": 0,
             "EDITABLEFLAG": 1,
             "REQUIREDFLAG": 0,
-            "RELATED_OBJ": "",
+            "RELATED_OBJ": null,
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
@@ -356,6 +365,7 @@
             }
         },
         {
+            "_EXPORT_SUMMARY": "Package Name [NAME]",
             "CREATED_ON": "2021-05-19 17:04:45",
             "MODIFIED_ON": "2021-06-07 13:38:37",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
@@ -389,10 +399,10 @@
             "HIDDENFLAG": 0,
             "EDITABLEFLAG": 1,
             "REQUIREDFLAG": 1,
-            "RELATED_OBJ": "",
+            "RELATED_OBJ": null,
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
@@ -402,6 +412,7 @@
             }
         },
         {
+            "_EXPORT_SUMMARY": "Package in composer.lock [PACKAGE]",
             "CREATED_ON": "2021-05-19 17:12:25",
             "MODIFIED_ON": "2021-05-19 17:23:55",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
@@ -438,7 +449,7 @@
             "RELATED_OBJ": "0x11eb8dcd0ca5c33e8dcd747827c0cc68",
             "SORTERPOS": null,
             "SORTERDIR": "",
-            "RELATED_OBJ_ATTR": "",
+            "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",

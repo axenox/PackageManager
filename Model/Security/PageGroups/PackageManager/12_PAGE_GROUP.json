@@ -2,6 +2,11 @@
     "object_alias": "exface.Core.PAGE_GROUP",
     "columns": [
         {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "NAME"
+        },
+        {
             "name": "CREATED_ON",
             "attribute_alias": "CREATED_ON"
         },
@@ -36,6 +41,7 @@
     ],
     "rows": [
         {
+            "_EXPORT_SUMMARY": "Package Manager",
             "CREATED_ON": "2020-05-11 13:03:37",
             "MODIFIED_ON": "2020-05-11 13:04:04",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
