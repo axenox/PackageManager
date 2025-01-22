@@ -10,8 +10,6 @@ class UpdateDownloader
 {
     private $downloadedBytes = null;
     
-    private $statusCode = null;
-    
     private $headers = null;
     
     private $fileSize = null;
@@ -25,6 +23,8 @@ class UpdateDownloader
     private $password = null;
     
     private $downloadPath = null;
+    
+    private $response = null;
     
     /**
      *
@@ -73,9 +73,8 @@ class UpdateDownloader
     public function download() : ResponseInterface
     {
         $response = $this->sendHttpRequest('GET');
-        $status = $response->getStatusCode();
-        $this->setStatusCode($status);
-        if ($status === 200) {
+        $this->response = $response;
+        if ($response->getStatusCode() === 200) {
             $content = $response->getBody();
             $this->headers = $response->getHeaders();
             $this->fileSize = $this->getFileSizeFromResponse($response);
@@ -126,21 +125,16 @@ class UpdateDownloader
     
     /**
      *
-     * @param int $statuscode
+     * @return int|NULL
      */
-    protected function setStatusCode(int $statuscode)
+    public function getStatusCode() : ?int
     {
-        $this->statusCode = $statuscode;
+        if ($this->response === null) {
+            return null;
+        }
+        return $this->response->getStatusCode();
     }
     
-    /**
-     *
-     * @return string|NULL
-     */
-    public function getStatusCode() : ?string
-    {
-        return $this->statusCode;
-    }
     
     /**
      *

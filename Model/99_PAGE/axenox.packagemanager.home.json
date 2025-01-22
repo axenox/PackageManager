@@ -59,7 +59,7 @@
                                 ],
                                 "buttons": [
                                     {
-                                        "caption": "Install\/Update",
+                                        "caption": "Install/Update",
                                         "visibility": "promoted",
                                         "action_alias": "axenox.PackageManager.ShowInstallPayload"
                                     },
@@ -211,7 +211,7 @@
                                                 "start_commands": [
                                                     "action axenox.PackageManager:GenerateLicenseBOM"
                                                 ],
-                                                "working_directory_path": "vendor\/bin"
+                                                "working_directory_path": "vendor/bin"
                                             }
                                         ]
                                     }

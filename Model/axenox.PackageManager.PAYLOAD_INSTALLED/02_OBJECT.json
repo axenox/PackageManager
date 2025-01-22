@@ -2,6 +2,11 @@
     "object_alias": "exface.Core.OBJECT",
     "columns": [
         {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "LABEL"
+        },
+        {
             "name": "CREATED_ON",
             "attribute_alias": "CREATED_ON"
         },
@@ -80,6 +85,7 @@
     ],
     "rows": [
         {
+            "_EXPORT_SUMMARY": "Payload Package in composer.lock [axenox.PackageManager.PAYLOAD_INSTALLED]",
             "CREATED_ON": "2021-05-19 16:39:42",
             "MODIFIED_ON": "2021-06-08 13:32:19",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
@@ -95,10 +101,12 @@
             "APP": "0x31380000000000000000000000000000",
             "SHORT_DESCRIPTION": "",
             "PARENT_OBJECT": "0x11e64d20c9789d1a9409c0f8dae36b4f",
-            "DATA_ADDRESS_PROPS": "{\"response_data_path\":\"packages\"}",
+            "DATA_ADDRESS_PROPS": {
+                "response_data_path": "packages"
+            },
             "DEFAULT_EDITOR_UXON": null,
             "ALIAS": "PAYLOAD_INSTALLED",
-            "DATA_ADDRESS": "data\/.payloadPackages\/composer.lock"
+            "DATA_ADDRESS": "data/.payloadPackages/composer.lock"
         }
     ],
     "totals_rows": [],

@@ -2,6 +2,11 @@
     "object_alias": "exface.Core.OBJECT_ACTION",
     "columns": [
         {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "LABEL"
+        },
+        {
             "name": "CREATED_ON",
             "attribute_alias": "CREATED_ON"
         },
@@ -60,13 +65,14 @@
     ],
     "rows": [
         {
+            "_EXPORT_SUMMARY": "Payload Packages: Install Package",
             "CREATED_ON": "2021-05-20 14:01:12",
             "MODIFIED_ON": "2021-06-21 09:07:03",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ebb5ab12efc11eb5ab025041000001",
             "OBJECT": "0x11eb965cf182543a965c747827c0cc68",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
+            "ACTION_PROTOTYPE": "exface/Core/Actions/ShowDialog.php",
             "ALIAS": "ShowInstallPayload",
             "NAME": "Install Package",
             "SHORT_DESCRIPTION": "Download and install a fresh version of the package",
@@ -85,7 +91,7 @@
                             "start_commands": [
                                 "action axenox.PackageManager:InstallPayload [#NAME#]"
                             ],
-                            "working_directory_path": "vendor\/bin"
+                            "working_directory_path": "vendor/bin"
                         }
                     ]
                 }
@@ -95,13 +101,14 @@
             "DOCS": ""
         },
         {
+            "_EXPORT_SUMMARY": "Payload Packages: Payload Composer CLI",
             "CREATED_ON": "2021-06-09 09:18:10",
             "MODIFIED_ON": "2021-06-21 10:04:06",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11eb96e6d89fe40496e6025041000001",
             "OBJECT": "0x11eb965cf182543a965c747827c0cc68",
-            "ACTION_PROTOTYPE": "exface\/Core\/Actions\/ShowDialog.php",
+            "ACTION_PROTOTYPE": "exface/Core/Actions/ShowDialog.php",
             "ALIAS": "ShowPayloadComposerConsole",
             "NAME": "Payload Composer CLI",
             "SHORT_DESCRIPTION": "Command line interface for managing payload packages",
@@ -111,17 +118,17 @@
                     "widgets": [
                         {
                             "widget_type": "Console",
-                            "working_directory_path": "data\/.payloadPackages",
+                            "working_directory_path": "data/.payloadPackages",
                             "working_directory_create": true,
                             "start_commands": [
-                                "..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayload"
+                                "../../vendor/bin/action axenox.PackageManager:InstallPayload"
                             ],
                             "allowed_commands": [
                                 "@php composer.phar.*@",
-                                "@..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayload.*@"
+                                "@../../vendor/bin/action axenox.PackageManager:InstallPayload.*@"
                             ],
                             "environment_vars": {
-                                "COMPOSER_HOME": "=WorkbenchPath('data\/.payloadPackages\/.composer')"
+                                "COMPOSER_HOME": "=WorkbenchPath('data/.payloadPackages/.composer')"
                             },
                             "command_presets": [
                                 {
@@ -135,7 +142,7 @@
                                     "caption": "Update existing package",
                                     "hint": "Update Package(s)",
                                     "commands": [
-                                        "..\/..\/vendor\/bin\/action axenox.PackageManager:InstallPayload <Package names comma-separated>"
+                                        "../../vendor/bin/action axenox.PackageManager:InstallPayload <Package names comma-separated>"
                                     ]
                                 }
                             ]

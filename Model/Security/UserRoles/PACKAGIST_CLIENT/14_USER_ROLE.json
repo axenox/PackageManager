@@ -1,10 +1,10 @@
 {
-    "object_alias": "exface.Core.CONNECTION",
+    "object_alias": "exface.Core.USER_ROLE",
     "columns": [
         {
             "name": "_EXPORT_SUMMARY",
             "hidden": true,
-            "attribute_alias": "LABEL"
+            "attribute_alias": "NAME"
         },
         {
             "name": "CREATED_ON",
@@ -27,63 +27,56 @@
             "attribute_alias": "UID"
         },
         {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
             "name": "APP",
             "attribute_alias": "APP"
         },
         {
-            "name": "TIME_ZONE",
-            "attribute_alias": "TIME_ZONE"
-        },
-        {
-            "name": "LABEL",
-            "attribute_alias": "LABEL"
-        },
-        {
-            "name": "CONNECTOR",
-            "attribute_alias": "CONNECTOR"
-        },
-        {
-            "name": "CONFIG",
-            "attribute_alias": "CONFIG"
-        },
-        {
-            "name": "READONLY",
-            "attribute_alias": "READONLY"
-        },
-        {
             "name": "ALIAS",
             "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "SYNC_WITH_EXT_ROLE",
+            "attribute_alias": "SYNC_WITH_EXT_ROLE"
+        },
+        {
+            "name": "START_PAGE",
+            "attribute_alias": "START_PAGE"
         }
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "GitHub",
-            "CREATED_ON": "2011-01-01 00:00:00",
-            "MODIFIED_ON": "2017-04-19 10:54:26",
+            "_EXPORT_SUMMARY": "Published apps downloader",
+            "CREATED_ON": "2021-10-01 10:34:12",
+            "MODIFIED_ON": "2021-10-01 10:38:06",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
-            "UID": "0x31390000000000000000000000000000",
+            "UID": "0x11ec84e55ab6420a84e5025041000001",
+            "NAME": "Published apps downloader",
+            "DESCRIPTION": "Allows to download published apps",
             "APP": "0x31380000000000000000000000000000",
-            "TIME_ZONE": null,
-            "LABEL": "GitHub",
-            "CONNECTOR": "exface/UrlDataConnector/DataConnectors/HttpConnector.php",
-            "CONFIG": {
-                "URL": "https://api.github.com/"
-            },
-            "READONLY": 0,
-            "ALIAS": "GITHUB"
+            "ALIAS": "PACKAGIST_CLIENT",
+            "SYNC_WITH_EXT_ROLE": null,
+            "START_PAGE": null
         }
     ],
     "totals_rows": [],
     "filters": {
         "operator": "AND",
-        "base_object_alias": "exface.Core.CONNECTION",
+        "base_object_alias": "exface.Core.USER_ROLE",
         "conditions": [
             {
                 "expression": "APP",
                 "comparator": "=",
                 "value": "0x31380000000000000000000000000000",
-                "object_alias": "exface.Core.CONNECTION"
+                "object_alias": "exface.Core.USER_ROLE"
             }
         ]
     },
