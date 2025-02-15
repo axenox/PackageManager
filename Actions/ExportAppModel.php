@@ -3,9 +3,9 @@ namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\AbstractActionDeferred;
+use exface\Core\Interfaces\AppExporterInterface;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
-use exface\Core\CommonLogic\AppInstallers\DataInstaller;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
@@ -73,7 +73,7 @@ class ExportAppModel extends AbstractActionDeferred
             // the model installer - in case other installers will modify it or listen to its
             // events (like the DataInstaller)
             $modelInstaller = $app->getInstaller()->extract(function(AppInstallerInterface $inst){
-                return ($inst instanceof DataInstaller);
+                return ($inst instanceof AppExporterInterface);
             });
             
             $event = new OnBeforeAppBackupEvent($app->getSelector(), $backupDir);
