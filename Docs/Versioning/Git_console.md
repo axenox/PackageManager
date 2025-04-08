@@ -25,7 +25,7 @@ Here is where to find the system git config on different servers. You can create
 These global options are recommended. Use `git config --global core.autocrlf input` or similar to set them.
 
 - `core.autocrlf = input` to avoid strange diffs due to different line endings locally and on the remote
-- `user.name = <server name>` helps avoid warnings about missing global user info when committing. The actual name is not important, it will be overwritte by the current user on every commit anyway.
+- `user.name = <server name>` helps avoid warnings about missing global user info when committing. The actual name is not important, it will be overwritten by the current user on every commit anyway.
 - `user-email = <email of user responsible for this server>`
 
 Corresponding git commands:
