@@ -107,33 +107,5 @@ If you created the app folder by cloning an existing repo, you will need to add 
 
 ## Troubleshooting git
 
-### View git configs
-
-To check the current git configuraion open the git console an run to command below. This will show not only all configurations, but also the files where they are located, which is very usefull.
-
-`git config --list --show-origin --show-scope`
-
-### Debugging git
-
-To enable debug output for git commands, set the following environment variables before running the command: `GIT_CURL_VERBOSE=1 GIT_TRACE=1`
-
-- On Windows: `SET GIT_CURL_VERBOSE=1`, `SET GIT_TRACE=1`
-
-### Missing upstream configuration
-
-- If you cannot push because there is no upstream set up, use `git push --set-upstream origin main` where `origin` is the remote and `main` is the branch.
-
-### Connection/SSL issues
-
-#### SSL Certificate problem: unable to get local issuer certificate.
-
-Run `git config --global http.sslbackend schannel` on the command line to solve the issue.
-
-The problem is that git by default using the "Linux" crypto backend.
-
-Beginning with Git for Windows 2.14, you can now configure Git to use SChannel, the built-in Windows networking layer as the crypto backend. This means that it will use the Windows certificate storage mechanism and you do not need to explicitly configure the curl CA storage mechanism: https://msdn.microsoft.com/en-us/library/windows/desktop/aa380123(v=vs.85).aspx
-
-#### Timeout on push, but pull working fine
-
-This may happen when using repositories initially created by composer. Try opening the file `.git/config` inside the repo folder and remove the line starting with `pushurl = ` if present.
+See common [Troubleshooting Git](https://github.com/ExFace/Core/blob/1.x-dev/Docs/Troubleshooting.md) page in the COre app.
 
