@@ -67,7 +67,7 @@
         {
             "_EXPORT_SUMMARY": "App: Git Console",
             "CREATED_ON": "2019-05-13 09:02:35",
-            "MODIFIED_ON": "2025-01-10 21:37:59",
+            "MODIFIED_ON": "2025-01-22 22:24:50",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e9755dcd59222586490205857feb80",
@@ -104,6 +104,7 @@
                                     "hint": "Commit ALL local changes and push everything to the repo",
                                     "visibility": "promoted",
                                     "commands": [
+                                        "git add -A",
                                         "git commit -a -m \"<Commit-Message>\" --author \"[#=Concatenate(User('LAST_NAME'), ' ', User('FIRST_NAME'), '<', User('EMAIL'), '>')#]\"",
                                         "git push"
                                     ]
@@ -197,7 +198,7 @@
         {
             "_EXPORT_SUMMARY": "App: Repair",
             "CREATED_ON": "2019-10-21 14:49:29",
-            "MODIFIED_ON": "2021-04-09 15:40:58",
+            "MODIFIED_ON": "2025-04-10 18:09:55",
             "CREATED_BY_USER": "0x11e9ea7fa76e99698f24847beb3e34e8",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e9f40138c8fa1c9132847beb3e34e8",
@@ -210,6 +211,12 @@
                 "prefill_with_input_data": true,
                 "input_rows_min": 1,
                 "icon": "wrench",
+                "confirmation_for_action": {
+                    "widget_type": "ConfirmationMessage",
+                    "type": "warning",
+                    "caption": "Restore last exported state?",
+                    "text": "This will revert the app to the last exported state. All changes since tha last export will be lost!"
+                },
                 "widget": {
                     "widgets": [
                         {
@@ -234,7 +241,7 @@
         {
             "_EXPORT_SUMMARY": "App: Uninstall",
             "CREATED_ON": "2019-11-10 07:06:45",
-            "MODIFIED_ON": "2021-04-09 15:41:15",
+            "MODIFIED_ON": "2025-04-10 18:14:00",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ea03884f0a6400b7580205857feb80",
@@ -247,6 +254,12 @@
                 "prefill_with_input_data": true,
                 "input_rows_min": 1,
                 "icon": "trash-o",
+                "confirmation_for_action": {
+                    "widget_type": "ConfirmationMessage",
+                    "caption": "Remove app?",
+                    "type": "Warning",
+                    "text": "This will remove the model of the app completely including all local changes. The app folder with previously exported files will remain untouched"
+                },
                 "widget": {
                     "widgets": [
                         {
