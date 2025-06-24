@@ -131,17 +131,33 @@ class ExportAppModel extends AbstractActionDeferred implements iCanBeCalledFromC
         return $apps;
     }
 
-    protected function getModelFolderPathAbsolute(AppInterface $app)
+    /**
+     * @param AppInterface $app
+     * @return string
+     */
+    protected function getModelFolderPathAbsolute(AppInterface $app) : string
     {
         return $this->getApp()->getPathToAppAbsolute($app, $this->getExportToPathRelative());
     }
 
-    public function getExportToPathRelative()
+    /**
+     * @return string|null
+     */
+    public function getExportToPathRelative() : ?string
     {
         return $this->export_to_path_relative;
     }
 
-    public function setExportToPathRelative($value)
+    /**
+     * The folder to put the exported files to (relative to installation)
+     *
+     * @uxon-property export_to_path_relative
+     * @uxon-type string
+     *
+     * @param $value
+     * @return $this
+     */
+    public function setExportToPathRelative(string $value) : ExportAppModel
     {
         $this->export_to_path_relative = $value;
         return $this;
