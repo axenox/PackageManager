@@ -3,6 +3,10 @@ namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\PackageManagerApp;
 use exface\Core\CommonLogic\AbstractActionDeferred;
+use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\Exceptions\Actions\ActionInputMissingError;
+use exface\Core\Factories\DataSheetFactory;
+use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
 use exface\Core\Interfaces\AppExporterInterface;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
@@ -24,7 +28,7 @@ use exface\Core\Events\Installer\OnAppBackupEvent;
  * @author Andrej Kabachnik
  *        
  */
-class ExportAppModel extends AbstractActionDeferred
+class ExportAppModel extends AbstractActionDeferred implements iCanBeCalledFromCLI
 {
 
     private $export_to_path_relative = null;
@@ -103,15 +107,26 @@ class ExportAppModel extends AbstractActionDeferred
      */
     protected function getInputAppsDataSheet(TaskInterface $task)
     {
-        $input = $this->getInputDataSheet($task);
-        
-        $apps = $input;
-        $apps->getColumns()->addFromExpression('ALIAS');
-        if (! $apps->isFresh()) {
-            if (! $apps->isEmpty()) {
-                $apps->getFilters()->addConditionFromColumnValues($apps->getUidColumn());
-            }
-            $apps->dataRead();
+        switch (true) {
+            case $task->hasInputData():
+                $input = $this->getInputDataSheet($task);
+                $apps = $input;
+                $apps->getColumns()->addFromExpression('ALIAS');
+                if (! $apps->isFresh()) {
+                    if (! $apps->isEmpty()) {
+                        $apps->getFilters()->addConditionFromColumnValues($apps->getUidColumn());
+                    }
+                    $apps->dataRead();
+                }
+                break;
+            case $task->hasParameter('apps'):
+                $apps = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.APP');
+                $apps->getColumns()->addFromExpression('ALIAS');
+                $apps->getFilters()->addConditionFromValueArray('ALIAS', $task->getParameter('apps'));
+                $apps->dataRead();
+                break;
+            default:
+                throw new ActionInputMissingError($this, 'Missing input for action ' . $this->getAliasWithNamespace() . '!');
         }
         return $apps;
     }
@@ -141,5 +156,26 @@ class ExportAppModel extends AbstractActionDeferred
     {
         return parent::getApp();
     }
+
+    /**
+     *
+     * {@inheritdoc}
+     * @see iCanBeCalledFromCLI::getCliArguments()
+     */
+    public function getCliArguments() : array
+    {
+        return [
+            (new ServiceParameter($this))->setName('apps')->setDescription('Comma-separated list of app aliases to install/update. Use * for all apps.')
+        ];
+    }
+
+    /**
+     *
+     * {@inheritdoc}
+     * @see iCanBeCalledFromCLI::getCliOptions()
+     */
+    public function getCliOptions() : array
+    {
+        return [];
+    }
 }
-?>
