@@ -65,7 +65,7 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Package in composer.lock: Infrastructure Composer CLI",
+            "_EXPORT_SUMMARY": "Package in composer.lock: Infrastructure Composer CLI [ShowInfrastructureComposerConsole]",
             "CREATED_ON": "2021-06-10 15:52:25",
             "MODIFIED_ON": "2021-06-21 09:04:58",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
