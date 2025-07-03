@@ -4,15 +4,32 @@ namespace axenox\PackageManager;
 use Composer\Installer\PackageEvent;
 use exface\Core\CommonLogic\Workbench;
 use Composer\Script\Event;
+use exface\Core\Factories\AppFactory;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Factories\ActionFactory;
 use axenox\PackageManager\Actions\ListApps;
+use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
- * The app installer is a simplified wrapper for the package manager actions, which simplifies installing apps from outside of
- * ExFace - in particular StaticInstaller::composerFinishUpdate() can be used as a script in composer to perform the app specific
- * installatiom automatically once composer is done installing or updating all the files.
+ * The static installer allows Composer (or anything else outside of the Workbench) to launch app installers.
+ * 
+ * The following methods are run on composer events. Thy are registered as composer scripts.
+ *
+ * - `StaticInstaller::composerFinishInstall()`
+ * - `StaticInstaller::composerFinishUpdate()`
+ * - `StaticInstaller::composerFinishPackageInstall()`
+ * - `StaticInstaller::composerFinishPackageUpdate()`
+ * - `StaticInstaller::composerPrepareUninstall()`
+ * 
+ * By default, this installer will initialize a new Workbench before running installers for each app. However, this
+ * might cause rare side effects, so you can opt for a global workbench instance for all apps by setting
+ * `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` to FALSE in `config/axenox.PackageManager.config.json` in your
+ * installation folder. 
+ * 
+ * For example, when using a remote MS SQL database for the metamodel, the installer of the second app being 
+ * installed might just hang because the MS SQL connector cannot establish a new connection to the DB. If this happens,
+ * use a global workbench here to make every app use the same DB connection.
  *
  * @author Andrej Kabachnik
  *
@@ -27,10 +44,11 @@ class StaticInstaller
     const PACKAGE_MANAGER_BACKUP_ACTION_ALIAS = 'axenox.PackageManager.BackupApp';
 
     const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'axenox.PackageManager.UninstallApp';
-    
+
     const PACAKGE_MANAGER_GENERATE_LIC_BOM_ALIAS = 'axenox.PackageManager.GenerateLicenseBOM';
 
     private $workbench = null;
+    private static $globalWorkbench = null;
 
     /**
      *
@@ -73,22 +91,22 @@ class StaticInstaller
             self::printToStdout('FAILED to install "' . self::getCoreAppAlias() . '": ' . $result . "." . PHP_EOL);
             self::printException($e);
         }
-        
+
         self::printToStdout("Searching for apps in vendor-folder...");
         $vendorBase = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..';
         $installedAppAliases = ListApps::findAppAliasesInVendorFolders($vendorBase);
         self::printToStdout("found " . count($installedAppAliases) . " apps" . PHP_EOL);
-        
+
         foreach ($installedAppAliases as $app_alias) {
             self::printToStdout('-> Installing app "' . $app_alias . '": ' . PHP_EOL . PHP_EOL);
             $result = self::install($app_alias);
             self::printToStdout(($result ? trim($result, ".") : 'Nothing to do') . PHP_EOL);
         }
-        
+
         self::setTempFile([]);
-        
+
         self::generateLicenseBOM();
-        
+
         return empty($installedAppAliases) === true ? "No apps to update.\n" : "Installed " . count($installedAppAliases) . " apps.\n";
     }
 
@@ -100,10 +118,10 @@ class StaticInstaller
     public static function composerFinishUpdate(Event $composer_event = null)
     {
         self::printToStdout("Running installers for newly installed and updated apps...\n");
-        
+
         $processed_aliases = array();
         $temp = self::getTempFile();
-        
+
         $appAliases = array_key_exists('update', $temp) ? $temp['update'] : [];
         if (array_key_exists('install', $temp) && is_array($temp['install']) === true) {
             // If the package manager is being installed for the first time, run
@@ -113,7 +131,7 @@ class StaticInstaller
             }
             $appAliases = array_merge($appAliases, $temp['install']);
         }
-        
+
         // Run installers for updated apps
         if (empty($appAliases) === false) {
             // First of all check, if the core needs to be updated. If so, do that before updating other apps
@@ -142,7 +160,7 @@ class StaticInstaller
         } else {
             $updatedPackages = [];
         }
-        
+
         // Cleanup backup
         if (array_key_exists('backupTime', $temp)) {
             self::printToStdout("Delete unused backup components:" . PHP_EOL);
@@ -150,9 +168,9 @@ class StaticInstaller
             $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());
             $backupTime = $temp['backupTime'];
             $unlinkResult = array();
-    
+
             foreach($apps as $app){
-    
+
                 if (! in_array($app, $updatedPackages)){
                     $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
                 }
@@ -164,11 +182,11 @@ class StaticInstaller
                 self::printToStdout("Could not clear backup." . PHP_EOL);
             }
         }
-        
+
         unset($temp['update']);
         unset($temp['install']);
         self::setTempFile($temp);
-        
+
         self::generateLicenseBOM();
 
         return empty($processed_aliases) === true ? "No apps to update.\n" : "Updated/installed " . count($processed_aliases) . " apps.\n";
@@ -231,7 +249,7 @@ class StaticInstaller
         }
         return $backupPath;
     }
-    
+
     /**
      * Call backup function on app, install at specified backup folder, folder name is defined by backupTime-String
      * @param string $app_alias
@@ -241,7 +259,7 @@ class StaticInstaller
     public function backup($app_alias, $backupPath){
         $exface = $this->getWorkbench();
         $text = "-> {$app_alias} being backed up to {$backupPath}...";
-        
+
         try {
             self::printToStdout($text);
             $app_selector = new AppSelector($exface, $app_alias);
@@ -336,15 +354,32 @@ class StaticInstaller
      *
      * @return Workbench
      */
-    public function getWorkbench()
+    public function getWorkbench() : WorkbenchInterface
     {
+        if (static::$globalWorkbench !== null) {
+            return static::$globalWorkbench;
+        }
         $this->importSources();
         if (is_null($this->workbench)) {
             error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
             try {
+                $this::printToStdout('Starting new workbench instance');
                 $this->workbench = Workbench::startNewInstance();
+                try {
+                    $thisApp = AppFactory::createFromAlias('axenox.PackageManager', $this->workbench);
+                    $config = $thisApp->getConfig();
+                    if ($config->getOption('COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP') === false) {
+                        $this::printToStdout(' - using this workbench globally' . PHP_EOL);
+                        static::$globalWorkbench = $this->workbench;
+                    } else {
+                        $this::printToStdout(' - it will be used for this app only' . PHP_EOL);
+                    }
+                } catch (\Throwable $e) {
+                    $this::printException($e);
+                    $this::printToStdout('Cannot read configuration "COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP" - using new workbench for every app by default.' . PHP_EOL);
+                }
             } catch (\Throwable $e) {
-                $this::printToStdout('FAILED to start workbench!');
+                $this::printToStdout('FAILED to start workbench!' . PHP_EOL);
                 $this::printException($e);
                 try {
                     $workbench = new Workbench();
@@ -358,16 +393,16 @@ class StaticInstaller
         }
         return $this->workbench;
     }
-    
+
     public static function generateLicenseBOM()
     {
         $installer = new self();
         try {
             $exface = $installer->getWorkbench();
             $action = ActionFactory::createFromString($exface, self::PACAKGE_MANAGER_GENERATE_LIC_BOM_ALIAS);
-            
+
             self::printToStdout('Generating license BOM' . PHP_EOL . PHP_EOL);
-            
+
             foreach ($action->generateMarkdownBOM() as $output) {
                 self::printToStdout($output);
             }
@@ -382,7 +417,7 @@ class StaticInstaller
     {
         return dirname(__FILE__) . DIRECTORY_SEPARATOR . 'LastInstall.temp.json';
     }
-    
+
     protected function copyTempFile($backuptime){
         $exface = $this->getWorkbench();
         $exface->filemanager()->copy(self::getTempFilePathAbsolute(),$exface->filemanager()->getPathToBaseFolder().DIRECTORY_SEPARATOR."autobackup".DIRECTORY_SEPARATOR.$backuptime.DIRECTORY_SEPARATOR."LastInstall.json");
@@ -437,14 +472,14 @@ class StaticInstaller
             echo $text;
         }
     }
-    
-    protected static function printException(\Throwable $e, $prefix = 'ERROR ') 
+
+    protected static function printException(\Throwable $e, $prefix = 'ERROR ')
     {
         if ($e instanceof ExceptionInterface){
             $log_hint = 'See log ID ' . $e->getId();
         }
         self::printToStdout(PHP_EOL . PHP_EOL . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine() . PHP_EOL . "-> " . $log_hint . PHP_EOL);
-        
+
         if ($p = $e->getPrevious()) {
             self::printException($p);
         }
@@ -454,7 +489,7 @@ class StaticInstaller
     {
         return 'exface.Core';
     }
-    
+
     protected static function importSources()
     {
         require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
