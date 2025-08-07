@@ -65,7 +65,7 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "App: Git Console",
+            "_EXPORT_SUMMARY": "App: Git Console [ShowAppGitConsoleDialog]",
             "CREATED_ON": "2019-05-13 09:02:35",
             "MODIFIED_ON": "2025-01-22 22:24:50",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -196,7 +196,7 @@
             "DOCS": ""
         },
         {
-            "_EXPORT_SUMMARY": "App: Repair",
+            "_EXPORT_SUMMARY": "App: Repair [ShowAppRepairConsole]",
             "CREATED_ON": "2019-10-21 14:49:29",
             "MODIFIED_ON": "2025-04-10 18:09:55",
             "CREATED_BY_USER": "0x11e9ea7fa76e99698f24847beb3e34e8",
@@ -239,7 +239,7 @@
             "DOCS": ""
         },
         {
-            "_EXPORT_SUMMARY": "App: Uninstall",
+            "_EXPORT_SUMMARY": "App: Uninstall [ShowAppUninstallConsole]",
             "CREATED_ON": "2019-11-10 07:06:45",
             "MODIFIED_ON": "2025-04-10 18:14:00",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -282,7 +282,7 @@
             "DOCS": ""
         },
         {
-            "_EXPORT_SUMMARY": "App: PackageManager Console",
+            "_EXPORT_SUMMARY": "App: PackageManager Console [ShowPackageManagerConsole]",
             "CREATED_ON": "2019-11-10 10:35:14",
             "MODIFIED_ON": "2025-01-07 11:20:07",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -357,7 +357,7 @@
             "DOCS": ""
         },
         {
-            "_EXPORT_SUMMARY": "App: Package URL",
+            "_EXPORT_SUMMARY": "App: Package URL [ShowPackageUrl]",
             "CREATED_ON": "2021-06-09 15:59:27",
             "MODIFIED_ON": "2021-08-04 14:17:06",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
@@ -430,7 +430,7 @@
             "DOCS": ""
         },
         {
-            "_EXPORT_SUMMARY": "App: Unpublish",
+            "_EXPORT_SUMMARY": "App: Unpublish [UnpublishApp]",
             "CREATED_ON": "2021-06-21 08:42:08",
             "MODIFIED_ON": "2021-06-21 08:44:15",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -460,7 +460,7 @@
             "DOCS": ""
         },
         {
-            "_EXPORT_SUMMARY": "App: Publish",
+            "_EXPORT_SUMMARY": "App: Publish [PublishApp]",
             "CREATED_ON": "2021-06-21 08:43:43",
             "MODIFIED_ON": "2021-06-21 08:45:46",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -484,6 +484,43 @@
                         }
                     ]
                 }
+            },
+            "APP": "0x31380000000000000000000000000000",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
+            "DOCS": ""
+        },
+        {
+            "_EXPORT_SUMMARY": "App: Export model [ShowAppExportConsole]",
+            "CREATED_ON": "2025-06-24 14:09:55",
+            "MODIFIED_ON": "2025-06-24 14:19:06",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f0afe42450cf0cafe4025041000001",
+            "OBJECT": "0x35370000000000000000000000000000",
+            "ACTION_PROTOTYPE": "exface/Core/Actions/ShowDialog.php",
+            "ALIAS": "ShowAppExportConsole",
+            "NAME": "Export model",
+            "SHORT_DESCRIPTION": "",
+            "CONFIG_UXON": {
+                "prefill_with_input_data": true,
+                "input_rows_min": 1,
+                "icon": "hdd-o",
+                "widget": {
+                    "widgets": [
+                        {
+                            "disabled": true,
+                            "widget_type": "Console",
+                            "command_placeholder_value_list_delimiter": ",",
+                            "start_commands": [
+                                "action axenox.PackageManager:ExportAppModel [#ALIAS#]"
+                            ],
+                            "working_directory_path": "vendor/bin"
+                        }
+                    ]
+                },
+                "effected_objects": [
+                    "exface.Core.APP"
+                ]
             },
             "APP": "0x31380000000000000000000000000000",
             "USE_IN_OBJECT_BASKET_FLAG": 0,

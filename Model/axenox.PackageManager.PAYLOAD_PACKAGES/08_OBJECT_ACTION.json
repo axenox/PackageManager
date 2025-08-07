@@ -65,7 +65,7 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Payload Packages: Install Package",
+            "_EXPORT_SUMMARY": "Payload Packages: Install Package [ShowInstallPayload]",
             "CREATED_ON": "2021-05-20 14:01:12",
             "MODIFIED_ON": "2021-06-21 09:07:03",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
@@ -101,7 +101,7 @@
             "DOCS": ""
         },
         {
-            "_EXPORT_SUMMARY": "Payload Packages: Payload Composer CLI",
+            "_EXPORT_SUMMARY": "Payload Packages: Payload Composer CLI [ShowPayloadComposerConsole]",
             "CREATED_ON": "2021-06-09 09:18:10",
             "MODIFIED_ON": "2021-06-21 10:04:06",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
