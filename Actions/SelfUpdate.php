@@ -73,12 +73,11 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         $releaseLogEntry = $releaseLog->createLogEntry();
         */
         
-        yield PHP_EOL . "Downloading file...";
+        yield PHP_EOL . "Checking remote for an update file...";
         yield PHP_EOL;
         
         try {
             $downloader->download();
-            yield 'Downloaded to "' . $downloadPathRelative . '"' . PHP_EOL;
         } catch (\Throwable $e) {
             yield 'FAILED to download: ' . $e->getMessage() . PHP_EOL;
         }
@@ -86,6 +85,8 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         if($downloader->getStatusCode() != 200) {
             yield "No update available: " . $downloader->getStatusCode();
             return;
+        } else {
+            yield 'Downloaded to "' . $downloadPathRelative . '"' . PHP_EOL;
         }
         
         
@@ -106,7 +107,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         }
         
         // install file
-        $log = $downloader->__toString();
+        $log .= $downloader->__toString();
         
         try {
             $php = $this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.PHP_EXECUTABLE');
