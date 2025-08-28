@@ -16,15 +16,19 @@ class SelfUpdateInstaller {
     
     private $installationFilePath = null;
     
+    private string $phpExecutable = 'php';
+    
     /**
      * 
      * @param string $installationFilePath
      * @param string $tmpFolderPath
+     * @param string $phpExecutable
      */
-    public function __construct(string $installationFilePath, string $tmpFolderPath)
+    public function __construct(string $installationFilePath, string $tmpFolderPath, string $phpExecutable = 'php')
     {
         $this->tmpFolderPath = $tmpFolderPath;
         $this->installationFilePath = $installationFilePath;
+        $this->phpExecutable = $phpExecutable;
     }
 
     /**
@@ -33,7 +37,7 @@ class SelfUpdateInstaller {
      */
     public function install()
     {
-        $cmd = 'php -d memory_limit=2G ' . $this->installationFilePath;
+        $cmd = $this->phpExecutable . ' -d memory_limit=2G ' . $this->installationFilePath;
         $pathArr = explode("/", $this->installationFilePath);
         $phxName = end($pathArr);
         

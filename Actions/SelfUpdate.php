@@ -54,6 +54,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
      */
     protected function performDeferred(TaskInterface $task = null) : \Generator
     {
+        $log = '';
         $downloadPathRelative = FilePathDataType::normalize($this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.DOWNLOAD_PATH'), DIRECTORY_SEPARATOR);
         $downloadPathAbsolute = $this->getWorkbench()->getInstallationPath() 
             . DIRECTORY_SEPARATOR . $downloadPathRelative
@@ -108,7 +109,8 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         $log = $downloader->__toString();
         
         try {
-            $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder());
+            $php = $this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.PHP_EXECUTABLE');
+            $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder(), $php);
             foreach ($selfUpdateInstaller->install() as $line) {
                 $log .= $line;
                 yield $line;
