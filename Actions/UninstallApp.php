@@ -1,13 +1,20 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
+use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\CommonLogic\AppInstallers\DataInstaller;
 use exface\Core\Factories\AppFactory;
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\Interfaces\AppExporterInterface;
+use exface\Core\Interfaces\AppInstallerInterface;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\Events\Installer\OnBeforeAppUninstallEvent;
 use exface\Core\Events\Installer\OnAppUninstallEvent;
+use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 
 /**
  * This action uninstalls one or more apps
@@ -26,16 +33,26 @@ class UninstallApp extends InstallApp
         parent::init();
         $this->setIcon(Icons::UNINSTALL);
     }
+
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\AbstractActionDeferred::performImmediately()
+     */
+    protected function performImmediately(TaskInterface $task, DataTransactionInterface $transaction, ResultMessageStreamInterface $result) : array
+    {
+        $cascading = ! $task->hasParameter('keep_related_data') || $task->getParameter('keep_related_data') === false;
+        return [$this->getTargetAppAliases($task), $cascading];
+    }
     
     /**
      *
      * {@inheritDoc}
      * @see \exface\Core\CommonLogic\AbstractActionDeferred::performDeferred()
      */
-    protected function performDeferred(array $aliases = []) : \Generator
+    protected function performDeferred(array $aliases = [], bool $cascading = true) : \Generator
     {
         $installed_counter = 0;
-        
         foreach ($aliases as $app_alias) {
             yield  PHP_EOL . "Uninstalling " . $app_alias . "..." . PHP_EOL;
             $app_selector = new AppSelector($this->getWorkbench(), $app_alias);
@@ -48,7 +65,7 @@ class UninstallApp extends InstallApp
                     yield from $proc;
                 }
                 
-                yield from $this->uninstallApp($app_selector);
+                yield from $this->uninstallApp($app_selector, $cascading);
                 
                 $event = new OnAppUninstallEvent($app_selector);
                 $this->getWorkbench()->eventManager()->dispatch($event);
@@ -101,10 +118,21 @@ class UninstallApp extends InstallApp
      * @param AppSelectorInterface $app_selector
      * @return string
      */
-    public function uninstallApp(AppSelectorInterface $app_selector) : \Traversable
+    public function uninstallApp(AppSelectorInterface $app_selector, bool $cascading = true) : \Traversable
     {
         $app = AppFactory::create($app_selector);
-        $installer = $app->getInstaller();
+        if ($cascading === false) {
+            // For non-cascading uninstalls get a copy of the installer container with non-cascading
+            // installers
+            $installer = $app->getInstaller()->extract(function(AppInstallerInterface $inst){
+                if ($inst instanceof DataInstaller) {
+                    $inst->setUninstallCascading(false);
+                }
+                return true;
+            });
+        } else {
+            $installer = $app->getInstaller();
+        }
         $installer_result = $installer->uninstall();
         if ($installer_result instanceof \Traversable) {
             yield from $installer_result;
@@ -112,5 +140,18 @@ class UninstallApp extends InstallApp
             yield $installer_result . (substr($installer_result, - 1) != '.' ? '.' : '');
         }
     }
+
+    /**
+     *
+     * {@inheritdoc}
+     * @see iCanBeCalledFromCLI::getCliOptions()
+     */
+    public function getCliOptions() : array
+    {
+        return [
+            (new ServiceParameter($this))
+                ->setName('keep_related_data')
+                ->setDescription('Do not use cascading delete when removing model entities')
+        ];
+    }
 }
-?>
