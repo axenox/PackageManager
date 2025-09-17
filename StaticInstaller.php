@@ -433,7 +433,11 @@ class StaticInstaller
         } catch (\Throwable $e) {
             $installer::printToStdout('FAILED generating license BOM!');
             $installer::printException($e);
-            $exface->getLogger()->logException($e);
+            if ($exface !== null) {
+                $exface->getLogger()->logException($e);
+            } else {
+                $installer::printToStdout('Cannot log error: workbench not available!');
+            }
         }
     }
 
@@ -516,6 +520,12 @@ class StaticInstaller
 
     protected static function importSources()
     {
-        require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
+        require_once dirname(__FILE__) . DIRECTORY_SEPARATOR 
+            . '..' . DIRECTORY_SEPARATOR 
+            . '..' . DIRECTORY_SEPARATOR 
+            . 'exface' . DIRECTORY_SEPARATOR 
+            . 'core' . DIRECTORY_SEPARATOR 
+            . 'CommonLogic' . DIRECTORY_SEPARATOR 
+            . 'Workbench.php';
     }
 }
