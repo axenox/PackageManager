@@ -54,6 +54,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
      */
     protected function performDeferred(TaskInterface $task = null) : \Generator
     {
+        $log = '';
         $downloadPathRelative = FilePathDataType::normalize($this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.DOWNLOAD_PATH'), DIRECTORY_SEPARATOR);
         $downloadPathAbsolute = $this->getWorkbench()->getInstallationPath() 
             . DIRECTORY_SEPARATOR . $downloadPathRelative
@@ -72,12 +73,11 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         $releaseLogEntry = $releaseLog->createLogEntry();
         */
         
-        yield PHP_EOL . "Downloading file...";
+        yield PHP_EOL . "Checking remote for an update file...";
         yield PHP_EOL;
         
         try {
             $downloader->download();
-            yield 'Downloaded to "' . $downloadPathRelative . '"' . PHP_EOL;
         } catch (\Throwable $e) {
             yield 'FAILED to download: ' . $e->getMessage() . PHP_EOL;
         }
@@ -85,6 +85,8 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         if($downloader->getStatusCode() != 200) {
             yield "No update available: " . $downloader->getStatusCode();
             return;
+        } else {
+            yield 'Downloaded to "' . $downloadPathRelative . '"' . PHP_EOL;
         }
         
         
@@ -105,10 +107,11 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         }
         
         // install file
-        $log = $downloader->__toString();
+        $log .= $downloader->__toString();
         
         try {
-            $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder());
+            $php = $this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.PHP_EXECUTABLE');
+            $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder(), $php);
             foreach ($selfUpdateInstaller->install() as $line) {
                 $log .= $line;
                 yield $line;
