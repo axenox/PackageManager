@@ -258,9 +258,13 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
      */
     protected function getAppAbsolutePath(AppSelectorInterface $app_selector) : string
     {
-        $app_path = $this->getWorkbench()->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR;
+        $vendor_folder = $this->getWorkbench()->filemanager()->getPathToVendorFolder();
+        $app_path = $vendor_folder . DIRECTORY_SEPARATOR;
         $app_path .= $this->getWorkbench()->getAppFolder($app_selector);
-        if (! file_exists($app_path) || ! is_dir($app_path)) {
+        if (! is_dir($app_path)) {
+            if (! is_dir($vendor_folder)) {
+                throw new DirectoryNotFoundError('Vendor folder not found in "' . $vendor_folder . '"!', '6T5TZN5');
+            }
             throw new DirectoryNotFoundError('"' . $app_path . '" does not point to an installable app!', '6T5TZN5');
         }
         return $app_path;

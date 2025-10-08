@@ -57,6 +57,7 @@ class StaticInstaller
      */
     public static function composerFinishPackageInstall(PackageEvent $composer_event)
     {
+        static::init();
         $app_alias = self::composerGetAppAliasFromExtras($composer_event->getOperation()->getPackage()->getExtra());
         if ($app_alias) {
             self::addAppToTempFile('install', $app_alias);
@@ -70,6 +71,7 @@ class StaticInstaller
      */
     public static function composerFinishPackageUpdate(PackageEvent $composer_event)
     {
+        static::init();
         $app_alias = self::composerGetAppAliasFromExtras($composer_event->getOperation()->getTargetPackage()->getExtra());
         if ($app_alias) {
             self::addAppToTempFile('update', $app_alias);
@@ -83,7 +85,9 @@ class StaticInstaller
      */
     public static function composerFinishInstall(Event $composer_event = null)
     {
+        static::init();
         try {
+            $result = '';
             self::printToStdout('-> Installing "' . self::getCoreAppAlias() . '": ' . PHP_EOL . PHP_EOL);
             $result = self::install(self::getCoreAppAlias());
             self::printToStdout(($result ? $result : 'Nothing to do') . "." . PHP_EOL);
@@ -117,6 +121,8 @@ class StaticInstaller
      */
     public static function composerFinishUpdate(Event $composer_event = null)
     {
+        static::init();
+        
         self::printToStdout("Running installers for newly installed and updated apps...\n");
 
         $processed_aliases = array();
@@ -191,6 +197,21 @@ class StaticInstaller
 
         return empty($processed_aliases) === true ? "No apps to update.\n" : "Updated/installed " . count($processed_aliases) . " apps.\n";
     }
+
+    /**
+     * Prepare the environment to run installers
+     * 
+     * @return void
+     */
+    protected static function init()
+    {
+        // Make sure no warnings/notices are thrown because they will break 
+        error_reporting(E_ALL & ~E_WARNING & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+        // Make sure errors are displayed even if local php.ini hides them (not sure, if this will really
+        // help because it will not affect fatal errors according to PHP documentation)
+        ini_set('display_errors', 1);
+    }
+    
     /**
      * Unlink backup from specified backup folder, folder name is defined by backupTime-String
      *
@@ -234,6 +255,7 @@ class StaticInstaller
      * @return Event $composer_event
      */
     public static function composerBackupEverything(Event $composer_event = null){
+        static::init();
         $installer = new self();
         $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());
         //write consistent backuptime to delete excess data after update run
@@ -292,6 +314,7 @@ class StaticInstaller
 
     protected static function composerGetAppAliasFromExtras($extras_array)
     {
+        static::init();
         if (is_array($extras_array) && array_key_exists('app', $extras_array) && is_array($extras_array['app']) && array_key_exists('app_alias', $extras_array['app'])) {
             return $extras_array['app']['app_alias'];
         }
@@ -306,6 +329,7 @@ class StaticInstaller
 
     public static function uninstall($app_alias)
     {
+        static::init();
         // TODO
     }
 
@@ -361,7 +385,7 @@ class StaticInstaller
         }
         $this->importSources();
         if (is_null($this->workbench)) {
-            error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
+            static::init();
             try {
                 $this::printToStdout('Starting new workbench instance');
                 $this->workbench = Workbench::startNewInstance();
@@ -409,7 +433,11 @@ class StaticInstaller
         } catch (\Throwable $e) {
             $installer::printToStdout('FAILED generating license BOM!');
             $installer::printException($e);
-            $exface->getLogger()->logException($e);
+            if ($exface !== null) {
+                $exface->getLogger()->logException($e);
+            } else {
+                $installer::printToStdout('Cannot log error: workbench not available!');
+            }
         }
     }
 
@@ -492,6 +520,12 @@ class StaticInstaller
 
     protected static function importSources()
     {
-        require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'exface' . DIRECTORY_SEPARATOR . 'Core' . DIRECTORY_SEPARATOR . 'CommonLogic' . DIRECTORY_SEPARATOR . 'Workbench.php';
+        require_once dirname(__FILE__) . DIRECTORY_SEPARATOR 
+            . '..' . DIRECTORY_SEPARATOR 
+            . '..' . DIRECTORY_SEPARATOR 
+            . 'exface' . DIRECTORY_SEPARATOR 
+            . 'core' . DIRECTORY_SEPARATOR 
+            . 'CommonLogic' . DIRECTORY_SEPARATOR 
+            . 'Workbench.php';
     }
 }
