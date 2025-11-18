@@ -12,26 +12,17 @@ use GuzzleHttp\Psr7\Utils;
 use Psr\Http\Message\ResponseInterface;
 
 class UpdateDownloader
-{
-    private $downloadedBytes = null;
-    
-    private $headers = null;
-    
-    private $fileSize = null;
-    
-    private $debugStream = null;
-    
+{    
     private $timeStamp = null;
-    
     private $url = null;
-    
     private $username = null;
-    
     private $password = null;
-    
     private $downloadPath = null;
     
     private $response = null;
+    private $responseSize = null;
+    private $downloadedBytes = null;
+    private $debugStream = null;
     
     private ?LoggerInterface $logger = null;
     
@@ -93,10 +84,9 @@ class UpdateDownloader
         $this->response = $response;
         if ($response->getStatusCode() === 200) {
             $content = $response->getBody();
-            $this->headers = $response->getHeaders();
-            $this->fileSize = $this->getFileSizeFromResponse($response);
-            if ($this->fileSize < 100) {
-                throw new RuntimeException('Cannot save self-update package: invalid download size ' . ByteSizeDataType::formatWithScale($this->fileSize));
+            $this->responseSize = $this->getFileSizeFromResponse($response);
+            if ($this->responseSize < 100) {
+                throw new RuntimeException('Cannot save self-update package: invalid download size ' . ByteSizeDataType::formatWithScale($this->responseSize));
             }
             $filePath = $this->downloadPath . $this->getFileName();
             $writtenBytes = file_put_contents($filePath, $content);
@@ -152,10 +142,10 @@ class UpdateDownloader
      */
     public function getFileName() : ?string
     {
-        if (empty($this->headers)) {
+        if (empty($this->response)) {
             return null;
         }
-        $header = $this->headers['Content-Disposition'][0];
+        $header = $this->response->getHeaders()['Content-Disposition'][0];
         return StringDataType::substringAfter($header, 'attachment; filename=');
     }
 
@@ -165,7 +155,7 @@ class UpdateDownloader
      */
     public function getFileSize() : ?int
     {
-        return $this->fileSize;
+        return $this->responseSize;
     }
     
     /**
@@ -214,7 +204,7 @@ class UpdateDownloader
      * @return ResponseInterface|null
      * @throws \Throwable
      */
-    public function uploadLog(string $log, bool $final = false) : ?ResponseInterface
+    public function uploadLog(string $log, bool $final = false) : string
     {
         try {
             $urlParams = [];
@@ -225,11 +215,10 @@ class UpdateDownloader
         } catch (\Throwable $e) {
             if ($this->logger !== null) {
                 $this->logger->logException($e);
-            } else {
-                throw $e;
             }
+            return $log . PHP_EOL . 'ERROR uploading log to deployer: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
         }
-        return null;
+        return $log;
     }
     
     /**

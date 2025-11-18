@@ -115,10 +115,8 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         */
         
         if ($task->hasParameter('download-only')) {
-            $msg = 'Download-only mode: stopping after download. Download location: ' . $downloader->getPathAbsolute();
-            yield $msg;
             // $releaseLog->saveEntry($releaseLogEntry);
-            $downloader->uploadLog($msg);
+            yield $downloader->uploadLog('Download-only mode: stopping after download. Download location: ' . $downloader->getPathAbsolute());
             return;
         }
         
@@ -126,8 +124,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
             $php = $this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.PHP_EXECUTABLE');
             $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder(), $php);
             foreach ($selfUpdateInstaller->install() as $line) {
-                $downloader->uploadLog($line);
-                yield $line;
+                yield $downloader->uploadLog($line);
             }
         
             /*
@@ -145,9 +142,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
             // $downloader->uploadLog($releaseLogEntry->???); 
             */
         } catch (\Throwable $e) {
-            $msg = PHP_EOL . PHP_EOL . 'ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
-            $downloader->uploadLog($msg, true);
-            yield $msg;
+            yield $downloader->uploadLog(PHP_EOL . PHP_EOL . 'ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine(), true);
             throw $e;
         }
         
