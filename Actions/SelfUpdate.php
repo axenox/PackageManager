@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Actions;
 
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\CommonLogic\AbstractActionDeferred;
@@ -54,7 +55,6 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
      */
     protected function performDeferred(TaskInterface $task = null) : \Generator
     {
-        $log = '';
         $downloadPathRelative = FilePathDataType::normalize($this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.DOWNLOAD_PATH'), DIRECTORY_SEPARATOR);
         $downloadPathAbsolute = $this->getWorkbench()->getInstallationPath() 
             . DIRECTORY_SEPARATOR . $downloadPathRelative
@@ -68,7 +68,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         }
         
         // Download file
-        $downloader = new UpdateDownloader($url, $username, $password, $downloadPathAbsolute);
+        $downloader = new UpdateDownloader($url, $username, $password, $downloadPathAbsolute, $this->getWorkbench()->getLogger());
         /*$releaseLog = new ReleaseLog($this->getWorkbench());
         $releaseLogEntry = $releaseLog->createLogEntry();
         */
@@ -79,16 +79,33 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         try {
             $downloader->download();
         } catch (\Throwable $e) {
-            yield 'FAILED to download: ' . $e->getMessage() . PHP_EOL;
+            $msg = 'FAILED to download self-update package: ' . $e->getMessage() . PHP_EOL;
+            try {
+                $downloader->uploadLog($downloader->__toString() . PHP_EOL . $msg);
+            } catch (\Throwable $eUpload) {
+                $this->getWorkbench()->getLogger()->logException($eUpload);
+            }
+            throw new RuntimeException($msg, null, $e);
         }
         
-        if($downloader->getStatusCode() != 200) {
-            yield "No update available: " . $downloader->getStatusCode();
-            return;
-        } else {
-            yield 'Downloaded to "' . $downloadPathRelative . '"' . PHP_EOL;
+        switch (true) {
+            case $downloader->getStatusCode() == 304:
+                yield "No update available: " . $downloader->getStatusCode();
+                return;
+            case $downloader->getStatusCode() == 200:
+                $msg =  'Downloaded to "' . $downloadPathRelative . '"' . PHP_EOL;
+                $downloader->uploadLog($downloader->__toString() . PHP_EOL . $msg);
+                yield $msg;
+                break;
+            default:
+                $msg = 'FAILED to download: unexpected response code' . $downloader->getStatusCode() . PHP_EOL;
+                try {
+                    $downloader->uploadLog($downloader->__toString() . PHP_EOL . $msg, true);
+                } catch (\Throwable $e) {
+                    $this->getWorkbench()->getLogger()->logException($e);
+                }
+                throw new RuntimeException('Could not download self-update package: ' . $msg);
         }
-        
         
         // save download infos in $releaseLogEntry->logArray
         /*
@@ -99,21 +116,17 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         
         if ($task->hasParameter('download-only')) {
             $msg = 'Download-only mode: stopping after download. Download location: ' . $downloader->getPathAbsolute();
-            $log .= $msg;
             yield $msg;
             // $releaseLog->saveEntry($releaseLogEntry);
-            $downloader->uploadLog($downloader->__toString());
+            $downloader->uploadLog($msg);
             return;
         }
-        
-        // install file
-        $log .= $downloader->__toString();
         
         try {
             $php = $this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.PHP_EXECUTABLE');
             $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder(), $php);
             foreach ($selfUpdateInstaller->install() as $line) {
-                $log .= $line;
+                $downloader->uploadLog($line);
                 yield $line;
             }
         
@@ -132,23 +145,22 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
             // $downloader->uploadLog($releaseLogEntry->???); 
             */
         } catch (\Throwable $e) {
-            $eMsg = PHP_EOL . PHP_EOL . 'ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
-            $log .= $eMsg;
-            yield $eMsg;
-            $this->getWorkbench()->getLogger()->logException($e);
+            $msg = PHP_EOL . PHP_EOL . 'ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+            $downloader->uploadLog($msg, true);
+            yield $msg;
+            throw $e;
         }
         
-        // Upload results to the OTA server
+        // Finish things up
+        $msg = PHP_EOL . PHP_EOL . 'Finished self-update successfully!';
         try {
-            $downloader->uploadLog($log);
+            $downloader->uploadLog($msg, true);
             yield PHP_EOL . 'Uploaded log to OTA server';
         } catch (\Throwable $e) {
             yield PHP_EOL . PHP_EOL . 'ERROR when uploading installation log: '  . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
         }
             
-        yield PHP_EOL . PHP_EOL . 'Finished self-update successfully!';
-        
-        return;
+        yield $msg;
     }
     
     /**

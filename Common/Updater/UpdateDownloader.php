@@ -1,9 +1,14 @@
 <?php
 namespace axenox\PackageManager\Common\Updater;
 
+use exface\Core\CommonLogic\Security\AuthenticationToken\CliEnvAuthToken;
+use exface\Core\DataTypes\ByteSizeDataType;
+use exface\Core\Exceptions\RuntimeException;
+use exface\Core\Interfaces\Log\LoggerInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Response;
 use exface\Core\DataTypes\StringDataType;
+use GuzzleHttp\Psr7\Utils;
 use Psr\Http\Message\ResponseInterface;
 
 class UpdateDownloader
@@ -13,6 +18,8 @@ class UpdateDownloader
     private $headers = null;
     
     private $fileSize = null;
+    
+    private $debugStream = null;
     
     private $timeStamp = null;
     
@@ -26,19 +33,22 @@ class UpdateDownloader
     
     private $response = null;
     
+    private ?LoggerInterface $logger = null;
+    
     /**
      *
      */
-    public function __construct(string $url, string $username, string $password, string $downloadPath)
+    public function __construct(string $url, string $username, string $password, string $downloadPath, LoggerInterface $logger = null)
     {
         $this->timeStamp = time();
         $this->url = $url;
         $this->username = $username;
         $this->password = $password;
         $this->downloadPath = $downloadPath;
+        $this->logger = $logger;
     }
     
-    protected function sendHttpRequest(string $method, string $body = null) : ResponseInterface
+    protected function sendHttpRequest(string $method, string $body = null, array $urlParams = []) : ResponseInterface
     {
         /* @var $client \GuzzleHttp\Client */
         $client = new Client();
@@ -54,13 +64,19 @@ class UpdateDownloader
             }*/
         ];
         
+        // Debug CURL
+        if ($this->debugStream !== null) {
+            $options['debug'] = $this->debugStream;
+        }
+        
         if ($body !== null) {
             $options['body'] = $body;
         }
         
+        $query = ! empty($urlParams) ? '?' . http_build_query($urlParams) : '';
         $response = $client->request(
             $method,
-            $this->url,
+            $this->url . $query,
             $options
         );
         
@@ -72,15 +88,44 @@ class UpdateDownloader
      */
     public function download() : ResponseInterface
     {
+        $this->setDebug(true);
         $response = $this->sendHttpRequest('GET');
         $this->response = $response;
         if ($response->getStatusCode() === 200) {
             $content = $response->getBody();
             $this->headers = $response->getHeaders();
             $this->fileSize = $this->getFileSizeFromResponse($response);
-            file_put_contents($this->downloadPath . $this->getFileName(), $content);
+            if ($this->fileSize < 100) {
+                throw new RuntimeException('Cannot save self-update package: invalid download size ' . ByteSizeDataType::formatWithScale($this->fileSize));
+            }
+            $filePath = $this->downloadPath . $this->getFileName();
+            $writtenBytes = file_put_contents($filePath, $content);
+            if (! $writtenBytes) {
+                $token = new CliEnvAuthToken();
+                if ($writtenBytes === false) {
+                    throw new RuntimeException('Cannot save self-update package: cannot write file using user "' . $token->getUsername() . '"');
+                }
+                if ($writtenBytes < 100) {
+                    throw new RuntimeException('Cannot save self-update package: detected invalid file size "' . $writtenBytes . '". User "' . $token->getUsername() . '".');
+                }
+            }
+            $fileBytes = filesize($filePath);
+            if ($fileBytes === false || $fileBytes < 100) {
+                throw new RuntimeException('Cannot save self-update package: reading downloaded file failed - read ' . ByteSizeDataType::formatWithScale($fileBytes) . '. User "' . $token->getUsername() . '".');
+            }
         }
+        $this->setDebug(false);
         return $response;
+    }
+    
+    public function setDebug(bool $debug) : UpdateDownloader
+    {
+        if ($debug === true) {
+            $this->debugStream = Utils::tryFopen('php://temp', 'w+');
+        } else {
+            $this->debugStream = null;
+        }
+        return $this;
     }
 
     /**
@@ -163,10 +208,28 @@ class UpdateDownloader
             $this->downloadedBytes = $downloadedBytes;
         }
     }
-    
-    public function uploadLog(string $log) : ResponseInterface
+
+    /**
+     * @param string $log
+     * @return ResponseInterface|null
+     * @throws \Throwable
+     */
+    public function uploadLog(string $log, bool $final = false) : ?ResponseInterface
     {
-        return $this->sendHttpRequest('POST', $log);
+        try {
+            $urlParams = [];
+            if ($final === true) {
+                $urlParams['final'] = 'true';
+            }
+            return $this->sendHttpRequest('POST', $log, $urlParams);
+        } catch (\Throwable $e) {
+            if ($this->logger !== null) {
+                $this->logger->logException($e);
+            } else {
+                throw $e;
+            }
+        }
+        return null;
     }
     
     /**
@@ -175,10 +238,26 @@ class UpdateDownloader
      */
     public function __toString() : string
     {
-        return <<<TEXT
+        $summary = <<<TEXT
 Download: {$this->getFormatedStatusMessage()}
     Filename: {$this->getFileName()}
     Size: {$this->getFileSize()}
+    
 TEXT;
+        
+        if ($this->debugStream !== null) {
+            // Rewind and read the debug output
+            rewind($this->debugStream);
+            $debugOutput = stream_get_contents($this->debugStream);
+            $summary .= <<<TEXT
+
+CURL Debug ----------------------------------------------
+{$debugOutput}
+
+TEXT;
+
+        }
+        
+        return $summary;
     }
 }
