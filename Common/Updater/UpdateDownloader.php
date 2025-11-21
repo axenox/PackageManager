@@ -77,19 +77,27 @@ class UpdateDownloader
     /**
      * 
      */
-    public function download() : ResponseInterface
+    public function download() : \Generator
     {
         $this->setDebug(true);
         $response = $this->sendHttpRequest('GET');
         $this->response = $response;
+        $this->responseSize = $this->getFileSizeFromResponse($response);
+        $this->setDebug(false);
         if ($response->getStatusCode() === 200) {
-            $content = $response->getBody();
-            $this->responseSize = $this->getFileSizeFromResponse($response);
+            yield PHP_EOL . PHP_EOL . 'Found new self-update package.';
+            yield $this->__toString();
             if ($this->responseSize < 100) {
                 throw new RuntimeException('Cannot save self-update package: invalid download size ' . ByteSizeDataType::formatWithScale($this->responseSize));
             }
+            $content = $response->getBody();
+            if (! is_writable($this->downloadPath)) {
+                $token = new CliEnvAuthToken();
+                throw new RuntimeException('Cannot save self-update package: download path "' . $this->downloadPath . '" is not writable for user "' . $token->getUsername() . '"!');
+            }
             $filePath = $this->downloadPath . $this->getFileName();
             $writtenBytes = file_put_contents($filePath, $content);
+            yield 'Saved ' . $writtenBytes . ' bytes to ' . $filePath;
             if (! $writtenBytes) {
                 $token = new CliEnvAuthToken();
                 if ($writtenBytes === false) {
@@ -100,11 +108,11 @@ class UpdateDownloader
                 }
             }
             $fileBytes = filesize($filePath);
+            yield 'Resulting file size: ' . $fileBytes . ' bytes';
             if ($fileBytes === false || $fileBytes < 100) {
                 throw new RuntimeException('Cannot save self-update package: reading downloaded file failed - read ' . ByteSizeDataType::formatWithScale($fileBytes) . '. User "' . $token->getUsername() . '".');
             }
         }
-        $this->setDebug(false);
         return $response;
     }
     
@@ -133,7 +141,13 @@ class UpdateDownloader
      */
     public function getFormatedStatusMessage() : string
     {
-        return $this->getStatusCode() == 200 ? "Success" : "Failure";
+        $code = $this->getStatusCode();
+        switch (true) {
+            case $code === 200: $msg = 'Success'; break;
+            case $code === 304: $msg = 'No update available'; break;
+            case $code >= 400 && $code <= 599: $msg = 'Failure'; break;
+        }
+        return $code . ' ' . $msg;
     }
     
     /**
@@ -204,10 +218,13 @@ class UpdateDownloader
      * @return ResponseInterface|null
      * @throws \Throwable
      */
-    public function uploadLog(string $log, bool $final = false) : string
+    public function uploadLog(string $log, ?int $status = null, bool $final = false) : string
     {
         try {
             $urlParams = [];
+            if ($status !== null) {
+                $urlParams['status'] = $status;
+            }
             if ($final === true) {
                 $urlParams['final'] = 'true';
             }
@@ -227,10 +244,11 @@ class UpdateDownloader
      */
     public function __toString() : string
     {
+        $size = ByteSizeDataType::formatWithScale($this->responseSize);
         $summary = <<<TEXT
-Download: {$this->getFormatedStatusMessage()}
+Downloaded {$size}:
     Filename: {$this->getFileName()}
-    Size: {$this->getFileSize()}
+    Response code: {$this->getFormatedStatusMessage()}
     
 TEXT;
         
