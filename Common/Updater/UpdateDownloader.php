@@ -96,12 +96,8 @@ class UpdateDownloader
                 throw new RuntimeException('Cannot save self-update package: download path "' . $this->downloadPath . '" is not writable for user "' . $token->getUsername() . '"!');
             }
             $filePath = $this->downloadPath . $this->getFileName();
-            $tmpPath = '/tmp/' . $this->getFileName();
-            yield 'Saving file to ' . $tmpPath;
-            $writtenBytes = file_put_contents($tmpPath, $content);
-            yield ' - saved ' . $writtenBytes . ' bytes successfully' . PHP_EOL;
-            rename($tmpPath, $filePath);
-            yield 'Moved from /tmp/ to ' . $filePath . PHP_EOL;
+            $writtenBytes = file_put_contents($filePath, $content);
+            yield 'Saved ' . $writtenBytes . ' bytes to ' . $filePath;
             if (! $writtenBytes) {
                 $token = new CliEnvAuthToken();
                 if ($writtenBytes === false) {
@@ -112,7 +108,7 @@ class UpdateDownloader
                 }
             }
             $fileBytes = filesize($filePath);
-            yield 'Resulting file size: ' . $fileBytes . ' bytes' . PHP_EOL;
+            yield 'Resulting file size: ' . $fileBytes . ' bytes';
             if ($fileBytes === false || $fileBytes < 100) {
                 throw new RuntimeException('Cannot save self-update package: reading downloaded file failed - read ' . ByteSizeDataType::formatWithScale($fileBytes) . '. User "' . $token->getUsername() . '".');
             }
@@ -164,9 +160,7 @@ class UpdateDownloader
             return null;
         }
         $header = $this->response->getHeaders()['Content-Disposition'][0];
-        $filename = StringDataType::substringAfter($header, 'attachment; filename=');
-        $filename = str_replace('+', '_', $filename);
-        return $filename;
+        return StringDataType::substringAfter($header, 'attachment; filename=');
     }
 
     /**
@@ -234,7 +228,7 @@ class UpdateDownloader
             if ($final === true) {
                 $urlParams['final'] = 'true';
             }
-            $this->sendHttpRequest('POST', $log, $urlParams);
+            return $this->sendHttpRequest('POST', $log, $urlParams);
         } catch (\Throwable $e) {
             if ($this->logger !== null) {
                 $this->logger->logException($e);
