@@ -228,12 +228,12 @@ class UpdateDownloader
             if ($final === true) {
                 $urlParams['final'] = 'true';
             }
-            return $this->sendHttpRequest('POST', $log, $urlParams);
+            $this->sendHttpRequest('POST', $log, $urlParams);
         } catch (\Throwable $e) {
             if ($this->logger !== null) {
                 $this->logger->logException($e);
             }
-            return $log . PHP_EOL . 'ERROR uploading log to deployer: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+            $log .= PHP_EOL . 'ERROR uploading log to deployer: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
         }
         return $log;
     }
