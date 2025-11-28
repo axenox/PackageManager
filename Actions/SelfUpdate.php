@@ -125,19 +125,19 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
             foreach ($selfUpdateInstaller->install() as $line) {
                 $status = null;
                 switch (true) {
-                    case preg_match('/^Extracting archive/', $line):
+                    case preg_match('/Extracting archive/i', $line):
                         $status = 72; // Extracting
                         break;
-                    case preg_match('/^Archive extracted!/', $line):
+                    case preg_match('/Archive extracted!/i', $line):
                         $status = 73; // Extracted
                         break;
-                    case preg_match('/^Symlink to current created!/', $line):
+                    case preg_match('/Symlink to current created!/i', $line):
                         $status = 75; // Symlink switched
                         break;
-                    case preg_match('/^Installing apps.../', $line):
+                    case preg_match('/Installing apps.../i', $line):
                         $status = 76; // Installing
                         break;
-                    case preg_match('/^Deleting release/', $line):
+                    case preg_match('/Deleting release/i', $line):
                         $status = 78; // Cleaning up
                         break;
                 }
