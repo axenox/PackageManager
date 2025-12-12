@@ -72,7 +72,7 @@
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ebbbc917a5a67ebbc9025041000001",
             "OBJECT": "0x11e64d20c9789d1a9409c0f8dae36b4f",
-            "ACTION_PROTOTYPE": "exface/Core/Actions/ShowDialog.php",
+            "ACTION_PROTOTYPE": "exface/core/Actions/ShowDialog.php",
             "ALIAS": "ShowInfrastructureComposerConsole",
             "NAME": "Infrastructure Composer CLI",
             "SHORT_DESCRIPTION": "Command line interface for managing infrastructure packages (parts of the workbench)",
