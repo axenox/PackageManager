@@ -6,6 +6,9 @@ use exface\Core\DataTypes\StringDataType;
 
 class SelfUpdateInstaller {
     
+    const MESSAGE_INSTALLATION_FAILED = 'Installation failed!';
+    const MESSAGE_INSTALLATION_SUCCESSFUL = 'Installation successful!';
+    
     private $statusMessage = null;
     
     private $timeStamp = null;
@@ -74,10 +77,10 @@ class SelfUpdateInstaller {
                 yield $output;
             }
             yield $this->printLineDelimiter();
-            yield "Installation failed!";
+            yield self::MESSAGE_INSTALLATION_FAILED;
         } else {
             yield $this->printLineDelimiter();
-            yield "Installation successful!";
+            yield self::MESSAGE_INSTALLATION_SUCCESSFUL;
         }
     }
 
