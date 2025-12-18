@@ -55,13 +55,14 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
      */
     protected function performDeferred(TaskInterface $task = null) : \Generator
     {
-        $downloadPathRelative = FilePathDataType::normalize($this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.DOWNLOAD_PATH'), DIRECTORY_SEPARATOR);
+        $config = $this->getApp()->getConfig();
+        $downloadPathRelative = FilePathDataType::normalize($config->getOption('SELF_UPDATE.LOCAL.DOWNLOAD_PATH'), DIRECTORY_SEPARATOR);
         $downloadPathAbsolute = $this->getWorkbench()->getInstallationPath() 
             . DIRECTORY_SEPARATOR . $downloadPathRelative
             . DIRECTORY_SEPARATOR;
-        $url = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.URL');
-        $username = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.USERNAME');
-        $password = $this->getApp()->getConfig()->getOption('SELF_UPDATE.SOURCE.PASSWORD');
+        $url = $config->getOption('SELF_UPDATE.SOURCE.URL');
+        $username = $config->getOption('SELF_UPDATE.SOURCE.USERNAME');
+        $password = $config->getOption('SELF_UPDATE.SOURCE.PASSWORD');
         
         if (! $url || ! $username || ! $password) {
             throw new ActionConfigurationError($this, 'Incomplete self-update configuration: make sure `SELF_UPDATE.SOURCE.xxx` options are set in `axenox.PackageManager.config.json`');
@@ -77,14 +78,20 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         yield PHP_EOL;
         
         try {
-            $downloadLog = '';
-            foreach ($downloader->download() as $line) {
-                $downloadLog .= $line;
+            foreach ($downloader->download($config->getOption('SELF_UPDATE.DOWNLOAD.USE_CLI_CURL')) as $line) {
                 yield $downloader->uploadLog($line);
             }
         } catch (\Throwable $e) {
-            $msg = 'FAILED to download self-update package.';
-            $downloader->uploadLog($msg . PHP_EOL . $downloader->__toString(), 90, true);
+            $msg = 'FAILED to download self-update package: ' . $e->getMessage();
+            try {
+                $msg .= PHP_EOL . $downloader->__toString();
+            } catch (\Throwable $eDetails) {
+                $this->getWorkbench()->getLogger()->logException(
+                    new RuntimeException('Cannot dump details for self-update download error. ' . $eDetails->getMessage(), null, $eDetails)
+                );
+                $msg .= PHP_EOL . 'Unknown error: ' . $eDetails->getMessage();
+            }
+            $downloader->uploadLog($msg, 90, true);
             throw new RuntimeException($msg . ' ' . $e->getMessage(), null, $e);
         }
         
@@ -114,12 +121,12 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         
         if ($task->hasParameter('download-only')) {
             // $releaseLog->saveEntry($releaseLogEntry);
-            yield $downloader->uploadLog('Download-only mode: stopping after download. Download location: ' . $downloader->getPathAbsolute(), 67);
+            yield $downloader->uploadLog('Download-only mode: stopping after download. Download location: ' . FilePathDataType::normalize($downloader->getPathAbsolute(), DIRECTORY_SEPARATOR), 67);
             return;
         }
         
         try {
-            $php = $this->getApp()->getConfig()->getOption('SELF_UPDATE.LOCAL.PHP_EXECUTABLE');
+            $php = $config->getOption('SELF_UPDATE.LOCAL.PHP_EXECUTABLE');
             $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder(), $php);
             yield $downloader->uploadLog('Running .phx file now', 70);
             foreach ($selfUpdateInstaller->install() as $line) {
