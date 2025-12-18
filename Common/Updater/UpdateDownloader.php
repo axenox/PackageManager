@@ -3,6 +3,7 @@ namespace axenox\PackageManager\Common\Updater;
 
 use exface\Core\CommonLogic\Security\AuthenticationToken\CliEnvAuthToken;
 use exface\Core\DataTypes\ByteSizeDataType;
+use exface\Core\Exceptions\Facades\HttpBadResponseError;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\Log\LoggerInterface;
 use GuzzleHttp\Client;
@@ -73,9 +74,15 @@ class UpdateDownloader
         
         return $response;
     }
-    
+
     /**
+     * Download a self-update package if available
      * 
+     * If the regular download does not work (e.g. "hangs" forever), you can try to use a CLI command instead. This
+     * requires PHP to be able to exec() a cURL command, but avoids PHP specific limitations on some servers.
+     * 
+     * @param bool $useCLI
+     * @return \Generator
      */
     public function download(bool $useCLI = false) : \Generator
     {
@@ -85,6 +92,7 @@ class UpdateDownloader
         }
         $this->setDebug(true);
         if ($useCLI === false) {
+            // Regular download via Guzzle
             $response = $this->sendHttpRequest('GET');
             $this->response = $response;
             $this->responseSize = $this->getFileSizeFromResponse($response);
@@ -113,15 +121,21 @@ class UpdateDownloader
                 }
             }
         } else {
+            // Download via CLI cURL command
             $cliGenerator = $this->downloadViaCLI();
             yield from $cliGenerator;
             $response = $cliGenerator->getReturn();
             $this->response = $response;
             $statusCode = $response->getStatusCode();
         }
+        
+        // If we have downloaded an update file - see if it has a reasonable size
         if ($statusCode === 200) {
             $filePath = $this->downloadPath . $this->getFileName();
             $fileBytes = filesize($filePath);
+            if ($this->responseSize === null) {
+                $this->responseSize = $fileBytes;
+            }
             yield 'Resulting file size: ' . $fileBytes . ' bytes';
             if ($fileBytes === false || $fileBytes < 100) {
                 throw new RuntimeException('Cannot save self-update package: reading downloaded file failed - read ' . ByteSizeDataType::formatWithScale($fileBytes) . '. User "' . $token->getUsername() . '".');
@@ -129,7 +143,13 @@ class UpdateDownloader
         }
         return $response;
     }
-    
+
+    /**
+     * TRUE will start a new debug stream and FALSE will destroy it.
+     * 
+     * @param bool $debug
+     * @return $this
+     */
     public function setDebug(bool $debug) : UpdateDownloader
     {
         if ($debug === true) {
@@ -210,7 +230,7 @@ class UpdateDownloader
     protected function getFileSizeFromResponse(Response $response) : int
     {
         if ($response->hasHeader('content-length')) {
-            $fileSize = (int) $response->hasHeader('content-length')[0];
+            $fileSize = (int) $response->getHeader('content-length')[0];
         } else {
             $fileSize = $response->getBody()->getSize();
         }  
@@ -317,7 +337,7 @@ TEXT;
         // -D headersPath: dump headers (all hops; we’ll parse the last block)
         // -w: print status code and effective URL to stdout (no body to stdout because -O used)
         $cmd = sprintf(
-            'curl -sS -L -OJ --output-dir %s -H %s -D %s %s -w "%%{http_code}\n%%{url_effective}\n"',
+            'curl -sS -L -OJ --output-dir %s -H %s -D %s %s -w "%%{http_code}\n%%{url_effective}\n" 2>&1',
             escapeshellarg($destDir),
             escapeshellarg("Authorization: {$authHeader}"),
             escapeshellarg($headersPath),
@@ -326,8 +346,10 @@ TEXT;
 
         // Execute curl
         $outputLines = [];
-        $curlReturnCode = 0;
-        exec($cmd, $outputLines, $curlReturnCode);
+        $execReturnCode = 0;
+        exec($cmd, $outputLines, $execReturnCode);
+        $curlReturnCode = $execReturnCode >> 8;
+        yield 'cURL returned ' . $this->getCurlMessage($curlReturnCode);
 
         foreach ($outputLines as $line) {
             if ($this->debugStream !== null) {
@@ -362,7 +384,7 @@ TEXT;
             yield "Cannot read headers file {$headersPath}\n";
             $headersRaw = "";
         }
-/*
+
         // Split by header blocks; curl writes each response block terminated by \r\n\r\n
         $blocks = preg_split("/\r\n\r\n/", $headersRaw);
         $lastHeaders = "";
@@ -375,16 +397,22 @@ TEXT;
                 }
             }
         }
-*/
-        $lastHeaders = $headersRaw;
+        if (! $lastHeaders) {
+            $lastHeaders = $headersRaw;
+        }
+        
+        // Parse headers into a header => value array
         $lastHeaderLines = [];
         foreach (StringDataType::splitLines($lastHeaders) as $line) {
-            if (stripos($line, "HTTP/2 ") === 0) {
+            // The first line looks like this: `HTTP/2 200` - treat it differently: use this response code if it could
+            // not be determined above.
+            if (stripos($line, "HTTP/ ") === 0) {
                 if (! $statusCode) {
-                    $statusCode = StringDataType::substringAfter($line, "HTTP/2 ", null);
+                    $statusCode = StringDataType::substringAfter($line, " ", null);
                 }
                 continue;
             }
+            // Skip empty lines
             if (trim($line) === "") {
                 continue;
             }
@@ -392,15 +420,17 @@ TEXT;
             $lastHeaderLines[mb_strtolower($header)] = trim($value);
         }
         
+        // Throw exception if response is an error
         if ($statusCode >= 400) {
-            throw new RuntimeException('Failed to download via CLI: HTTP status code "' . $statusCode . '", CURL return code "' . $curlReturnCode . '"');
+            $fakeResponse = new Response($statusCode, $lastHeaderLines);
+            throw new HttpBadResponseError($fakeResponse, 'Failed to download via CLI: HTTP status code "' . $statusCode . '", cURL return code "' . $this->getCurlMessage($curlReturnCode) . '"');
         }
         
-        // Extract Content-Disposition (case-insensitive)
+        // If we have a 200, look for the file name
         if ($statusCode === 200) {
             $filename = null;
+            // Extract Content-Disposition (case-insensitive)
             $cdLine = $lastHeaderLines['content-disposition'] ?? null;
-
             if ($cdLine !== null) {
                 // Try RFC 5987 filename* first (UTF-8''urlencoded)
                 // Example: Content-Disposition: attachment; filename*=UTF-8''report%20Q4.pdf
@@ -419,16 +449,20 @@ TEXT;
                     $filename = trim($m[1], " \t\"");
                 }
             }
-
             if (! $filename) {
-                throw new RuntimeException("Cannot find downloaded file name in headers " . json_encode($lastHeaderLines) . '. CURL return code "' . $statusCode . '"');
+                yield 'Cannot find downloaded file name in headers (cURL return code "' . $statusCode . '"). Headers: ' . json_encode($lastHeaderLines, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
             }
 
-            // Final fallback: if no Content-Disposition filename, derive from the newest download
+            // If no Content-Disposition filename, derive from the newest download
             if ($filename === null) {
                 $fileGenerator = $this->findLastDownload(60);
                 yield from $fileGenerator;
                 $filename = $fileGenerator->getReturn();
+            } 
+            
+            if (! $filename) {
+                $fakeResponse = new Response($statusCode, $lastHeaderLines);
+                throw new HttpBadResponseError($fakeResponse, 'Cannot find filename!');
             } else {
                 yield 'Downloaded file "' . $filename . '"';
             }
@@ -438,6 +472,7 @@ TEXT;
             }
         }
 
+        // Create a fake HTTP response message from the collected data and return it
         $fakeResponse = new Response($statusCode, $lastHeaderLines ?? []);
         return $fakeResponse;
     }
@@ -455,7 +490,7 @@ TEXT;
      */
     protected function findLastDownload(int $maxAgeSeconds = 60, string $extension = 'phx') : \Generator
     {
-        yield 'Looking for recently downloaded files...' . PHP_EOL;
+        yield 'Looking for recently downloaded files...';
         $dir = $this->downloadPath;
         // Basic directory checks
         if (!is_dir($dir)) {
@@ -485,7 +520,7 @@ TEXT;
             // ctime may fail for some FS objects; guard and skip on failure
             $ctime = @filectime($fileInfo->getPathname());
             if ($ctime === false) {
-                yield 'Cannot read the creation time of file ' . $dir . PHP_EOL;
+                yield 'Cannot read the creation time of file ' . $dir;
                 continue;
             }
 
@@ -497,19 +532,112 @@ TEXT;
 
         if ($latestFile === null) {
             // No .phx files found
-            yield 'No .phx files found in ' . $dir . PHP_EOL;
+            yield 'No .phx files found in ' . $dir;
             return null;
         }
 
         // Check the "less than a minute ago" condition (60 seconds)
         $ageSeconds = time() - $latestMTime;
         if ($ageSeconds < $maxAgeSeconds) {
-            yield 'Found recent .phx file: ' . $latestFile . PHP_EOL;
+            yield 'Found recent .phx file: ' . $latestFile;
             return $latestFile;
         } else {
-            yield 'Latest .phx file "' . $latestFile . '" is too old.' . PHP_EOL;
+            yield 'Latest .phx file "' . $latestFile . '" is too old.';
             return null;
         }
+    }
+    
+    protected function getCurlMessage(int $code) : string
+    {
+        $curl_error_codes = array (
+            0 => 'CURLE_OK',
+            1 => 'CURLE_UNSUPPORTED_PROTOCOL',
+            2 => 'CURLE_FAILED_INIT',
+            3 => 'CURLE_URL_MALFORMAT',
+            4 => 'CURLE_NOT_BUILT_IN',
+            5 => 'CURLE_COULDNT_RESOLVE_PROXY',
+            6 => 'CURLE_COULDNT_RESOLVE_HOST',
+            7 => 'CURLE_COULDNT_CONNECT',
+            8 => 'CURLE_FTP_WEIRD_SERVER_REPLY',
+            9 => 'CURLE_REMOTE_ACCESS_DENIED',
+            10 => 'CURLE_FTP_ACCEPT_FAILED',
+            11 => 'CURLE_FTP_WEIRD_PASS_REPLY',
+            12 => 'CURLE_FTP_ACCEPT_TIMEOUT',
+            13 => 'CURLE_FTP_WEIRD_PASV_REPLY',
+            14 => 'CURLE_FTP_WEIRD_227_FORMAT',
+            15 => 'CURLE_FTP_CANT_GET_HOST',
+            17 => 'CURLE_FTP_COULDNT_SET_TYPE',
+            18 => 'CURLE_PARTIAL_FILE',
+            19 => 'CURLE_FTP_COULDNT_RETR_FILE',
+            21 => 'CURLE_QUOTE_ERROR',
+            22 => 'CURLE_HTTP_RETURNED_ERROR',
+            23 => 'CURLE_WRITE_ERROR',
+            25 => 'CURLE_UPLOAD_FAILED',
+            26 => 'CURLE_READ_ERROR',
+            27 => 'CURLE_OUT_OF_MEMORY',
+            28 => 'CURLE_OPERATION_TIMEDOUT',
+            30 => 'CURLE_FTP_PORT_FAILED',
+            31 => 'CURLE_FTP_COULDNT_USE_REST',
+            33 => 'CURLE_RANGE_ERROR',
+            34 => 'CURLE_HTTP_POST_ERROR',
+            35 => 'CURLE_SSL_CONNECT_ERROR',
+            36 => 'CURLE_BAD_DOWNLOAD_RESUME',
+            37 => 'CURLE_FILE_COULDNT_READ_FILE',
+            38 => 'CURLE_LDAP_CANNOT_BIND',
+            39 => 'CURLE_LDAP_SEARCH_FAILED',
+            41 => 'CURLE_FUNCTION_NOT_FOUND',
+            42 => 'CURLE_ABORTED_BY_CALLBACK',
+            43 => 'CURLE_BAD_FUNCTION_ARGUMENT',
+            45 => 'CURLE_INTERFACE_FAILED',
+            47 => 'CURLE_TOO_MANY_REDIRECTS',
+            48 => 'CURLE_UNKNOWN_OPTION',
+            49 => 'CURLE_TELNET_OPTION_SYNTAX',
+            51 => 'CURLE_PEER_FAILED_VERIFICATION',
+            52 => 'CURLE_GOT_NOTHING',
+            53 => 'CURLE_SSL_ENGINE_NOTFOUND',
+            54 => 'CURLE_SSL_ENGINE_SETFAILED',
+            55 => 'CURLE_SEND_ERROR',
+            56 => 'CURLE_RECV_ERROR',
+            58 => 'CURLE_SSL_CERTPROBLEM',
+            59 => 'CURLE_SSL_CIPHER',
+            60 => 'CURLE_SSL_CACERT',
+            61 => 'CURLE_BAD_CONTENT_ENCODING',
+            62 => 'CURLE_LDAP_INVALID_URL',
+            63 => 'CURLE_FILESIZE_EXCEEDED',
+            64 => 'CURLE_USE_SSL_FAILED',
+            65 => 'CURLE_SEND_FAIL_REWIND',
+            66 => 'CURLE_SSL_ENGINE_INITFAILED',
+            67 => 'CURLE_LOGIN_DENIED',
+            68 => 'CURLE_TFTP_NOTFOUND',
+            69 => 'CURLE_TFTP_PERM',
+            70 => 'CURLE_REMOTE_DISK_FULL',
+            71 => 'CURLE_TFTP_ILLEGAL',
+            72 => 'CURLE_TFTP_UNKNOWNID',
+            73 => 'CURLE_REMOTE_FILE_EXISTS',
+            74 => 'CURLE_TFTP_NOSUCHUSER',
+            75 => 'CURLE_CONV_FAILED',
+            76 => 'CURLE_CONV_REQD',
+            77 => 'CURLE_SSL_CACERT_BADFILE',
+            78 => 'CURLE_REMOTE_FILE_NOT_FOUND',
+            79 => 'CURLE_SSH',
+            80 => 'CURLE_SSL_SHUTDOWN_FAILED',
+            81 => 'CURLE_AGAIN',
+            82 => 'CURLE_SSL_CRL_BADFILE',
+            83 => 'CURLE_SSL_ISSUER_ERROR',
+            84 => 'CURLE_FTP_PRET_FAILED',
+            85 => 'CURLE_RTSP_CSEQ_ERROR',
+            86 => 'CURLE_RTSP_SESSION_ERROR',
+            87 => 'CURLE_FTP_BAD_FILE_LIST',
+            88 => 'CURLE_CHUNK_FAILED',
+            89 => 'CURLE_NO_CONNECTION_AVAILABLE'
+        );
+        $const = $curl_error_codes[$code];
+        if ($const === null) {
+            $msg = 'Unknown error';
+        } else {
+            $msg = substr($const, 6);
+        }
+        return '[' . $code . '] ' . $msg;
     }
 
 }

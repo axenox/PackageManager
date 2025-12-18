@@ -100,7 +100,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
                 yield "No update available: " . $downloader->getStatusCode();
                 return;
             case $downloader->getStatusCode() == 200:
-                yield $downloader->uploadLog('Downloaded to "' . $downloadPathRelative . '"', 65) . PHP_EOL;
+                yield $downloader->uploadLog('Downloaded to "' . $downloader->getPathAbsolute() . '"', 65) . PHP_EOL;
                 break;
             default:
                 $msg = 'FAILED to download: unexpected response code' . $downloader->getStatusCode();
