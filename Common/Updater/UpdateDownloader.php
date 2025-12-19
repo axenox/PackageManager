@@ -406,7 +406,7 @@ TEXT;
         foreach (StringDataType::splitLines($lastHeaders) as $line) {
             // The first line looks like this: `HTTP/2 200` - treat it differently: use this response code if it could
             // not be determined above.
-            if (stripos($line, "HTTP/ ") === 0) {
+            if (stripos($line, "HTTP/") === 0) {
                 if (! $statusCode) {
                     $statusCode = StringDataType::substringAfter($line, " ", null);
                 }
