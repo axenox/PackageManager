@@ -69,7 +69,7 @@
             "UID": "0x32370000000000000000000000000000",
             "APP": "0x31380000000000000000000000000000",
             "DEFAULT_CONNECTION": "0x31390000000000000000000000000000",
-            "DEFAULT_QUERY_BUILDER": "exface/UrlDataConnector/QueryBuilders/JsonUrlBuilder.php",
+            "DEFAULT_QUERY_BUILDER": "exface/urldataconnector/QueryBuilders/JsonUrlBuilder.php",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 0,
             "BASE_OBJECT": null,
