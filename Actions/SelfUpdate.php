@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Actions;
 
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\Exceptions\Actions\ActionRuntimeError;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
@@ -132,7 +133,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
             foreach ($selfUpdateInstaller->install() as $line) {
                 $status = null;
                 switch (true) {
-                    case preg_match('/Extracting archive/i', $line):
+                    case preg_match('/Extracting .*/i', $line):
                         $status = 72; // Extracting
                         break;
                     case preg_match('/Archive extracted!/i', $line):
@@ -147,6 +148,8 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
                     case preg_match('/Deleting release/i', $line):
                         $status = 78; // Cleaning up
                         break;
+                    case preg_match('/Installation failed/i', $line):
+                        throw new ActionRuntimeError($this, $line);
                 }
                 yield $downloader->uploadLog($line, $status);
             }
