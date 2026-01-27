@@ -33,6 +33,10 @@
         {
             "name": "PAGE_GROUP",
             "attribute_alias": "PAGE_GROUP"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
         }
     ],
     "rows": [
@@ -44,7 +48,8 @@
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ea9387df59c5eca9d10205857feb80",
             "PAGE": "0xf83142f5ba2c11e7895fe4b318306b9a",
-            "PAGE_GROUP": "0x11ea9387d32552e1a9d10205857feb80"
+            "PAGE_GROUP": "0x11ea9387d32552e1a9d10205857feb80",
+            "APP": "0x31380000000000000000000000000000"
         }
     ],
     "totals_rows": [],
@@ -53,7 +58,7 @@
         "base_object_alias": "exface.Core.PAGE_GROUP_PAGES",
         "conditions": [
             {
-                "expression": "PAGE__APP",
+                "expression": "APP",
                 "comparator": "=",
                 "value": "0x31380000000000000000000000000000",
                 "object_alias": "exface.Core.PAGE_GROUP_PAGES"
