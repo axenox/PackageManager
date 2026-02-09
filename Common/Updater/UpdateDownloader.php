@@ -349,7 +349,9 @@ TEXT;
         $execReturnCode = 0;
         exec($cmd, $outputLines, $execReturnCode);
         $curlReturnCode = $execReturnCode >> 8;
-        yield 'cURL returned ' . $this->getCurlMessage($curlReturnCode);
+        if ($curlReturnCode !== 0) {
+            yield 'cURL returned ' . $this->getCurlMessage($curlReturnCode);
+        }
 
         foreach ($outputLines as $line) {
             if ($this->debugStream !== null) {
