@@ -95,6 +95,18 @@
             "attribute_alias": "COPYABLEFLAG"
         },
         {
+            "name": "ICON",
+            "attribute_alias": "ICON"
+        },
+        {
+            "name": "ICON_SET",
+            "attribute_alias": "ICON_SET"
+        },
+        {
+            "name": "ABBREVIATION",
+            "attribute_alias": "ABBREVIATION"
+        },
+        {
             "name": "ALIAS",
             "attribute_alias": "ALIAS"
         },
@@ -200,6 +212,9 @@
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
             "COPYABLEFLAG": 1,
+            "ICON": null,
+            "ICON_SET": null,
+            "ABBREVIATION": null,
             "ALIAS": "APP",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "REPLACE([#~alias#].name, '/', '.')",
@@ -247,6 +262,9 @@
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
             "COPYABLEFLAG": 1,
+            "ICON": null,
+            "ICON_SET": null,
+            "ABBREVIATION": null,
             "ALIAS": "VERSION",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "version",
@@ -294,6 +312,9 @@
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
             "COPYABLEFLAG": 1,
+            "ICON": null,
+            "ICON_SET": null,
+            "ABBREVIATION": null,
             "ALIAS": "TYPE",
             "DATATYPE": "0x11eb882c374f9978882c025041000001",
             "DATA_ADDRESS": "type",
@@ -341,6 +362,9 @@
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
             "COPYABLEFLAG": 1,
+            "ICON": null,
+            "ICON_SET": null,
+            "ABBREVIATION": null,
             "ALIAS": "URL",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "url",
@@ -388,6 +412,9 @@
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
             "COPYABLEFLAG": 1,
+            "ICON": null,
+            "ICON_SET": null,
+            "ABBREVIATION": null,
             "ALIAS": "NAME",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "name",
@@ -435,6 +462,9 @@
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
             "COPYABLEFLAG": 1,
+            "ICON": null,
+            "ICON_SET": null,
+            "ABBREVIATION": null,
             "ALIAS": "PACKAGE",
             "DATATYPE": "0x30000000000000000000000000000000",
             "DATA_ADDRESS": "name",

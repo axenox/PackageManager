@@ -66,10 +66,8 @@
             "APP": "0x31380000000000000000000000000000",
             "TIME_ZONE": null,
             "LABEL": "GitHub",
-            "CONNECTOR": "exface/urldataconnector/DataConnectors/HttpConnector.php",
-            "CONFIG": {
-                "URL": "https://api.github.com/"
-            },
+            "CONNECTOR": "exface/UrlDataConnector/DataConnectors/HttpConnector.php",
+            "CONFIG": "$$~~q8eoguy7ovyQB/1aBpzoBy4r7IHmNnRiZf0VqxwuTTtJ4L9gUwDPjJ3Eq1FO8stJbLNwYDrnicN9ERb43/wIPsQ5uIHJO6J+oq1kkA==",
             "READONLY": 0,
             "ALIAS": "GITHUB"
         }
