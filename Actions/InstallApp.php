@@ -8,7 +8,6 @@ use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\Constants\Icons;
-use exface\Core\Factories\WidgetFactory;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
@@ -156,19 +155,38 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
         
         $this->getWorkbench()->getCache()->clear();
     }
-    
+
+    /**
+     * Empties the output log of this instance and returns its reference.
+     * 
+     * @return array
+     */
     protected function resetOutputLog() : array
     {
         $this->outputLog = [];
         return $this->outputLog;
     }
-    
+
+    /**
+     * Store a string in the output log.
+     * 
+     * @param string $output
+     * @return string
+     */
     protected function logOutputLine(string $output) : string
     {
         $this->outputLog[] = $output;
         return $output;
     }
-    
+
+    /**
+     * Commits all lines in the output log to the database. Optionally, an exception may be passed to be saved alongside
+     * the previously logged lines.
+     * 
+     * @param AppSelectorInterface $appSelector
+     * @param \Throwable|null      $exception
+     * @return string
+     */
     protected function commitOutputLog(
         AppSelectorInterface $appSelector, 
         \Throwable $exception = null
