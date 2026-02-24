@@ -2,10 +2,13 @@
 namespace axenox\PackageManager\Actions;
 
 use exface\Core\CommonLogic\AbstractActionDeferred;
+use exface\Core\CommonLogic\Log\Processors\DebugWidgetProcessor;
+use exface\Core\DataTypes\MessageTypeDataType;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
@@ -21,6 +24,7 @@ use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 use exface\Core\Interfaces\Actions\iModifyData;
 use exface\Core\Events\Installer\OnBeforeAppInstallEvent;
 use exface\Core\Events\Installer\OnAppInstallEvent;
+use exface\Core\Interfaces\WidgetInterface;
 
 /**
  * Installs/updates one or more apps including their meta model, custom installer, etc.
@@ -61,8 +65,30 @@ use exface\Core\Events\Installer\OnAppInstallEvent;
  */
 class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, iModifyData
 {
-
+    private const COL_CLI_OUTPUT = 'CLI_OUTPUT';
+    private const COL_ERROR_LOG_ID = 'ERROR_LOG_ID';
+    private const COL_ERROR_MESSAGE = 'ERROR_MESSAGE';
+    private const COL_ERROR_DEBUG_WIDGET = 'ERROR_DEBUG_WIDGET';
+    private const COL_APP_OID = 'APP_OID';
+    private const COL_MESSAGE_TYPE = 'MESSAGE_TYPE';
+    
     private $target_app_aliases = [];
+    
+    protected array $outputLog = [];
+    
+    private DebugWidgetProcessor $debugWidgetProcessor;
+
+    public function __construct(AppInterface $app, WidgetInterface $trigger_widget = null)
+    {
+        parent::__construct($app, $trigger_widget);
+        
+        $this->debugWidgetProcessor = new DebugWidgetProcessor(
+            $this->getWorkbench(),
+            'sender',
+            'message'
+        );
+    }
+
 
     protected function init()
     {
@@ -89,31 +115,135 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
     protected function performDeferred(array $aliases = []) : \Generator
     {
         $installed_counter = 0;
-        
+
         foreach ($aliases as $app_alias) {
-            yield  PHP_EOL . "Installing " . $app_alias . "..." . PHP_EOL;
+            $this->resetOutputLog();
             $app_selector = new AppSelector($this->getWorkbench(), $app_alias);
+            
+            yield $this->logOutputLine(PHP_EOL . "Installing " . $app_alias . "..." . PHP_EOL);
+
             try {
                 $installed_counter ++;
-                yield from $this->installApp($app_selector);
-                yield "..." . $app_alias . " successfully installed." . PHP_EOL;
+                foreach ($this->installApp($app_selector) as $result) {
+                    if(is_string($result)) {
+                        yield $this->logOutputLine($result);
+                    } else {
+                        yield $result;
+                    }
+                }
+                
+                yield $this->logOutputLine("..." . $app_alias . " successfully installed." . PHP_EOL);
+                yield $this->commitOutputLog($app_selector);
             } catch (\Exception $e) {
                 $installed_counter --;
                 $this->getWorkbench()->getLogger()->logException($e);
-                yield PHP_EOL . "ERROR: " . ($e instanceof ExceptionInterface ? $e->getMessage() . ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
-                yield "...{$app_alias} installation failed!" . PHP_EOL;
+
+                yield $this->logOutputLine(PHP_EOL . "ERROR: " . ($e instanceof ExceptionInterface ? 
+                        $e->getMessage() . ' see log ID ' . $e->getId() : 
+                        $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL
+                );
+                yield $this->logOutputLine("...{$app_alias} installation failed!" . PHP_EOL);
+                yield $this->commitOutputLog($app_selector, $e);
             }
         }
         
         if (count($aliases) == 0) {
-            yield 'No installable apps had been selected!';
+            yield $this->logOutputLine('No installable apps had been selected!');
         } elseif ($installed_counter == 0) {
-            yield  'No apps have been installed';
+            yield $this->logOutputLine('No apps have been installed');
         }
         
         $this->getWorkbench()->getCache()->clear();
     }
 
+    /**
+     * Empties the output log of this instance and returns its reference.
+     * 
+     * @return array
+     */
+    protected function resetOutputLog() : array
+    {
+        $this->outputLog = [];
+        return $this->outputLog;
+    }
+
+    /**
+     * Store a string in the output log.
+     * 
+     * @param string $output
+     * @return string
+     */
+    protected function logOutputLine(string $output) : string
+    {
+        $this->outputLog[] = $output;
+        return $output;
+    }
+
+    /**
+     * Commits all lines in the output log to the database. Optionally, an exception may be passed to be saved alongside
+     * the previously logged lines.
+     * 
+     * @param AppSelectorInterface $appSelector
+     * @param \Throwable|null      $exception
+     * @return string
+     */
+    protected function commitOutputLog(
+        AppSelectorInterface $appSelector, 
+        \Throwable $exception = null
+    ) : string
+    {
+        if(empty($this->outputLog)) {
+            return '';
+        }
+
+        try {
+            $dataSheet = DataSheetFactory::createFromObjectIdOrAlias(
+                $this->getWorkbench(),
+                'axenox.PackageManager.APP_INSTALL_LOG'
+            );
+            
+            $cliOutput = '';
+            $errorText = '';
+            $errorLogId = null;
+            $debugWidget = null;
+            
+            // Get error data from exception, if possible.
+            if($exception !== null) {
+                $errorText = $exception->getMessage();
+                if($exception instanceof ExceptionInterface) {
+                    $errorLogId = $exception->getLogId();
+                    $debugWidget = call_user_func($this->debugWidgetProcessor, ['context' => ['sender' => $exception]]);
+                    $debugWidget = $debugWidget['message'];
+                }
+            } 
+            
+            foreach ($this->outputLog as $outputLine) {
+                $cliOutput .= $outputLine;
+                if($exception === null && str_starts_with(trim($outputLine), 'ERROR')) {
+                    $errorText .= $outputLine . (str_ends_with($outputLine, PHP_EOL) ? '' : PHP_EOL);
+                }
+            }
+
+
+            $dataSheet->addRow([
+                self::COL_CLI_OUTPUT => $cliOutput,
+                self::COL_ERROR_LOG_ID => $errorLogId,
+                self::COL_ERROR_MESSAGE => $errorText,
+                self::COL_ERROR_DEBUG_WIDGET => $debugWidget,
+                self::COL_APP_OID => AppFactory::create($appSelector)->getUid(),
+                self::COL_MESSAGE_TYPE => empty($errorText) ? MessageTypeDataType::SUCCESS : MessageTypeDataType::ERROR
+            ]);
+            
+            $dataSheet->dataCreate();
+        } catch (\Throwable $e) {
+            $this->getWorkbench()->getLogger()->logException($e);
+            $logId = $e instanceof ExceptionInterface ? ' See Log-ID ' . $e->getLogId() : '';
+            return PHP_EOL . 'WARNING: Could not save installation log! ' . $e->getMessage() . $logId . PHP_EOL;
+        }
+
+        return '';
+    }
+    
     /**
      * 
      * @param TaskInterface $task

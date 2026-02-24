@@ -1,0 +1,90 @@
+{
+    "uid": "0x11f1b7596516db0cb7599bc887268982",
+    "alias_with_namespace": "exface.core.app-installer-logs",
+    "menu_parent_page_selector": "0xb90bb0b8949f11e7a605028037ec0200",
+    "menu_index": 0,
+    "menu_visible": true,
+    "name": "App Installer Logs",
+    "description": "",
+    "intro": "",
+    "replaces_page_selector": null,
+    "created_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+    "created_on": "2026-02-17 15:24:39",
+    "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+    "modified_on": "2026-02-19 15:03:38",
+    "contents": {
+        "object_alias": "axenox.PackageManager.APP_INSTALL_LOG",
+        "widget_type": "DataTable",
+        "sorters": [
+            {
+                "attribute_alias": "CREATED_ON",
+                "direction": "desc"
+            },
+            {
+                "attribute_alias": "CREATED_BY_USER",
+                "direction": "asc"
+            }
+        ],
+        "filters": [
+            {
+                "attribute_alias": "CREATED_BY_USER",
+                "caption": "User"
+            },
+            {
+                "attribute_alias": "CREATED_ON",
+                "caption": "Date"
+            },
+            {
+                "attribute_alias": "APP_OID",
+                "caption": "App"
+            },
+            {
+                "attribute_alias": "ERROR_LOG_ID"
+            },
+            {
+                "attribute_alias": "MESSAGE_TYPE"
+            }
+        ],
+        "columns": [
+            {
+                "attribute_alias": "MESSAGE_TYPE"
+            },
+            {
+                "attribute_alias": "CREATED_BY_USER__LABEL",
+                "caption": "User"
+            },
+            {
+                "attribute_alias": "CREATED_ON",
+                "caption": "Date"
+            },
+            {
+                "attribute_alias": "APP_OID__ALIAS",
+                "caption": "App"
+            },
+            {
+                "attribute_alias": "ERROR_LOG_ID"
+            },
+            {
+                "attribute_alias": "ERROR_MESSAGE"
+            },
+            {
+                "attribute_alias": "ERROR_DEBUG_WIDGET",
+                "hidden": true
+            }
+        ],
+        "buttons": [
+            {
+                "action_alias": "exface.core.ShowObjectEditDialog",
+                "caption": "Details",
+                "icon": "info-circle",
+                "bind_to_double_click": true
+            },
+            {
+                "action_alias": "axenox.PackageManager.ShowMonitorError"
+            },
+            {
+                "action_alias": "axenox.PackageManager.ShowMonitorErrorWidget"
+            }
+        ]
+    }
+}
