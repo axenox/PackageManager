@@ -71,6 +71,14 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         
         // Download file
         $downloader = new UpdateDownloader($url, $username, $password, $downloadPathAbsolute, $this->getWorkbench()->getLogger());
+        
+        // TODO write a logger, that is easy to use via `yield $logger->log('message')` and will automatically decide,
+        // when to upload the log to the OTA server (= when an update is downloaded and NOT when no update is available,
+        // because then the server has no deployment log to write to). The logger should also maintain separate logs
+        // for each update (not for each check) locally and offer methods to list available logs, open them, etc. These
+        // methods should be accessible from CLI (e.g. `php dep self-update --list-logs` or `php dep self-update --show-log=datetime`).
+        // We also might want to make them accessible through an HTTP facade, so that the build server can fetch logs
+        // or status explicitly. That facade could also allow explicit rollbacks.
         /*$releaseLog = new ReleaseLog($this->getWorkbench());
         $releaseLogEntry = $releaseLog->createLogEntry();
         */
@@ -79,8 +87,15 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         yield PHP_EOL;
         
         try {
+            $logNotUploadedYet = '';
             foreach ($downloader->download($config->getOption('SELF_UPDATE.DOWNLOAD.USE_CLI_CURL')) as $line) {
-                yield $downloader->uploadLog($line);
+                if ($downloader->isDeploying()) {
+                    yield $downloader->uploadLog($logNotUploadedYet . $line);
+                    $logNotUploadedYet = '';
+                } else {
+                    yield $line;
+                    $logNotUploadedYet .= $line;
+                }
             }
         } catch (\Throwable $e) {
             $msg = 'FAILED to download self-update package: ' . $e->getMessage();

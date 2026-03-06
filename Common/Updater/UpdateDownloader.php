@@ -220,7 +220,15 @@ class UpdateDownloader
         }
         return $this->response->getStatusCode();
     }
-    
+
+    /**
+     * Return TRUE if the an active deployment is there and an update is awaiting or downloaded
+     * @return bool
+     */
+    public function isDeploying() : bool
+    {
+        return $this->getStatusCode() === 200;
+    }
     
     /**
      *
