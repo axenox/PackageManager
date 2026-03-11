@@ -125,14 +125,12 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
             } else {
                 $msg = file_get_contents($uploadLogParam);
             }
-            $status = null;
         } else {
             $msg = PHP_EOL . PHP_EOL . 'Finished self-update successfully!';
-            $status = 99;
         }
         
         try {
-            $downloader->uploadLog($msg, $status, true);
+            $downloader->uploadLog($msg, null, true);
             yield PHP_EOL . 'Uploaded log to OTA server';
         } catch (\Throwable $e) {
             yield PHP_EOL . PHP_EOL . 'ERROR when uploading installation log: '  . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
