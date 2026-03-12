@@ -4,6 +4,8 @@ namespace axenox\PackageManager;
 use Composer\Installer\PackageEvent;
 use exface\Core\CommonLogic\Workbench;
 use Composer\Script\Event;
+use exface\Core\DataTypes\StringDataType;
+use exface\Core\Facades\ConsoleFacade\CliOutputPrinter;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
@@ -503,14 +505,20 @@ class StaticInstaller
 
     protected static function printException(\Throwable $e, $prefix = 'ERROR ')
     {
+        if (class_exists(\exface\Core\Facades\ConsoleFacade\CliOutputPrinter::class)) {
+            self::printToStdout(CliOutputPrinter::printExceptionWithBottomTraceOnly($e, $prefix));
+        }
         if ($e instanceof ExceptionInterface){
             $log_hint = 'See log ID ' . $e->getId();
         }
-        self::printToStdout(PHP_EOL . PHP_EOL . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine() . PHP_EOL . "-> " . $log_hint . PHP_EOL);
-
-        if ($p = $e->getPrevious()) {
-            self::printException($p);
+        self::printToStdout(PHP_EOL . PHP_EOL . $prefix . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine() . PHP_EOL . "-> " . $log_hint . PHP_EOL);
+        self::printToStdout(PHP_EOL . '------------------------------------------------------------------------');
+        self::printToStdout(PHP_EOL . StringDataType::indent($e->getTraceAsString(), '  '));
+        while ($e = $e->getPrevious()) {
+            self::printToStdout(PHP_EOL . PHP_EOL . $prefix . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine() . PHP_EOL . "-> " . $log_hint . PHP_EOL);
+            self::printToStdout(PHP_EOL . StringDataType::indent($e->getTraceAsString(), '  '));
         }
+        self::printToStdout(PHP_EOL . '------------------------------------------------------------------------');
     }
 
     public static function getCoreAppAlias()

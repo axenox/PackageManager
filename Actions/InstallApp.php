@@ -4,6 +4,7 @@ namespace axenox\PackageManager\Actions;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\CommonLogic\Log\Processors\DebugWidgetProcessor;
 use exface\Core\DataTypes\MessageTypeDataType;
+use exface\Core\Facades\ConsoleFacade\CliOutputPrinter;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
@@ -120,6 +121,7 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
             $this->resetOutputLog();
             $app_selector = new AppSelector($this->getWorkbench(), $app_alias);
             
+            yield $this->logOutputLine(CliOutputPrinter::printBordered($app_alias));
             yield $this->logOutputLine(PHP_EOL . "Installing " . $app_alias . "..." . PHP_EOL);
 
             try {
@@ -138,11 +140,17 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
                 $installed_counter --;
                 $this->getWorkbench()->getLogger()->logException($e);
 
-                yield $this->logOutputLine(PHP_EOL . "ERROR: " . ($e instanceof ExceptionInterface ? 
-                        $e->getMessage() . ' see log ID ' . $e->getId() : 
-                        $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL
-                );
+                yield $this->logOutputLine(CliOutputPrinter::printExceptionMessage($e));
                 yield $this->logOutputLine("...{$app_alias} installation failed!" . PHP_EOL);
+                yield $this->logOutputLine(
+                    PHP_EOL
+                    . CliOutputPrinter::printBordered(
+                        CliOutputPrinter::printExceptionWithBottomTraceOnly($e, '', "DEBUG INFO:\n"),
+                        '/'
+                    )
+                    . PHP_EOL
+                );
+                
                 yield $this->commitOutputLog($app_selector, $e);
             }
         }
