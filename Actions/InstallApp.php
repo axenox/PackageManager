@@ -4,6 +4,7 @@ namespace axenox\PackageManager\Actions;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\CommonLogic\Log\Processors\DebugWidgetProcessor;
 use exface\Core\DataTypes\MessageTypeDataType;
+use exface\Core\DataTypes\PhpFilePathDataType;
 use exface\Core\Facades\ConsoleFacade\CliOutputPrinter;
 use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
@@ -398,7 +399,7 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
     {
         $vendor_folder = $this->getWorkbench()->filemanager()->getPathToVendorFolder();
         $app_path = $vendor_folder . DIRECTORY_SEPARATOR;
-        $app_path .= $this->getWorkbench()->getAppFolder($app_selector);
+        $app_path .= PhpFilePathDataType::findPathToApp($app_selector, $this->getWorkbench());
         if (! is_dir($app_path)) {
             if (! is_dir($vendor_folder)) {
                 throw new DirectoryNotFoundError('Vendor folder not found in "' . $vendor_folder . '"!', '6T5TZN5');
