@@ -506,7 +506,12 @@ class StaticInstaller
     protected static function printException(\Throwable $e, $prefix = 'ERROR ')
     {
         if (class_exists(\exface\Core\Facades\ConsoleFacade\CliOutputPrinter::class)) {
-            self::printToStdout(CliOutputPrinter::printExceptionWithBottomTraceOnly($e, $prefix));
+            self::printToStdout(
+                CliOutputPrinter::printBordered(
+                    CliOutputPrinter::printExceptionWithBottomTraceOnly($e, '', $prefix . PHP_EOL)
+                ),
+                '/'
+            );
         }
         if ($e instanceof ExceptionInterface){
             $log_hint = 'See log ID ' . $e->getId();
