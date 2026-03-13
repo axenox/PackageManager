@@ -103,11 +103,16 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         yield $this->printLineDelimiter();
         */
         
-        if (BooleanDataType::cast($task->getParameter('install')) === false) {
-            // $releaseLog->saveEntry($releaseLogEntry);
-            yield $downloader->uploadLog('Installation explicitly disabled by command option. Download location: ' . FilePathDataType::normalize($downloader->getPathAbsolute(), DIRECTORY_SEPARATOR), 67);
-        } else {
-            yield from $this->performInstallation($downloader, $config);
+        switch (true) {
+            case BooleanDataType::cast($task->getParameter('install')) === false:
+                // $releaseLog->saveEntry($releaseLogEntry);
+                yield $downloader->uploadLog('Installation explicitly disabled by command option. Download location: ' . FilePathDataType::normalize($downloader->getPathAbsolute(), DIRECTORY_SEPARATOR), 67);
+                break;
+            case $downloader->hasDownloadedPackage():
+                yield from $this->performInstallation($downloader, $config);
+                break;
+            default:
+                yield PHP_EOL . "No update to install.";
         }
 
         // Finish things up
@@ -144,7 +149,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         try {
             $logNotUploadedYet = '';
             foreach ($downloader->download($config->getOption('SELF_UPDATE.DOWNLOAD.USE_CLI_CURL')) as $line) {
-                if ($downloader->isDeploying()) {
+                if ($downloader->hasDownloadedPackage()) {
                     yield $downloader->uploadLog($logNotUploadedYet . $line);
                     $logNotUploadedYet = '';
                 } else {

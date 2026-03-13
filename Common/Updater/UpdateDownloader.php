@@ -101,7 +101,7 @@ class UpdateDownloader
             if ($statusCode === 200) {
                 yield PHP_EOL . PHP_EOL . 'Found new self-update package.';
                 yield $this->__toString();
-                if ($this->responseSize < 100) {
+                if (! $this->isValidPackageSize($this->responseSize)) {
                     throw new RuntimeException('Cannot save self-update package: invalid download size ' . ByteSizeDataType::formatWithScale($this->responseSize));
                 }
                 $content = $response->getBody();
@@ -115,7 +115,7 @@ class UpdateDownloader
                     if ($writtenBytes === false) {
                         throw new RuntimeException('Cannot save self-update package: cannot write file using user "' . $token->getUsername() . '"');
                     }
-                    if ($writtenBytes < 100) {
+                    if (! $this->isValidPackageSize($writtenBytes)) {
                         throw new RuntimeException('Cannot save self-update package: detected invalid file size "' . $writtenBytes . '". User "' . $token->getUsername() . '".');
                     }
                 }
@@ -137,11 +137,16 @@ class UpdateDownloader
                 $this->responseSize = $fileBytes;
             }
             yield PHP_EOL . 'Resulting file size: ' . $fileBytes . ' bytes';
-            if ($fileBytes === false || $fileBytes < 100) {
+            if (! $this->isValidPackageSize($fileBytes)) {
                 throw new RuntimeException('Cannot save self-update package: reading downloaded file failed - read ' . ByteSizeDataType::formatWithScale($fileBytes) . '. User "' . $token->getUsername() . '".');
             }
         }
         return $response;
+    }
+    
+    protected function isValidPackageSize($size) : bool
+    {
+        return $size !== false && is_numeric($size) && $size > 100;
     }
 
     /**
@@ -222,12 +227,12 @@ class UpdateDownloader
     }
 
     /**
-     * Return TRUE if the an active deployment is there and an update is awaiting or downloaded
+     * Return TRUE if a new update package was downloaded
      * @return bool
      */
-    public function isDeploying() : bool
+    public function hasDownloadedPackage() : bool
     {
-        return $this->getStatusCode() === 200;
+        return $this->getStatusCode() === 200 && $this->isValidPackageSize($this->getFileSize());
     }
     
     /**
