@@ -111,6 +111,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         }
 
         // Finish things up
+        $msg = '';
         if (is_string($uploadLogParam)) {
             if (FilePathDataType::isAbsolute($uploadLogParam)) {
                 $logPath = $uploadLogParam;
@@ -120,15 +121,15 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
                     $uploadLogParam 
                 ]);
             }
-            if (! file_exists($logPath)) {
-                $msg = PHP_EOL . PHP_EOL . 'ERROR: File specified in parameter `upload-log` not found at "' . $logPath . '"';
+            if (! is_readable($logPath)) {
+                $msg .= PHP_EOL . 'ERROR: File specified in parameter `upload-log` not found or not readable at "' . $logPath . '"';
             } else {
-                $msg = file_get_contents($uploadLogParam);
+                $downloader->uploadLog(file_get_contents($uploadLogParam));
+                $msg .= PHP_EOL . 'Uploaded log from file `' . $logPath . '` to OTA server';
             }
-        } else {
-            $msg = PHP_EOL . PHP_EOL . 'Finished self-update successfully!';
         }
         
+        $msg .= PHP_EOL . PHP_EOL . 'Finished self-update successfully!';
         try {
             $downloader->uploadLog($msg, null, true);
             yield PHP_EOL . 'Uploaded log to OTA server';
