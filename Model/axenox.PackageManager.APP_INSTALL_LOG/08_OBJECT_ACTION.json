@@ -1,0 +1,171 @@
+{
+    "object_alias": "exface.Core.OBJECT_ACTION",
+    "columns": [
+        {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "LABEL"
+        },
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "OBJECT",
+            "attribute_alias": "OBJECT"
+        },
+        {
+            "name": "ACTION_PROTOTYPE",
+            "attribute_alias": "ACTION_PROTOTYPE"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "SHORT_DESCRIPTION",
+            "attribute_alias": "SHORT_DESCRIPTION"
+        },
+        {
+            "name": "CONFIG_UXON",
+            "attribute_alias": "CONFIG_UXON"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
+            "name": "USE_IN_OBJECT_BASKET_FLAG",
+            "attribute_alias": "USE_IN_OBJECT_BASKET_FLAG"
+        },
+        {
+            "name": "DOCS",
+            "attribute_alias": "DOCS"
+        }
+    ],
+    "rows": [
+        {
+            "_EXPORT_SUMMARY": "App Install Log: Monitor Error Log [ShowMonitorError]",
+            "CREATED_ON": "2026-02-18 14:48:42",
+            "MODIFIED_ON": "2026-02-18 16:47:13",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "UID": "0x11f1bcdb894fd34cbcdbe519c92902c9",
+            "OBJECT": "0x11f1839ed964b1e6839eb58881de3bec",
+            "ACTION_PROTOTYPE": "exface/core/Actions/ShowObjectEditDialog.php",
+            "ALIAS": "ShowMonitorError",
+            "NAME": "Monitor Error Log",
+            "SHORT_DESCRIPTION": "Opens the associated monitor error log, if it exists and ERROR_LOG_ID is not null.",
+            "CONFIG_UXON": {
+                "icon": "newspaper-o",
+                "input_invalid_if": [
+                    {
+                        "error_text": "ERROR_LOG_ID cannot be null!",
+                        "operator": "AND",
+                        "conditions": [
+                            {
+                                "expression": "ERROR_LOG_ID",
+                                "comparator": "==",
+                                "value": "null"
+                            }
+                        ]
+                    }
+                ],
+                "alias": "exface.Core.ShowObjectEditDialog",
+                "object_alias": "exface.Core.MONITOR_ERROR",
+                "input_mapper": {
+                    "from_object_alias": "axenox.PackageManager.APP_INSTALL_LOG",
+                    "to_object_alias": "exface.Core.MONITOR_ERROR",
+                    "column_to_column_mappings": [
+                        {
+                            "from": "ERROR_LOG_ID__UID",
+                            "to": "UID"
+                        }
+                    ]
+                }
+            },
+            "APP": "0x31380000000000000000000000000000",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
+            "DOCS": ""
+        },
+        {
+            "_EXPORT_SUMMARY": "App Install Log: Error Widget [ShowMonitorErrorWidget]",
+            "CREATED_ON": "2026-02-18 14:55:45",
+            "MODIFIED_ON": "2026-02-18 18:01:51",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "UID": "0x11f18abb85dc52168abb6945f509d960",
+            "OBJECT": "0x11f1839ed964b1e6839eb58881de3bec",
+            "ACTION_PROTOTYPE": "exface/core/Actions/ShowDialogFromData.php",
+            "ALIAS": "ShowMonitorErrorWidget",
+            "NAME": "Error Widget",
+            "SHORT_DESCRIPTION": "Renders the error widget if it is not null.",
+            "CONFIG_UXON": {
+                "object_alias": "axenox.PackageManager.APP_INSTALL_LOG",
+                "icon": "bug",
+                "uxon_attribute": "ERROR_DEBUG_WIDGET",
+                "input_invalid_if": [
+                    {
+                        "error_text": "ERROR_DEBUG_WIDGET cannot be null!",
+                        "operator": "AND",
+                        "conditions": [
+                            {
+                                "expression": "ERROR_DEBUG_WIDGET",
+                                "comparator": "==",
+                                "value": "null"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "APP": "0x31380000000000000000000000000000",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
+            "DOCS": ""
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "exface.Core.OBJECT_ACTION",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x31380000000000000000000000000000",
+                "object_alias": "exface.Core.OBJECT_ACTION"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}

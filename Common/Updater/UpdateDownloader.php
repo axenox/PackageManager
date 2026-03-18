@@ -101,21 +101,21 @@ class UpdateDownloader
             if ($statusCode === 200) {
                 yield PHP_EOL . PHP_EOL . 'Found new self-update package.';
                 yield $this->__toString();
-                if ($this->responseSize < 100) {
+                if (! $this->isValidPackageSize($this->responseSize)) {
                     throw new RuntimeException('Cannot save self-update package: invalid download size ' . ByteSizeDataType::formatWithScale($this->responseSize));
                 }
                 $content = $response->getBody();
                 $filename = $this->getFileName();
                 $filePath = $this->downloadPath . $filename;
                 $writtenBytes = file_put_contents($filePath, $content);
-                yield 'Saved ' . $writtenBytes . ' bytes to ' . $filePath;
+                yield PHP_EOL . 'Saved ' . $writtenBytes . ' bytes to ' . $filePath;
                 
                 if (! $writtenBytes) {
                     $token = new CliEnvAuthToken();
                     if ($writtenBytes === false) {
                         throw new RuntimeException('Cannot save self-update package: cannot write file using user "' . $token->getUsername() . '"');
                     }
-                    if ($writtenBytes < 100) {
+                    if (! $this->isValidPackageSize($writtenBytes)) {
                         throw new RuntimeException('Cannot save self-update package: detected invalid file size "' . $writtenBytes . '". User "' . $token->getUsername() . '".');
                     }
                 }
@@ -136,12 +136,17 @@ class UpdateDownloader
             if ($this->responseSize === null) {
                 $this->responseSize = $fileBytes;
             }
-            yield 'Resulting file size: ' . $fileBytes . ' bytes';
-            if ($fileBytes === false || $fileBytes < 100) {
+            yield PHP_EOL . 'Resulting file size: ' . $fileBytes . ' bytes';
+            if (! $this->isValidPackageSize($fileBytes)) {
                 throw new RuntimeException('Cannot save self-update package: reading downloaded file failed - read ' . ByteSizeDataType::formatWithScale($fileBytes) . '. User "' . $token->getUsername() . '".');
             }
         }
         return $response;
+    }
+    
+    protected function isValidPackageSize($size) : bool
+    {
+        return $size !== false && is_numeric($size) && $size > 100;
     }
 
     /**
@@ -220,7 +225,15 @@ class UpdateDownloader
         }
         return $this->response->getStatusCode();
     }
-    
+
+    /**
+     * Return TRUE if a new update package was downloaded
+     * @return bool
+     */
+    public function hasDownloadedPackage() : bool
+    {
+        return $this->getStatusCode() === 200 && $this->isValidPackageSize($this->getFileSize());
+    }
     
     /**
      *
@@ -317,7 +330,7 @@ TEXT;
      */
     protected function downloadViaCLI() : \Generator
     {
-        yield 'Downloading via CLI' . "\n";
+        yield PHP_EOL . 'Downloading via CLI';
         $initialUrl = $this->url;
         $authHeader = 'Basic ' . base64_encode($this->username . ':' . $this->password);
         $destDir = $this->downloadPath;
@@ -325,7 +338,7 @@ TEXT;
         // Create temporary files for headers and output capture
         $headersPath = tempnam($destDir, "curl_headers_");
         if ($headersPath === false) {
-            yield "Failed to create temporary headers file.\n";
+            yield PHP_EOL . "Failed to create temporary headers file.\n";
         }
 
         // Build the curl command
@@ -350,7 +363,7 @@ TEXT;
         exec($cmd, $outputLines, $execReturnCode);
         $curlReturnCode = $execReturnCode >> 8;
         if ($curlReturnCode !== 0) {
-            yield 'cURL returned ' . $this->getCurlMessage($curlReturnCode);
+            yield PHP_EOL . 'cURL returned ' . $this->getCurlMessage($curlReturnCode);
         }
 
         foreach ($outputLines as $line) {
@@ -383,7 +396,7 @@ TEXT;
         @unlink($headersPath);
 
         if ($headersRaw === false) {
-            yield "Cannot read headers file {$headersPath}\n";
+            yield PHP_EOL . "Cannot read headers file {$headersPath}\n";
             $headersRaw = "";
         }
 
@@ -452,7 +465,7 @@ TEXT;
                 }
             }
             if (! $filename) {
-                yield 'Cannot find downloaded file name in headers (cURL return code "' . $statusCode . '"). Headers: ' . json_encode($lastHeaderLines, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
+                yield PHP_EOL . 'Cannot find downloaded file name in headers (cURL return code "' . $statusCode . '"). Headers: ' . json_encode($lastHeaderLines, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
             }
 
             // If no Content-Disposition filename, derive from the newest download
@@ -466,7 +479,7 @@ TEXT;
                 $fakeResponse = new Response($statusCode, $lastHeaderLines);
                 throw new HttpBadResponseError($fakeResponse, 'Cannot find filename!');
             } else {
-                yield 'Downloaded file "' . $filename . '"';
+                yield PHP_EOL . 'Downloaded file "' . $filename . '"';
             }
 
             if (! $lastHeaderLines['content-disposition']) {
@@ -492,7 +505,7 @@ TEXT;
      */
     protected function findLastDownload(int $maxAgeSeconds = 60, string $extension = 'phx') : \Generator
     {
-        yield 'Looking for recently downloaded files...';
+        yield PHP_EOL . 'Looking for recently downloaded files...';
         $dir = $this->downloadPath;
         // Basic directory checks
         if (!is_dir($dir)) {
@@ -522,7 +535,7 @@ TEXT;
             // ctime may fail for some FS objects; guard and skip on failure
             $ctime = @filectime($fileInfo->getPathname());
             if ($ctime === false) {
-                yield 'Cannot read the creation time of file ' . $dir;
+                yield PHP_EOL . 'Cannot read the creation time of file ' . $dir;
                 continue;
             }
 
@@ -534,17 +547,17 @@ TEXT;
 
         if ($latestFile === null) {
             // No .phx files found
-            yield 'No .phx files found in ' . $dir;
+            yield PHP_EOL . 'No .phx files found in ' . $dir;
             return null;
         }
 
         // Check the "less than a minute ago" condition (60 seconds)
         $ageSeconds = time() - $latestMTime;
         if ($ageSeconds < $maxAgeSeconds) {
-            yield 'Found recent .phx file: ' . $latestFile;
+            yield PHP_EOL . 'Found recent .phx file: ' . $latestFile;
             return $latestFile;
         } else {
-            yield 'Latest .phx file "' . $latestFile . '" is too old.';
+            yield PHP_EOL . 'Latest .phx file "' . $latestFile . '" is too old.';
             return null;
         }
     }

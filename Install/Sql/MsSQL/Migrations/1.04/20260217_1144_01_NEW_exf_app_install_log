@@ -1,0 +1,17 @@
+-- UP
+CREATE TABLE exf_app_install_log (
+    oid BINARY(16) NOT NULL,
+    created_on DATETIME NOT NULL,
+    modified_on DATETIME NOT NULL,
+    created_by_user_oid BINARY(16) NULL,
+    modified_by_user_oid BINARY(16) NULL,
+    error_log_id VARCHAR(30) NULL,
+    error_message NVARCHAR(MAX) NULL,
+    error_debug_widget NVARCHAR(MAX) NULL,
+    cli_output NVARCHAR(MAX) NULL,
+    app_oid BINARY(16) NULL,
+    message_type VARCHAR(20) NOT NULL,
+    CONSTRAINT PK_exf_app_install_log PRIMARY KEY (oid)
+);
+
+-- DOWN

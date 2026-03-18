@@ -132,7 +132,7 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
                 yield '  - ' . $this->printPackageInfo($package) . PHP_EOL;
             }
         }
-        yield "DONE generating license BOM";
+        yield "DONE generating license BOM" . PHP_EOL;
     }
     
     /**

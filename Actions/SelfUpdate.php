@@ -2,8 +2,10 @@
 namespace axenox\PackageManager\Actions;
 
 use exface\Core\CommonLogic\Constants\Icons;
+use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\Exceptions\Actions\ActionRuntimeError;
 use exface\Core\Exceptions\RuntimeException;
+use exface\Core\Interfaces\ConfigurationInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\CommonLogic\AbstractActionDeferred;
@@ -69,8 +71,18 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
             throw new ActionConfigurationError($this, 'Incomplete self-update configuration: make sure `SELF_UPDATE.SOURCE.xxx` options are set in `axenox.PackageManager.config.json`');
         }
         
+        $uploadLogParam = $task->getParameter('upload-log');
+        
         // Download file
         $downloader = new UpdateDownloader($url, $username, $password, $downloadPathAbsolute, $this->getWorkbench()->getLogger());
+        
+        // TODO write a logger, that is easy to use via `yield $logger->log('message')` and will automatically decide,
+        // when to upload the log to the OTA server (= when an update is downloaded and NOT when no update is available,
+        // because then the server has no deployment log to write to). The logger should also maintain separate logs
+        // for each update (not for each check) locally and offer methods to list available logs, open them, etc. These
+        // methods should be accessible from CLI (e.g. `php dep self-update --list-logs` or `php dep self-update --show-log=datetime`).
+        // We also might want to make them accessible through an HTTP facade, so that the build server can fetch logs
+        // or status explicitly. That facade could also allow explicit rollbacks.
         /*$releaseLog = new ReleaseLog($this->getWorkbench());
         $releaseLogEntry = $releaseLog->createLogEntry();
         */
@@ -78,9 +90,72 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         yield PHP_EOL . "Checking remote for an update file...";
         yield PHP_EOL;
         
+        if (BooleanDataType::cast($task->getParameter('download')) === false) {
+            yield "Skipping download as per command parameter `download=false`.";
+        } else {
+            yield from $this->performDownload($downloader, $config);
+        }
+        
+        // save download infos in $releaseLogEntry->logArray
+        /*
+        $releaseLogEntry->addDownload($downloader);
+        yield from $releaseLogEntry->getCurrentLogText();
+        yield $this->printLineDelimiter();
+        */
+        
+        switch (true) {
+            case BooleanDataType::cast($task->getParameter('install')) === false:
+                // $releaseLog->saveEntry($releaseLogEntry);
+                yield $downloader->uploadLog('Installation explicitly disabled by command option. Download location: ' . FilePathDataType::normalize($downloader->getPathAbsolute(), DIRECTORY_SEPARATOR), 67);
+                break;
+            case $downloader->hasDownloadedPackage():
+                yield from $this->performInstallation($downloader, $config);
+                break;
+            default:
+                yield PHP_EOL . "No update to install.";
+        }
+
+        // Finish things up
+        $msg = '';
+        if (is_string($uploadLogParam)) {
+            if (FilePathDataType::isAbsolute($uploadLogParam)) {
+                $logPath = $uploadLogParam;
+            } else {
+                $logPath = FilePathDataType::join([
+                    $this->getWorkbench()->getInstallationPath(), 
+                    $uploadLogParam 
+                ]);
+            }
+            if (! is_readable($logPath)) {
+                $msg .= PHP_EOL . 'ERROR: File specified in parameter `upload-log` not found or not readable at "' . $logPath . '"';
+            } else {
+                $downloader->uploadLog(file_get_contents($uploadLogParam));
+                $msg .= PHP_EOL . 'Uploaded log from file `' . $logPath . '` to OTA server';
+            }
+        }
+        
+        $msg .= PHP_EOL . PHP_EOL . 'Finished self-update successfully!';
         try {
+            $downloader->uploadLog($msg, null, true);
+            yield PHP_EOL . 'Uploaded log to OTA server';
+        } catch (\Throwable $e) {
+            yield PHP_EOL . PHP_EOL . 'ERROR when uploading installation log: '  . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+        }
+        yield $msg;
+    }
+    
+    protected function performDownload(UpdateDownloader $downloader, ConfigurationInterface $config) : \Generator
+    {
+        try {
+            $logNotUploadedYet = '';
             foreach ($downloader->download($config->getOption('SELF_UPDATE.DOWNLOAD.USE_CLI_CURL')) as $line) {
-                yield $downloader->uploadLog($line);
+                if ($downloader->hasDownloadedPackage()) {
+                    yield $downloader->uploadLog($logNotUploadedYet . $line);
+                    $logNotUploadedYet = '';
+                } else {
+                    yield $line;
+                    $logNotUploadedYet .= $line;
+                }
             }
         } catch (\Throwable $e) {
             $msg = 'FAILED to download self-update package: ' . $e->getMessage();
@@ -95,7 +170,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
             $downloader->uploadLog($msg, 90, true);
             throw new RuntimeException($msg . ' ' . $e->getMessage(), null, $e);
         }
-        
+
         switch (true) {
             case $downloader->getStatusCode() == 304:
                 yield "No update available: " . $downloader->getStatusCode();
@@ -112,20 +187,10 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
                 }
                 throw new RuntimeException('Could not download self-update package: ' . $msg);
         }
-        
-        // save download infos in $releaseLogEntry->logArray
-        /*
-        $releaseLogEntry->addDownload($downloader);
-        yield from $releaseLogEntry->getCurrentLogText();
-        yield $this->printLineDelimiter();
-        */
-        
-        if ($task->hasParameter('download-only')) {
-            // $releaseLog->saveEntry($releaseLogEntry);
-            yield $downloader->uploadLog('Download-only mode: stopping after download. Download location: ' . FilePathDataType::normalize($downloader->getPathAbsolute(), DIRECTORY_SEPARATOR), 67);
-            return;
-        }
-        
+    }
+    
+    protected function performInstallation(UpdateDownloader $downloader, ConfigurationInterface $config) : \Generator
+    {
         try {
             $php = $config->getOption('SELF_UPDATE.LOCAL.PHP_EXECUTABLE');
             $selfUpdateInstaller = new SelfUpdateInstaller($downloader->getPathAbsolute(), $this->getWorkbench()->filemanager()->getPathToCacheFolder(), $php);
@@ -153,7 +218,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
                 }
                 yield $downloader->uploadLog($line, $status);
             }
-        
+
             /*
             // save installation infos in $releaseLogEntry->logArray
             $releaseLogEntry->addInstallation($selfUpdateInstaller);
@@ -170,17 +235,6 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
             yield $downloader->uploadLog('FAILED self-update!' . PHP_EOL . PHP_EOL . 'ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine(), 90, true);
             throw $e;
         }
-        
-        // Finish things up
-        $msg = PHP_EOL . PHP_EOL . 'Finished self-update successfully!';
-        try {
-            $downloader->uploadLog($msg, 99, true);
-            yield PHP_EOL . 'Uploaded log to OTA server';
-        } catch (\Throwable $e) {
-            yield PHP_EOL . PHP_EOL . 'ERROR when uploading installation log: '  . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
-        }
-            
-        yield $msg;
     }
     
     /**
@@ -219,9 +273,15 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
     public function getCliOptions() : array
     {
         return [
-            (new ServiceParameter($this))
-                ->setName('download-only')
-                ->setDescription('Download package, but do not install')
+              (new ServiceParameter($this))
+                ->setName('download')
+                ->setDescription('Check to see if an update is available and download it - true or false (default: true)')
+            , (new ServiceParameter($this))
+                ->setName('install')
+                ->setDescription('Install the downloaded update - true or false (default: true). If true, but download was false, will install the latest downloaded .phx file')
+            , (new ServiceParameter($this))
+                ->setName('upload-log')
+                ->setDescription('Upload the output of the command to the OTA server - true, false or path to text file (default: true)')
         ];
     } 
 }

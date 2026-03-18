@@ -1,0 +1,17 @@
+-- UP
+CREATE TABLE `exf_app_install_log` (
+  `oid` binary(16) NOT NULL,
+  `created_on` datetime NOT NULL,
+  `modified_on` datetime NOT NULL,
+  `created_by_user_oid` binary(16) DEFAULT NULL,
+  `modified_by_user_oid` binary(16) DEFAULT NULL,
+  `error_log_id` varchar(30) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+  `error_message` text CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci,
+  `error_debug_widget` longtext CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci,
+  `cli_output` longtext CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci,
+  `app_oid` binary(16) DEFAULT NULL,
+  `message_type` varchar(20) NOT NULL,
+  PRIMARY KEY (`oid`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 ROW_FORMAT=DYNAMIC;
+
+-- DOWN
