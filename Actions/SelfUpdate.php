@@ -117,29 +117,38 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
 
         // Finish things up
         $msg = '';
+        $uploadLogfilePath = null;
         if (is_string($uploadLogParam)) {
             if (FilePathDataType::isAbsolute($uploadLogParam)) {
-                $logPath = $uploadLogParam;
+                $uploadLogfilePath = $uploadLogParam;
             } else {
-                $logPath = FilePathDataType::join([
+                $uploadLogfilePath = FilePathDataType::join([
                     $this->getWorkbench()->getInstallationPath(), 
                     $uploadLogParam 
                 ]);
             }
-            if (! is_readable($logPath)) {
-                $msg .= PHP_EOL . 'ERROR: File specified in parameter `upload-log` not found or not readable at "' . $logPath . '"';
+            if (! is_readable($uploadLogfilePath)) {
+                $msg .= PHP_EOL . 'ERROR: File specified in parameter `upload-log` not found or not readable at "' . $uploadLogfilePath . '"';
             } else {
-                $downloader->uploadLog(file_get_contents($uploadLogParam));
-                $msg .= PHP_EOL . 'Uploaded log from file `' . $logPath . '` to OTA server';
+                try {
+                    $downloader->uploadLog(file_get_contents($uploadLogParam));
+                    $msg .= PHP_EOL . 'Uploaded log from file `' . $uploadLogfilePath . '` to OTA server';
+                } catch (\Throwable $e) {
+                    yield PHP_EOL . PHP_EOL . 'ERROR when uploading installation log: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+                    $this->getWorkbench()->getLogger()->logException($e);
+                }
             }
         }
         
         $msg .= PHP_EOL . PHP_EOL . 'Finished self-update successfully!';
-        try {
-            $downloader->uploadLog($msg, null, true);
-            yield PHP_EOL . 'Uploaded log to OTA server';
-        } catch (\Throwable $e) {
-            yield PHP_EOL . PHP_EOL . 'ERROR when uploading installation log: '  . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+        if ($downloader->hasDownloadedPackage()) {
+            try {
+                $downloader->uploadLog($msg, null, true);
+                yield PHP_EOL . 'Uploaded log to OTA server';
+            } catch (\Throwable $e) {
+                yield PHP_EOL . PHP_EOL . 'ERROR when uploading installation log: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+                $this->getWorkbench()->getLogger()->logException($e);
+            }
         }
         yield $msg;
     }
