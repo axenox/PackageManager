@@ -1,5 +1,5 @@
 -- UP
-CREATE TABLE exf_app_install_log (
+CREATE TABLE dbo.exf_app_install_log (
     oid BINARY(16) NOT NULL,
     created_on DATETIME NOT NULL,
     modified_on DATETIME NOT NULL,
