@@ -1,6 +1,7 @@
 <?php
 namespace axenox\PackageManager;
 
+use exface\Core\CommonLogic\AppInstallers\SchedulerInstaller;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\InstallerInterface;
@@ -180,6 +181,15 @@ class PackageManagerApp extends App
         $facadeInstaller = new HttpFacadeInstaller($this->getSelector());
         $facadeInstaller->setFacade(FacadeFactory::createFromString(UpdaterFacade::class, $this->getWorkbench()));
         $installer->addInstaller($facadeInstaller);
+        
+        // Self-update scheduler
+        $config = $this->getConfig();
+        if ($config->getOption('SELF_UPDATE.SCHEDULER.ENABLED') === true) {
+            $schedulerInstaller = new SchedulerInstaller($this->getSelector());
+            $schedulerName = 'Workbench self-update (' . $this->getWorkbench()->getInstallationName() . ')';
+            $schedulerInstaller->addTask($schedulerName, 'axenox.PackageManager:SelfUpdate', $config->getOption('SELF_UPDATE.SCHEDULER.INTERVAL_MINUTES'), true);
+            $installer->addInstaller($schedulerInstaller);
+        }
         
         return $installer;
     }
