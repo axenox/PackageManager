@@ -10,8 +10,8 @@
     "replaces_page_selector": null,
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2020-04-17 12:40:39",
-    "modified_by_user_selector": "0x11edb424effd2980b424025041000001",
-    "modified_on": "2024-03-12 09:51:49",
+    "modified_by_user_selector": "0x31000000000000000000000000000000",
+    "modified_on": "2026-04-01 11:03:29",
     "icon": "cube",
     "contents": {
         "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
@@ -24,89 +24,93 @@
                         "widget_type": "SplitVertical",
                         "panels": [
                             {
-                                "caption": "Payload Packages",
-                                "id": "PayloadTable",
                                 "height": "50%",
-                                "widget_type": "DataTable",
-                                "object_alias": "axenox.PackageManager.PAYLOAD_PACKAGES",
-                                "multi_select": true,
-                                "columns": [
+                                "widgets": [
                                     {
-                                        "attribute_alias": "NAME"
-                                    },
-                                    {
-                                        "caption": "Installed on",
-                                        "attribute_alias": "APP__MODIFIED_ON"
-                                    },
-                                    {
-                                        "attribute_alias": "PACKAGE__version"
-                                    },
-                                    {
-                                        "attribute_alias": "PACKAGE__license:LIST"
-                                    },
-                                    {
-                                        "attribute_alias": "TYPE"
-                                    },
-                                    {
-                                        "attribute_alias": "URL"
-                                    },
-                                    {
-                                        "attribute_alias": "VERSION"
-                                    },
-                                    {
-                                        "attribute_alias": "APP__ALIAS"
-                                    }
-                                ],
-                                "buttons": [
-                                    {
-                                        "caption": "Install/Update",
-                                        "visibility": "promoted",
-                                        "action_alias": "axenox.PackageManager.ShowInstallPayload"
-                                    },
-                                    {
-                                        "action_alias": "axenox.PackageManager.ShowPayloadComposerConsole",
-                                        "caption": "Composer CLI"
-                                    },
-                                    {
-                                        "action_alias": "exface.Core.ShowObjectCreateDialog"
-                                    },
-                                    {
-                                        "action_alias": "exface.Core.ShowObjectEditDialog",
-                                        "bind_to_double_click": true
-                                    },
-                                    {
-                                        "action_alias": "exface.Core.ShowObjectCopyDialog"
-                                    },
-                                    {
-                                        "action": {
-                                            "alias": "axenox.PackageManager.ShowAppRepairConsole",
-                                            "input_mapper": {
-                                                "column_to_column_mappings": [
-                                                    {
-                                                        "from": "APP__ALIAS",
-                                                        "to": "ALIAS"
-                                                    }
-                                                ]
+                                        "caption": "Payload Packages",
+                                        "id": "PayloadTable",
+                                        "widget_type": "DataTable",
+                                        "object_alias": "axenox.PackageManager.PAYLOAD_PACKAGES",
+                                        "multi_select": true,
+                                        "columns": [
+                                            {
+                                                "attribute_alias": "NAME"
+                                            },
+                                            {
+                                                "caption": "Installed on",
+                                                "attribute_alias": "APP__MODIFIED_ON"
+                                            },
+                                            {
+                                                "attribute_alias": "PACKAGE__version"
+                                            },
+                                            {
+                                                "attribute_alias": "PACKAGE__license:LIST"
+                                            },
+                                            {
+                                                "attribute_alias": "TYPE"
+                                            },
+                                            {
+                                                "attribute_alias": "URL"
+                                            },
+                                            {
+                                                "attribute_alias": "VERSION"
+                                            },
+                                            {
+                                                "attribute_alias": "APP__ALIAS"
                                             }
-                                        }
-                                    },
-                                    {
-                                        "caption": "Uninstall app",
-                                        "action": {
-                                            "alias": "axenox.PackageManager.ShowAppUninstallConsole",
-                                            "input_mapper": {
-                                                "column_to_column_mappings": [
-                                                    {
-                                                        "from": "APP__ALIAS",
-                                                        "to": "ALIAS"
+                                        ],
+                                        "buttons": [
+                                            {
+                                                "caption": "Install/Update",
+                                                "visibility": "promoted",
+                                                "action_alias": "axenox.PackageManager.ShowInstallPayload"
+                                            },
+                                            {
+                                                "action_alias": "axenox.PackageManager.ShowPayloadComposerConsole",
+                                                "caption": "Payload CLI"
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectEditDialog",
+                                                "bind_to_double_click": true
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                            },
+                                            {
+                                                "action": {
+                                                    "alias": "axenox.PackageManager.ShowAppRepairConsole",
+                                                    "input_mapper": {
+                                                        "column_to_column_mappings": [
+                                                            {
+                                                                "from": "APP__ALIAS",
+                                                                "to": "ALIAS"
+                                                            }
+                                                        ]
                                                     }
-                                                ]
+                                                }
+                                            },
+                                            {
+                                                "caption": "Uninstall app",
+                                                "action": {
+                                                    "alias": "axenox.PackageManager.ShowAppUninstallConsole",
+                                                    "input_mapper": {
+                                                        "column_to_column_mappings": [
+                                                            {
+                                                                "from": "APP__ALIAS",
+                                                                "to": "ALIAS"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.DeleteObject",
+                                                "caption": "Remove payload"
                                             }
-                                        }
-                                    },
-                                    {
-                                        "action_alias": "exface.Core.DeleteObject",
-                                        "caption": "Remove payload"
+                                        ]
                                     }
                                 ]
                             },
@@ -195,7 +199,7 @@
                         ],
                         "buttons": [
                             {
-                                "caption": "Composer CLI",
+                                "caption": "Global Composer CLI",
                                 "action_alias": "axenox.PackageManager.ShowInfrastructureComposerConsole"
                             },
                             {
