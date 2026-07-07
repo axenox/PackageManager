@@ -29,6 +29,11 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` to FALSE in `config/axenox.PackageManager.config.json` in your
  * installation folder. 
  * 
+ * When a new workbench is used for every app (the default), the workbench of the previous app is stopped
+ * explicitly after the app was installed (see `stopWorkbenchIfNotGlobal()`). This deterministically closes its
+ * DB connections and releases any locks/open transactions before the next app starts - instead of relying on
+ * PHP's garbage collector, which may defer the cleanup.
+ * 
  * For example, when using a remote MS SQL database for the metamodel, the installer of the second app being 
  * installed might just hang because the MS SQL connector cannot establish a new connection to the DB. If this happens,
  * use a global workbench here to make every app use the same DB connection.
@@ -326,7 +331,36 @@ class StaticInstaller
     public static function install($app_alias)
     {
         $installer = new self();
-        return $installer->installApp($app_alias);
+        $result = $installer->installApp($app_alias);
+        // In per-app mode (i.e. NOT using a shared global workbench) explicitly stop the
+        // workbench created for this app. This deterministically releases its DB connections
+        // and any locks/open transactions right away instead of relying on PHP's garbage
+        // collector, which may defer cleanup due to circular references. Without this, the
+        // lingering connection can prevent the next app from opening a fresh connection
+        // (e.g. remote MS SQL / Azure SQL), causing the installer to hang.
+        $installer->stopWorkbenchIfNotGlobal();
+        return $result;
+    }
+
+    /**
+     * Stops the workbench created for a single app in per-app mode.
+     *
+     * Does nothing if a shared global workbench is being used (COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP = FALSE),
+     * because that instance must stay alive for all subsequent apps.
+     *
+     * @return void
+     */
+    protected function stopWorkbenchIfNotGlobal()
+    {
+        // Only clean up if this instance created its own workbench and no global one is in use
+        if (static::$globalWorkbench === null && $this->workbench !== null) {
+            try {
+                $this->workbench->stop();
+            } catch (\Throwable $e) {
+                static::printException($e);
+            }
+            $this->workbench = null;
+        }
     }
 
     public static function uninstall($app_alias)
