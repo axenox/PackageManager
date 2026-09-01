@@ -181,7 +181,7 @@ class ExportAppModel extends AbstractActionDeferred implements iCanBeCalledFromC
     public function getCliArguments() : array
     {
         return [
-            (new ServiceParameter($this))->setName('apps')->setDescription('Comma-separated list of app aliases to install/update. Use * for all apps.')
+            (new ServiceParameter($this))->setName('apps')->setDescription('Comma-separated list of app aliases to export. Use * for all apps.')
         ];
     }
 
