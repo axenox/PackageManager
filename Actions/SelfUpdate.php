@@ -66,6 +66,7 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         $url = $config->getOption('SELF_UPDATE.SOURCE.URL');
         $username = $config->getOption('SELF_UPDATE.SOURCE.USERNAME');
         $password = $config->getOption('SELF_UPDATE.SOURCE.PASSWORD');
+        $ignoreSslCertificateErrors = BooleanDataType::cast($config->getOption('SELF_UPDATE.DOWNLOAD.IGNORE_SSL_CERTIFICATE_ERRORS'));
         
         if (! $url || ! $username || ! $password) {
             throw new ActionConfigurationError($this, 'Incomplete self-update configuration: make sure `SELF_UPDATE.SOURCE.xxx` options are set in `axenox.PackageManager.config.json`');
@@ -74,7 +75,14 @@ class SelfUpdate extends AbstractActionDeferred implements iCanBeCalledFromCLI
         $uploadLogParam = $task->getParameter('upload-log');
         
         // Download file
-        $downloader = new UpdateDownloader($url, $username, $password, $downloadPathAbsolute, $this->getWorkbench()->getLogger());
+        $downloader = new UpdateDownloader(
+            $url,
+            $username,
+            $password,
+            $downloadPathAbsolute,
+            $this->getWorkbench()->getLogger(),
+            $ignoreSslCertificateErrors
+        );
         
         // TODO write a logger, that is easy to use via `yield $logger->log('message')` and will automatically decide,
         // when to upload the log to the OTA server (= when an update is downloaded and NOT when no update is available,
