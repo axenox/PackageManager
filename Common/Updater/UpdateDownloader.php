@@ -27,13 +27,29 @@ class UpdateDownloader
     private $responseSize = null;
     private $downloadedBytes = null;
     private $debugStream = null;
-    
+
     private ?LoggerInterface $logger = null;
-    
+
+    private bool $ignoreSslCertificateErrors = false;
+
     /**
+     * Creates a downloader for self-update packages and deployment logs.
      *
+     * @param string $url
+     * @param string $username
+     * @param string $password
+     * @param string $downloadPath
+     * @param LoggerInterface|null $logger
+     * @param bool $ignoreSslCertificateErrors Set to TRUE only as a temporary workaround for invalid server certificates.
      */
-    public function __construct(string $url, string $username, string $password, string $downloadPath, LoggerInterface $logger = null)
+    public function __construct(
+        string $url,
+        string $username,
+        string $password,
+        string $downloadPath,
+        LoggerInterface $logger = null,
+        bool $ignoreSslCertificateErrors = false
+    )
     {
         $this->timeStamp = time();
         $this->url = $url;
@@ -41,6 +57,7 @@ class UpdateDownloader
         $this->password = $password;
         $this->downloadPath = $downloadPath;
         $this->logger = $logger;
+        $this->ignoreSslCertificateErrors = $ignoreSslCertificateErrors;
     }
     
     protected function sendHttpRequest(string $method, string $body = null, array $urlParams = []) : ResponseInterface
@@ -53,7 +70,7 @@ class UpdateDownloader
                 $this->username,
                 $this->password
             ],
-            'verify' => false/*,
+            'verify' => ! $this->ignoreSslCertificateErrors/*,
             'progress' => function($dl_total_size, $dl_size_so_far, $ul_total_size, $ul_size_so_far) {
             $this->progress(((int) $dl_total_size),$dl_size_so_far);
             }*/
@@ -403,8 +420,10 @@ TEXT;
         // -H "Authorization: Basic TOKEN": Basic auth
         // -D headersPath: dump headers (all hops; we’ll parse the last block)
         // -w: print status code and effective URL to stdout (no body to stdout because -O used)
+        $sslOption = $this->ignoreSslCertificateErrors ? ' --insecure' : '';
         $cmd = sprintf(
-            'curl -sS -L -OJ --output-dir %s -H %s -D %s %s -w "%%{http_code}\n%%{url_effective}\n" 2>&1',
+            'curl -sS -L -OJ%s --output-dir %s -H %s -D %s %s -w "%%{http_code}\n%%{url_effective}\n" 2>&1',
+            $sslOption,
             escapeshellarg($destDir),
             escapeshellarg("Authorization: {$authHeader}"),
             escapeshellarg($headersPath),
