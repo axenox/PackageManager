@@ -3,9 +3,20 @@ namespace axenox\PackageManager\Actions;
 
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\AppInstallers\DataInstaller;
+use exface\Core\CommonLogic\AppInstallers\MetaModelInstaller;
+use exface\Core\CommonLogic\Model\App as GenericApp;
+use exface\Core\Exceptions\RuntimeException;
+use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\Events\DataSheet\OnBeforeDeleteDataEvent;
 use exface\Core\Factories\AppFactory;
+use exface\Core\Factories\DataSheetFactory;
+use exface\Core\Factories\MetaObjectFactory;
+use exface\Core\Factories\QueryBuilderFactory;
+use exface\Core\QueryBuilders\AbstractSqlBuilder;
+use exface\Core\QueryBuilders\MsSqlBuilder;
+use exface\Core\QueryBuilders\MySqlBuilder;
+use exface\Core\QueryBuilders\PostgreSqlBuilder;
 use exface\Core\CommonLogic\Constants\Icons;
 use exface\Core\Interfaces\AppInstallerInterface;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
@@ -16,6 +27,7 @@ use exface\Core\Events\Installer\OnBeforeAppUninstallEvent;
 use exface\Core\Events\Installer\OnAppUninstallEvent;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
+use exface\Core\Interfaces\Model\MetaObjectInterface;
 
 /**
  * This action uninstalls one or more apps
@@ -67,6 +79,7 @@ class UninstallApp extends InstallApp
         foreach ($aliases as $app_alias) {
             yield  PHP_EOL . "Uninstalling " . $app_alias . "..." . PHP_EOL;
             $keptDataOfObjects = [];
+            $onDeleteFilterThisAppOnly = null;
             $app_selector = new AppSelector($this->getWorkbench(), $app_alias);
             try {
                 $installed_counter ++;
@@ -96,10 +109,6 @@ class UninstallApp extends InstallApp
                         . PHP_EOL;
                 }
 
-                if ($keepDataInOtherApps === true) {
-                    $this->getWorkbench()->eventManager()->removeListener(OnBeforeAppUninstallEvent::class, $onDeleteFilterThisAppOnly);
-                }
-
                 $event = new OnAppUninstallEvent($app_selector);
                 $this->getWorkbench()->eventManager()->dispatch($event);
                 foreach ($event->getPostprocessors() as $proc) {
@@ -107,11 +116,15 @@ class UninstallApp extends InstallApp
                 }
 
                 yield "..." . $app_alias . " successfully uninstalled." . PHP_EOL;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $installed_counter --;
                 $this->getWorkbench()->getLogger()->logException($e);
                 yield "ERROR: " . ($e instanceof ExceptionInterface ? ' see log ID ' . $e->getId() : $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()) . PHP_EOL;
                 yield "...$app_alias could not be uninstalled!" . PHP_EOL;
+            } finally {
+                if ($onDeleteFilterThisAppOnly !== null) {
+                    $this->getWorkbench()->eventManager()->removeListener(OnBeforeDeleteDataEvent::class, $onDeleteFilterThisAppOnly);
+                }
             }
         }
 
@@ -166,12 +179,120 @@ class UninstallApp extends InstallApp
         } else {
             $installer = $app->getInstaller();
         }
+        if (get_class($app) === GenericApp::class) {
+            $appUid = $app->getUid();
+            if ($appUid === null || $appUid === '') {
+                throw new RuntimeException('Cannot uninstall orphan app without a known app UID: ' . $app_selector->toString());
+            }
+            $metaModelInstaller = $installer->getInstallers()[0];
+            if (! $metaModelInstaller instanceof MetaModelInstaller) {
+                throw new RuntimeException('Cannot uninstall orphan app without its metamodel installer');
+            }
+            $transaction = $this->getWorkbench()->data()->startTransaction();
+            $metaModelInstaller->setUninstallTransaction($transaction);
+            try {
+                yield from $this->deleteOrphanAppData($appUid, $metaModelInstaller, $transaction, $cascading);
+                yield from $installer->uninstall();
+                if ($transaction->isRolledBack()) {
+                    throw new RuntimeException('Orphan app uninstall transaction was rolled back');
+                }
+                $transaction->commit();
+                if ($transaction->isRolledBack()) {
+                    throw new RuntimeException('Orphan app uninstall transaction failed to commit');
+                }
+            } catch (\Throwable $error) {
+                if (! $transaction->isRolledBack()) {
+                    $transaction->rollback();
+                }
+                throw $error;
+            }
+            return;
+        }
         $installer_result = $installer->uninstall();
         if ($installer_result instanceof \Traversable) {
             yield from $installer_result;
         } else {
             yield $installer_result . (substr($installer_result, - 1) != '.' ? '.' : '');
         }
+    }
+
+    /**
+     * Removes APP-linked rows from physical tables on the metamodel database before its APP row is deleted.
+     */
+    private function deleteOrphanAppData(string $appUid, MetaModelInstaller $metaModelInstaller, DataTransactionInterface $transaction, bool $cascading) : \Generator
+    {
+        $workbench = $this->getWorkbench();
+        $modelObjects = array_fill_keys($metaModelInstaller->getModelObjectAliases(), true);
+        $appConnectionId = $workbench->model()->getObject('exface.Core.APP')->getDataConnection()->getId();
+        $relations = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'exface.Core.ATTRIBUTE');
+        $relations->getColumns()->addFromExpression('OBJECT');
+        $relations->getFilters()->addConditionFromString('RELATED_OBJ', $workbench->model()->getObject('exface.Core.APP')->getId(), ComparatorDataType::EQUALS);
+        $relations->dataRead();
+
+        $objectIds = [];
+        foreach ($relations->getRows() as $row) {
+            $objectIds[$row['OBJECT']] = true;
+        }
+        foreach (array_keys($objectIds) as $objectId) {
+            $object = MetaObjectFactory::createFromString($workbench, $objectId);
+            if (isset($modelObjects[$object->getAliasWithNamespace()]) || ! $object->hasDataSource() || ! $object->isWritable()
+                || $object->getDataConnection()->getId() !== $appConnectionId) {
+                continue;
+            }
+            foreach ($object->getRelations() as $relation) {
+                if (! $relation->isForwardRelation() || ! $relation->getRightObject()->isExactly('exface.Core.APP')) {
+                    continue;
+                }
+                $queryBuilder = QueryBuilderFactory::createForObject($object);
+                if (! $queryBuilder instanceof AbstractSqlBuilder || ! $this->isSqlBaseTable($object, $queryBuilder)) {
+                    continue;
+                }
+                $sheet = DataSheetFactory::createFromObject($object);
+                if ($object->hasUidAttribute()) {
+                    $sheet->getColumns()->addFromExpression($object->getUidAttributeAlias());
+                } else {
+                    $sheet->getColumns()->addFromExpression($relation->getAliasWithModifier());
+                }
+                $appUidExpression = $relation->getAliasWithModifier() . '__' . $relation->getRightObject()->getUidAttributeAlias();
+                $sheet->getFilters()->addConditionFromString($appUidExpression, $appUid, ComparatorDataType::EQUALS);
+                if ($sheet->dataRead() > 0) {
+                    if ($sheet->hasUidColumn(true)) {
+                        $sheet->getFilters()->removeAll();
+                        $sheet->getFilters()->addConditionFromColumnValues($sheet->getUidColumn());
+                    }
+                    $deleted = $sheet->dataDelete($transaction, $cascading);
+                    yield 'Processed ' . $deleted . ' orphan app rows in ' . $object->getAliasWithNamespace() . PHP_EOL;
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks whether the model object maps to a physical SQL table rather than a view.
+     */
+    private function isSqlBaseTable(MetaObjectInterface $object, AbstractSqlBuilder $queryBuilder) : bool
+    {
+        $address = $object->getDataAddress();
+        if (! preg_match('/^(?:[a-zA-Z_][a-zA-Z0-9_]*\.)?[a-zA-Z_][a-zA-Z0-9_]*$/D', $address)) {
+            return false;
+        }
+        $parts = explode('.', $address);
+        $table = array_pop($parts);
+        $connection = $object->getDataConnection();
+        if ($parts) {
+            $schema = "TABLE_SCHEMA = '" . $connection->escapeString($parts[0]) . "'";
+        } elseif ($queryBuilder instanceof PostgreSqlBuilder) {
+            $schema = 'TABLE_SCHEMA = current_schema()';
+        } elseif ($queryBuilder instanceof MsSqlBuilder) {
+            $schema = 'TABLE_SCHEMA = SCHEMA_NAME()';
+        } elseif ($queryBuilder instanceof MySqlBuilder) {
+            $schema = 'TABLE_SCHEMA = DATABASE()';
+        } else {
+            return false;
+        }
+        $sql = "SELECT 1 FROM information_schema.tables WHERE {$schema} AND TABLE_NAME = '"
+            . $connection->escapeString($table) . "' AND TABLE_TYPE = 'BASE TABLE'";
+        return ! empty($connection->runSql($sql, true)->getResultArray());
     }
 
     /**
