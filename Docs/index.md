@@ -5,4 +5,5 @@
 - Exporting apps as packages
 - [Versioning packages](Versioning/index.md)
 - [Publishing apps](Publishing/index.md)
-
+- Trouhbleshooting
+  - [Rewriting Git history](Troubleshooting/Rewriting_git_history.md) after accidentally committing sensitive information
