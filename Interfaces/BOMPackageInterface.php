@@ -1,6 +1,12 @@
 <?php
 namespace axenox\PackageManager\Interfaces;
 
+/**
+ * Describes one included software package and the license information used in a license BOM.
+ * 
+ * Provides a shared contract for metadata overrides, effective license selection, license references,
+ * and exportable package information across sources, enrichers, and exporters.
+ */
 interface BOMPackageInterface
 {
     public function getName() : string;

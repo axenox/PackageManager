@@ -23,8 +23,15 @@ use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\DataTypes\StringDataType;
 
 /**
+ * Generates a global license list for the software included in an installation.
  * 
- *
+ * Combines resolved Composer dependencies with bundled software registered in installed apps'
+ * includes.json files, collects available license texts, and exports Markdown and JSON documents.
+ * Use save_to_files to configure output destinations and formats. Generation reports missing license
+ * information and texts so the documents can be reviewed before distribution.
+ * 
+ * CLI: `vendor/bin/action axenox.PackageManager:GenerateLicenseBOM`
+ * 
  * @author Andrej Kabachnik
  *        
  */

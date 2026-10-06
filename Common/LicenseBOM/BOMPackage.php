@@ -50,7 +50,14 @@ class BOMPackage implements BOMPackageInterface
         if (strcasecmp($this->getName(), $otherPackage->getName()) !== 0) {
             throw new RuntimeException('Cannot merge license BOM packages with different names: ' . $this->getName() . ' and ' . $otherPackage->getName());
         }
-        $this->packageArray = array_replace($this->packageArray, $otherPackage->toComposerArray());
+        $otherPackageArray = $otherPackage->toComposerArray();
+        if (($otherPackageArray['license'] ?? null) === []) {
+            unset($otherPackageArray['license']);
+        }
+        if (($otherPackageArray['license_used'] ?? null) === null || $otherPackageArray['license_used'] === '') {
+            unset($otherPackageArray['license_used']);
+        }
+        $this->packageArray = array_replace($this->packageArray, $otherPackageArray);
         return $this;
     }
     
@@ -146,12 +153,14 @@ class BOMPackage implements BOMPackageInterface
     }
     
     /**
+     * Resolve the effective license without persisting a default selection in package metadata.
      *
      * @return string|NULL
      */
     public function getLicenseUsed() : ?string
     {
-        return $this->packageArray['license_used'] ?? null;
+        $licenseUsed = $this->packageArray['license_used'] ?? null;
+        return $licenseUsed !== null && $licenseUsed !== '' ? $licenseUsed : ($this->getLicenseNames()[0] ?? 'Other');
     }
     
     /**
@@ -163,7 +172,9 @@ class BOMPackage implements BOMPackageInterface
     {
         if($name !== null && $name !== ""){
             $this->packageArray['license_used'] = $name;
-        } else $this->packageArray['license_used'] = "Other";
+        } else {
+            unset($this->packageArray['license_used']);
+        }
         return $this;
     }
     
@@ -185,7 +196,7 @@ class BOMPackage implements BOMPackageInterface
      */
     public function hasLicense() : bool
     {
-        if(array_key_exists('license', $this->packageArray) && $this->packageArray['license_used'] !== 'Other'){
+        if($this->getLicenseNames() !== [] && $this->getLicenseUsed() !== 'Other'){
             return true;
         } else return false;
     }

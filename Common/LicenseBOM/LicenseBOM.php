@@ -30,12 +30,10 @@ class LicenseBOM implements LicenseBOMInterface
     {
         foreach ($mergingBOM->getPackages() as $package) {
             if ($this->hasPackage($package->getName())) {
-                $this->packageArray[$package->getName()]->merge($package);
-            } 
-                // set first licenseName in package as $licenseUsed
-                $package->setLicenseUsed($package->getLicenseNames()[0]);
-                // run enrichers on package and add package to packageArray
-                $this->addPackage($package);
+                $package = $this->packageArray[$package->getName()]->merge($package);
+            }
+            // run enrichers on package and add package to packageArray
+            $this->addPackage($package);
         }
         return $this;
     }
