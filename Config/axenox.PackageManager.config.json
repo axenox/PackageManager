@@ -1,5 +1,10 @@
 {
 	"FACADES.PACKAGIST.URL": "",
+	"AUDIT.SCANNERS": [
+		"axenox\\PackageManager\\Audit\\ComposerAuditScanner",
+		"axenox\\PackageManager\\Audit\\ComposerNpmAuditScanner",
+		"axenox\\PackageManager\\Audit\\TrivySBOMScanner"
+	],
 	
 	"PAYLOAD.PUBLISHED_DATA_FOLDER_NAME" : ".publishedPackages",
 	"PAYLOAD.INSTALLED_DATA_FOLDER_NAME": ".payloadPackages",

@@ -82,6 +82,23 @@
             },
             "ALIAS": "RepoType",
             "SHORT_DESCRIPTION": ""
+        },
+        {
+            "_EXPORT_SUMMARY": "Vulnerability level",
+            "CREATED_ON": "2026-10-07 12:01:15",
+            "MODIFIED_ON": "2026-10-07 12:01:15",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f19fca08d274a69fca025041000001",
+            "APP": "0x31380000000000000000000000000000",
+            "NAME": "Vulnerability level",
+            "PROTOTYPE": "axenox/packagemanager/DataTypes/VulnerabilityLevelDataType.php",
+            "CONFIG_UXON": null,
+            "VALIDATION_ERROR": null,
+            "DEFAULT_DISPLAY_UXON": null,
+            "DEFAULT_EDITOR_UXON": null,
+            "ALIAS": "VulnerabilityLevel",
+            "SHORT_DESCRIPTION": ""
         }
     ],
     "totals_rows": [],
