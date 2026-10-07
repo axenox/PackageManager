@@ -53,19 +53,6 @@ abstract class AbstractAuditScanner implements AuditScannerInterface
     }
 
     /**
-     * Returns explicit artifact input rows from the task.
-     * 
-     * Data-based tasks must not fall back to unrelated installed packages.
-     * 
-     * @param TaskInterface $task
-     * @return array<int, array<string, mixed>>
-     */
-    protected function inputRows(TaskInterface $task) : array
-    {
-        return $task->hasInputData() ? $task->getInputData()->getRows() : [];
-    }
-
-    /**
      * Resolves a build folder against the installation directory.
      * 
      * Explicit artifact input returns null instead of falling back to the
@@ -74,13 +61,13 @@ abstract class AbstractAuditScanner implements AuditScannerInterface
      * @param TaskInterface $task
      * @return string|null
      */
-    protected function folder(TaskInterface $task) : ?string
+    protected function getTargetFolder(TaskInterface $task) : ?string
     {
+        if ($task->hasParameter('composer_lock') || $task->hasParameter('sbom')) {
+            return null;
+        }
         $path = $task->hasParameter('folder') ? $task->getParameter('folder') : null;
         if ($path === null || $path === '') {
-            if ($this->inputRows($task) !== []) {
-                return null;
-            }
             $path = $this->workbench->getInstallationPath();
         }
         if (! is_string($path) || strpos($path, "\0") !== false) {

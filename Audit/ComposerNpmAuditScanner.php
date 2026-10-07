@@ -23,17 +23,14 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
      */
     protected function locks(TaskInterface $task) : array
     {
-        $folder = $this->folder($task);
+        if ($task->hasParameter('composer_lock')) {
+            return [$this->decode($task->getParameter('composer_lock'))];
+        }
+        $folder = $this->getTargetFolder($task);
         if ($folder !== null) {
             return is_file($folder . '/composer.lock') ? [$this->readJson($folder . '/composer.lock')] : [];
         }
-        $locks = [];
-        foreach ($this->inputRows($task) as $row) {
-            if (isset($row['COMPOSER_LOCK'])) {
-                $locks[] = $this->decode($row['COMPOSER_LOCK']);
-            }
-        }
-        return $locks;
+        return [];
     }
 
     /**

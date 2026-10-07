@@ -34,8 +34,8 @@ class ComposerNpmAuditScannerTest extends AuditTestCase
         $handler->push(Middleware::history($this->requests));
         $this->scanner = new FixtureNpmScanner($this->workbench);
         $this->scanner->client = new Client(['handler' => $handler]);
-        $this->scanner->rows = [['COMPOSER_LOCK' => $this->lockJson]];
         $this->task = new GenericTask($this->workbench);
+        $this->task->setParameter('composer_lock', $this->lockJson);
     }
 
     /** Folder and archived locks must produce identical findings without installing project code. */
@@ -70,6 +70,19 @@ class ComposerNpmAuditScannerTest extends AuditTestCase
         }
     }
 
+    /**
+     * A null artifact is invalid input, not permission to audit the installation.
+     * 
+     * @return void
+     */
+    public function testNullComposerLockParameterDoesNotFallBack() : void
+    {
+        $this->task->setParameter('composer_lock', null);
+        $this->expectException(\exface\Core\Exceptions\RuntimeException::class);
+        $this->expectExceptionMessage('Scanner artifact or response must be a JSON object or array.');
+        $this->scanner->supports($this->task);
+    }
+
     /** An empty advisory response is a successful scan with no findings. */
     public function testEmptyRegistryResponseProducesNoFindings() : void
     {
@@ -93,7 +106,7 @@ class ComposerNpmAuditScannerTest extends AuditTestCase
     /** Empty locks must bypass the network entirely, not merely tolerate an empty API response. */
     public function testEmptyLockDoesNotQueryTheRegistry() : void
     {
-        $this->scanner->rows = [['COMPOSER_LOCK' => ['packages' => []]]];
+        $this->task->setParameter('composer_lock', ['packages' => []]);
         self::assertFalse($this->scanner->supports($this->task));
         self::assertSame([], $this->scanner->audit($this->task));
         self::assertCount(0, $this->requests);

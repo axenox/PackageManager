@@ -50,6 +50,36 @@ class ComposerAuditScannerTest extends AuditTestCase
         self::assertFalse(method_exists(TrivySBOMScanner::class, 'runComposer'));
     }
 
+    /**
+     * Archived locks are read from parameters without inspecting installation files.
+     * 
+     * @return void
+     */
+    public function testComposerLockParameterUsesIsolatedFiles() : void
+    {
+        $task = new GenericTask($this->workbench);
+        $task->setParameter('composer_lock', $this->lockJson);
+        $task->setParameter('folder', $this->folder . '/missing');
+        self::assertTrue($this->scanner->supports($task));
+        $findings = $this->scanner->audit($task);
+        self::assertCount(2, $findings);
+        self::assertSame('1.0.0', $findings[0]->getVersionInstalled());
+        self::assertDirectoryDoesNotExist($this->scanner->scannedFolders[0]);
+    }
+
+    /**
+     * SBOM-only input must not scan Composer dependencies from the installation.
+     * 
+     * @return void
+     */
+    public function testSbomParameterDisablesComposerFolderFallback() : void
+    {
+        $task = new GenericTask($this->workbench);
+        $task->setParameter('sbom', ['bomFormat' => 'CycloneDX']);
+        self::assertFalse($this->scanner->supports($task));
+        self::assertSame([], $this->scanner->audit($task));
+    }
+
     /** Lock-only scans must preserve the project while parsing advisories and abandoned packages. */
     public function testLockOnlyScanParsesFindingsAndRemovesIsolatedFiles() : void
     {

@@ -4,6 +4,7 @@ namespace axenox\PackageManager\Tests\PHPUnit\Support;
 use axenox\PackageManager\Actions\Audit;
 use axenox\PackageManager\Audit\ComposerAuditScanner;
 use axenox\PackageManager\Audit\ComposerNpmAuditScanner;
+use axenox\PackageManager\Audit\TrivySBOMScanner;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
@@ -49,11 +50,10 @@ class FixtureComposerScanner extends ComposerAuditScanner
     }
 }
 
-/** Retains real npm normalization while controlling HTTP responses and archived input rows. */
+/** Retains real npm input handling and normalization while controlling HTTP responses. */
 class FixtureNpmScanner extends ComposerNpmAuditScanner
 {
     public $client;
-    public $rows = [];
     public $supportChecks = 0;
     public $auditCalls = 0;
 
@@ -71,18 +71,43 @@ class FixtureNpmScanner extends ComposerNpmAuditScanner
         return parent::audit($task);
     }
 
-    /** {@inheritDoc} @see ComposerNpmAuditScanner::inputRows() */
-    protected function inputRows(TaskInterface $task) : array
-    {
-        return $this->rows;
-    }
-
     /** {@inheritDoc} @see ComposerNpmAuditScanner::createHttpClient() */
     protected function createHttpClient() : Client
     {
         return $this->client;
     }
 
+}
+
+/**
+ * Captures Trivy's file boundary without running a subprocess.
+ */
+class FixtureTrivyScanner extends TrivySBOMScanner
+{
+    public $artifacts = [];
+    public $paths = [];
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see TrivySBOMScanner::executable()
+     */
+    protected function executable() : ?string
+    {
+        return 'fixture-trivy';
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see TrivySBOMScanner::scanFile()
+     */
+    protected function scanFile(string $executable, string $path) : array
+    {
+        $this->paths[] = $path;
+        $this->artifacts[] = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+        return [];
+    }
 }
 
 /** Keeps synchronous action checks independent of persistent result metaobjects. */
@@ -92,8 +117,8 @@ class FixtureAudit extends Audit
     public $sheet;
     public $findings = [];
 
-    /** {@inheritDoc} @see Audit::scanners() */
-    protected function scanners() : array
+    /** {@inheritDoc} @see Audit::getScanners() */
+    protected function getScanners() : array
     {
         return [$this->scanner];
     }

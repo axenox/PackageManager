@@ -7,6 +7,12 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
  * Allows additional audit engines without changing the audit action.
  * 
  * Implementations receive the workbench through their constructor.
+ * Scanners consume task parameters, not input DataSheet rows: composer_lock
+ * contains one Composer lock and sbom contains one CycloneDX or SPDX document.
+ * Each artifact accepts a JSON string, decoded array or UxonObject. The action
+ * owns context enrichment. Without artifact parameters, folder selects a local
+ * build or defaults to the installation. Artifact parameters take precedence
+ * over folder and disable folder fallback for all scanners.
  */
 interface AuditScannerInterface
 {

@@ -42,7 +42,10 @@ class TrivySBOMScanner extends AbstractAuditScanner
      */
     protected function sbomPath(TaskInterface $task) : ?string
     {
-        $folder = $this->folder($task);
+        if ($task->hasParameter('sbom')) {
+            return null;
+        }
+        $folder = $this->getTargetFolder($task);
         if ($folder === null) {
             return null;
         }
@@ -67,10 +70,8 @@ class TrivySBOMScanner extends AbstractAuditScanner
      */
     public function supports(TaskInterface $task) : bool
     {
-        foreach ($this->inputRows($task) as $row) {
-            if (isset($row['SBOM'])) {
-                return true;
-            }
+        if ($task->hasParameter('sbom')) {
+            return true;
         }
         return $this->sbomPath($task) !== null;
     }
@@ -119,11 +120,8 @@ class TrivySBOMScanner extends AbstractAuditScanner
             return $this->scanFile($executable, $path);
         }
         $findings = [];
-        foreach ($this->inputRows($task) as $row) {
-            if (! isset($row['SBOM'])) {
-                continue;
-            }
-            $sbom = $this->decode($row['SBOM']);
+        if ($task->hasParameter('sbom')) {
+            $sbom = $this->decode($task->getParameter('sbom'));
             if (($sbom['bomFormat'] ?? '') !== 'CycloneDX' && ! isset($sbom['spdxVersion'])) {
                 throw new RuntimeException('SBOM must be a CycloneDX or SPDX JSON document.');
             }

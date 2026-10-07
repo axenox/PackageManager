@@ -25,12 +25,10 @@ class ComposerAuditScanner extends AbstractAuditScanner
      */
     public function supports(TaskInterface $task) : bool
     {
-        foreach ($this->inputRows($task) as $row) {
-            if (isset($row['COMPOSER_LOCK'])) {
-                return true;
-            }
+        if ($task->hasParameter('composer_lock')) {
+            return true;
         }
-        $folder = $this->folder($task);
+        $folder = $this->getTargetFolder($task);
         return $folder !== null && is_file($folder . '/composer.lock');
     }
 
@@ -43,17 +41,16 @@ class ComposerAuditScanner extends AbstractAuditScanner
      */
     public function audit(TaskInterface $task) : array
     {
-        $folder = $this->folder($task);
+        $folder = $this->getTargetFolder($task);
         if ($folder !== null && is_file($folder . '/composer.json')) {
             return $this->scanFolder($folder);
         }
         $findings = [];
-        $inputs = $folder === null ? $this->inputRows($task) : [['COMPOSER_LOCK' => $this->readJson($folder . '/composer.lock')]];
-        foreach ($inputs as $row) {
-            if (! isset($row['COMPOSER_LOCK'])) {
-                continue;
-            }
-            $lock = $this->decode($row['COMPOSER_LOCK']);
+        $inputs = $folder === null
+            ? ($task->hasParameter('composer_lock') ? [$task->getParameter('composer_lock')] : [])
+            : [$this->readJson($folder . '/composer.lock')];
+        foreach ($inputs as $input) {
+            $lock = $this->decode($input);
             if (! isset($lock['packages']) || ! is_array($lock['packages'])) {
                 throw new RuntimeException('COMPOSER_LOCK must contain a packages array.');
             }
@@ -259,7 +256,7 @@ class ComposerAuditScanner extends AbstractAuditScanner
      */
     public function install(TaskInterface $task) : void
     {
-        if (! $this->isComposerAvailable($this->folder($task) ?? $this->workbench->getInstallationPath())) {
+        if (! $this->isComposerAvailable($this->getTargetFolder($task) ?? $this->workbench->getInstallationPath())) {
             throw new RuntimeException(implode(PHP_EOL, $this->getHints()));
         }
     }

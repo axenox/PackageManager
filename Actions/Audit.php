@@ -6,6 +6,7 @@ use axenox\PackageManager\Interfaces\AuditScannerInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\CommonLogic\DataSheets\DataCollector;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
@@ -26,8 +27,9 @@ use Symfony\Component\Console\Output\BufferedOutput;
 /**
  * Finds vulnerabilities and end-of-life dependencies in installations or saved build artifacts.
  * 
- * Configure scanner classes in AUDIT.SCANNERS. Input rows can contain COMPOSER_LOCK and SBOM
- * JSON documents. Scans complete before returning a compact findings table and status messages.
+ * Configure scanner classes in AUDIT.SCANNERS. Scanners consume composer_lock and sbom
+ * task parameters. Use composer_lock_attribute_alias to supply a lock from input data.
+ * Scans complete before returning a compact findings table and status messages.
  * Findings are available as a DataSheet for subsequent action mappings.
  * Findings use axenox.PackageManager.AUDIT_ADVISORY by default. Use result_object_alias
  * to select another output object for subsequent action mappings.
@@ -45,6 +47,8 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
     ];
 
     private const LEVEL_RANK = ['critical' => 0, 'high' => 1, 'medium' => 2, 'low' => 3];
+    
+    private ?string $composerLockAttributeAlias = null;
 
     /**
      * Validates input and returns completed findings for standard action processing.
@@ -63,27 +67,38 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
     {
         $scanTask = $task->copy();
         if ($task->hasInputData()) {
-            $scanTask->setInputData($this->getInputDataSheet($task));
+            $inputData = $this->getInputDataSheet($task);
+            $collector = new DataCollector($inputData->getMetaObject());
+            if (null !== $inputAttributeForComposerLock = $this->getComposerLockAttributeAlias()) {
+                $collector->addAttributeAlias($inputAttributeForComposerLock);
+            }
+            $collector->enrich($inputData);
+            if (null !== $inputAttributeForComposerLock) {
+                $composerLock = $inputData->getCellValue($inputAttributeForComposerLock, 0);
+                $scanTask->setParameter('composer_lock', $composerLock);
+            }
+        } else {
+            $inputData = null;
         }
-        if ($scanTask->hasInputData() && $scanTask->getInputData()->countRows() > 0
+        if ($inputData && $inputData->countRows() > 0
             && $task->getParameter('folder') !== null && $task->getParameter('folder') !== '') {
             throw new ActionInputError($this, 'Provide either a folder or artifact input rows, not both.');
         }
-        $install = $task->getParameter('install');
-        $output = $task->getParameter('output');
-        if (($install !== null || $output !== null) && ! ($task instanceof CliTaskInterface)) {
+        $needInstall = $task->getParameter('install');
+        $needOutput = $task->getParameter('output');
+        if (($needInstall !== null || $needOutput !== null) && ! ($task instanceof CliTaskInterface)) {
             throw new ActionInputError($this, 'The install and output options are only available from CLI.');
         }
-        if ($output !== null && (! is_string($output) || $output === '' || strpos($output, "\0") !== false
-            || strtolower(pathinfo($output, PATHINFO_EXTENSION)) !== 'json')) {
+        if ($needOutput !== null && (! is_string($needOutput) || $needOutput === '' || strpos($needOutput, "\0") !== false
+            || strtolower(pathinfo($needOutput, PATHINFO_EXTENSION)) !== 'json')) {
             throw new ActionInputError($this, 'Output must be a local .json file path.');
         }
-        $scanners = $this->scanners();
+        $scanners = $this->getScanners();
         $installer = null;
-        if ($install !== null) {
+        if ($needInstall !== null) {
             $selected = [];
             foreach ($scanners as $scanner) {
-                if ($install === get_class($scanner) || $install === (new \ReflectionClass($scanner))->getShortName()) {
+                if ($needInstall === get_class($scanner) || $needInstall === (new \ReflectionClass($scanner))->getShortName()) {
                     $selected[] = $scanner;
                 }
             }
@@ -137,14 +152,14 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
             }
         }
         if (! in_array('completed', $status, true)) {
-            $hint = 'No scanner completed an audit. Supply a folder with composer.lock or input columns COMPOSER_LOCK / SBOM and check prerequisites.';
+            $hint = 'No scanner completed an audit. Supply a folder with composer.lock or composer_lock / sbom task parameters and check prerequisites.';
             $hints[] = $hint;
             $messages[] = $hint;
         }
         $sheet = $this->createResultSheet($findings);
-        if ($output !== null) {
+        if ($needOutput !== null) {
             $messages[] = 'Saving audit JSON...';
-            $this->saveOutput($output, ['findings' => $this->toDataSheetRows($findings), 'hints' => $hints, 'scanners' => $status]);
+            $this->saveOutput($needOutput, ['findings' => $this->toDataSheetRows($findings), 'hints' => $hints, 'scanners' => $status]);
         }
         $messages[] = $this->table($findings);
         return ResultFactory::createDataResult($task, $sheet, implode(PHP_EOL, $messages));
@@ -158,7 +173,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
      * 
      * @return AuditScannerInterface[]
      */
-    protected function scanners() : array
+    protected function getScanners() : array
     {
         $classes = $this->getApp()->getConfig()->getOption('AUDIT.SCANNERS');
         if ($classes instanceof UxonObject) {
@@ -376,7 +391,12 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
      */
     public function getCliArguments() : array
     {
-        return [new ServiceParameter($this, new UxonObject(['name' => 'folder', 'description' => 'Folder to audit; defaults to the current installation.']))];
+        return [
+            new ServiceParameter($this, new UxonObject([
+                'name' => 'folder', 
+                'description' => 'Folder to audit; defaults to the current installation.'
+            ]))
+        ];
     }
 
     /**
@@ -408,5 +428,31 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
     public function isTriggerWidgetRequired() : ?bool
     {
         return false;
+    }
+
+    /**
+     * @return string|null
+     */
+    protected function getComposerLockAttributeAlias() : ?string
+    {
+        return $this->composerLockAttributeAlias;
+    }
+
+    /**
+     * The alias of the attribute in the input data, that contains the `composer.lock` JSON to audit.
+     * 
+     * If not set, the action will look for a `composer.lock` file in current installation folder or the provided 
+     * `folder` command argument.
+     * 
+     * @uxon-property composer_lock_attribute_alias
+     * @uxon-type metamodel:attribute
+     * 
+     * @param string|null $alias
+     * @return $this
+     */
+    public function setComposerLockAttributeAlias(?string $alias) : Audit
+    {
+        $this->composerLockAttributeAlias = $alias;
+        return $this;
     }
 }

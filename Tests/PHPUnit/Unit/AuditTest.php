@@ -262,13 +262,14 @@ class AuditTest extends AuditTestCase
         $sheet = (new \ReflectionClass(DataSheet::class))->newInstanceWithoutConstructor();
         $action->sheet = $sheet;
         $scanner = new FixtureNpmScanner($this->workbench);
-        $scanner->rows = [['COMPOSER_LOCK' => ['packages' => [['name' => 'npm-asset/fixture', 'version' => '1.0.0']]]]];
+        $task = new GenericTask($this->workbench);
+        $task->setParameter('composer_lock', ['packages' => [['name' => 'npm-asset/fixture', 'version' => '1.0.0']]]);
         $scanner->client = new Client(['handler' => HandlerStack::create(new MockHandler([
             new Response(200, [], '{"fixture":[{"id":123,"title":"Fixture","severity":"high"}]}')
         ]))]);
         $action->scanner = $scanner;
         $transaction = (new \ReflectionClass(DataTransaction::class))->newInstanceWithoutConstructor();
-        $result = $this->invokeProtected($action, 'perform', [new GenericTask($this->workbench), $transaction]);
+        $result = $this->invokeProtected($action, 'perform', [$task, $transaction]);
         self::assertInstanceOf(AbstractAction::class, $action);
         self::assertNotInstanceOf(AbstractActionDeferred::class, $action);
         self::assertInstanceOf(ResultData::class, $result);

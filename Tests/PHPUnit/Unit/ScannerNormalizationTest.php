@@ -6,10 +6,64 @@ use axenox\PackageManager\Audit\ComposerAuditScanner;
 use axenox\PackageManager\Audit\TrivySBOMScanner;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
+use axenox\PackageManager\Tests\PHPUnit\Support\FixtureTrivyScanner;
+use exface\Core\CommonLogic\Tasks\GenericTask;
+use exface\Core\CommonLogic\UxonObject;
+use exface\Core\Exceptions\RuntimeException;
 
 /** Covers local advisory parsing without CLI tools, live HTTP requests or database access. */
 class ScannerNormalizationTest extends AuditTestCase
 {
+    /**
+     * SBOM parameters accept JSON, arrays and UXON without using folder artifacts.
+     * 
+     * @return void
+     */
+    public function testTrivyReadsSbomParameterAndRemovesTemporaryFiles() : void
+    {
+        $sbom = ['bomFormat' => 'CycloneDX', 'components' => []];
+        foreach ([json_encode($sbom, JSON_THROW_ON_ERROR), $sbom, new UxonObject($sbom)] as $input) {
+            $scanner = new FixtureTrivyScanner($this->workbench);
+            $task = new GenericTask($this->workbench);
+            $task->setParameter('sbom', $input);
+            $task->setParameter('folder', $this->temporaryFolder() . '/missing');
+            self::assertTrue($scanner->supports($task));
+            self::assertSame([], $scanner->audit($task));
+            self::assertSame([$sbom], $scanner->artifacts);
+            self::assertFileDoesNotExist($scanner->paths[0]);
+        }
+    }
+
+    /**
+     * Composer-lock-only audits must not pick up installation SBOM files.
+     * 
+     * @return void
+     */
+    public function testTrivyDoesNotFallBackForComposerLockParameter() : void
+    {
+        $scanner = new FixtureTrivyScanner($this->workbench);
+        $task = new GenericTask($this->workbench);
+        $task->setParameter('composer_lock', ['packages' => []]);
+        self::assertFalse($scanner->supports($task));
+        self::assertSame([], $scanner->audit($task));
+        self::assertSame([], $scanner->paths);
+    }
+
+    /**
+     * Unsupported SBOM content fails instead of scanning unrelated files.
+     * 
+     * @return void
+     */
+    public function testTrivyRejectsInvalidSbomParameter() : void
+    {
+        $scanner = new FixtureTrivyScanner($this->workbench);
+        $task = new GenericTask($this->workbench);
+        $task->setParameter('sbom', ['packages' => []]);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('SBOM must be a CycloneDX or SPDX JSON document.');
+        $scanner->audit($task);
+    }
+
     /** Ensures multiple CVEs retain separate evidence and scoped npm names use Composer aliases. */
     public function testNpmNormalizationRetainsCvesSeverityAndRemediation() : void
     {

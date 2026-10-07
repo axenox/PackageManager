@@ -44,13 +44,23 @@ implement Deployer scheduling/database persistence.
 
 ## Artifact Input
 
-Map saved artifact content to input DataSheet columns:
+Scanners consume separate task parameters, not DataSheet rows:
 
-- `COMPOSER_LOCK`: the entire composer.lock JSON string or decoded array.
-- `SBOM`: a CycloneDX or SPDX JSON string or decoded array.
+- `composer_lock`: one entire composer.lock JSON document.
+- `sbom`: one CycloneDX or SPDX JSON document.
 
-Rows may contain either artifact or both. Folder and nonempty artifact input are
-mutually exclusive. Supplied rows never silently fall back to the installed project.
+Each parameter accepts a JSON string, decoded array or `UxonObject`. Both can be
+supplied on the same task; no `audit_artifacts` array is used. Artifact parameters
+take precedence over `folder` and disable folder fallback for every scanner.
+An invalid supplied artifact fails rather than falling back to the installation.
+Without artifact parameters, scanners use `folder` or the current installation.
+
+The action owns translating its context into these parameters. Configure
+`composer_lock_attribute_alias` to enrich the input DataSheet and copy the first
+row's Composer lock into `composer_lock`. SBOM content must currently be supplied
+through the `sbom` task parameter. Scanners do not resolve attribute aliases or
+read `COMPOSER_LOCK` / `SBOM` columns themselves. Folder and nonempty action input
+rows remain mutually exclusive.
 Composer scans saved locks in an isolated temporary directory without installing
 packages or executing their plugins/scripts. Temporary artifacts are removed even
 when scanning fails. npm sends locked npm-asset package names and versions to the
@@ -89,7 +99,7 @@ Abandoned Composer packages are reported as `EOL`, which here means unmaintained
 not a verified vendor support-expiration date.
 
 The npm scanner reads npm-asset package names and exact versions from composer.lock
-or supplied `COMPOSER_LOCK` data, including development dependencies. Both paths
+or the supplied `composer_lock` parameter, including development dependencies. Both paths
 POST to `https://registry.npmjs.org/-/npm/v1/security/advisories/bulk` and use the same
 result normalization. No Composer executable, Composer plugin, Node.js, installed
 vendor directory or target composer.json is required. Empty npm dependency lists
@@ -191,7 +201,8 @@ must define all documented columns. The action itself does not write findings to
 Implement `Interfaces/AuditScannerInterface.php` and accept `WorkbenchInterface`
 in the constructor, or extend `Audit/AbstractAuditScanner.php`. Implement `supports`,
 `audit`, `install`, and `getHints`. `audit` must return `FindingInterface[]`, not row
-arrays. Composer execution and version checks belong to `ComposerAuditScanner`,
+arrays. Read artifact content from `composer_lock` and `sbom` task parameters and
+leave DataSheet enrichment and context mapping to the action. Composer execution and version checks belong to `ComposerAuditScanner`,
 their only consumer, rather than the generic base. npm and Trivy scanners do not
 inherit these methods. Construct `Finding` with the native ID, name, type, package, source and
 source-native severity; optional string arguments hold URLs, CVE, description,
