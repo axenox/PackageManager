@@ -2,8 +2,12 @@
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
 use axenox\PackageManager\Actions\Audit;
+use axenox\PackageManager\Audit\ComposerAuditScanner;
 use axenox\PackageManager\Audit\ComposerNpmAuditScanner;
 use axenox\PackageManager\Audit\TrivySBOMScanner;
+use axenox\PackageManager\Audit\Finding;
+use axenox\PackageManager\Audit\MergedFinding;
+use axenox\PackageManager\Interfaces\FindingInterface;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use axenox\PackageManager\Tests\PHPUnit\Support\FixtureAudit;
 use axenox\PackageManager\Tests\PHPUnit\Support\FixtureNpmScanner;
@@ -41,23 +45,24 @@ class AuditTest extends AuditTestCase
     /** Deduplicated advisories must keep source evidence and the highest observed severity. */
     public function testMergeRetainsEvidenceAndOrdersBySeverity() : void
     {
-        $findings = $this->invokeProtected($this->action, 'mergeFindings', [array_merge($this->npmRows, $this->trivyRows, [$this->npmRows[0]])]);
+        $findings = $this->invokeProtected($this->action, 'toDataSheetRows', [array_merge($this->npmRows, $this->trivyRows, [$this->npmRows[0]])]);
         self::assertCount(3, $findings);
         self::assertSame('critical', $findings[0]['LEVEL']);
         self::assertSame('npm; trivy', $findings[0]['SOURCE']);
         self::assertArrayNotHasKey('CVE', $findings[0]);
         self::assertSame('CVE-2026-0001', $findings[0]['PUBLIC_ID']);
-        $detections = json_decode($findings[0]['DETECTIONS'], true, 512, JSON_THROW_ON_ERROR);
-        self::assertCount(2, $detections);
-        self::assertSame('CVE-2026-0001', $detections[0]['CVE']);
+        self::assertArrayNotHasKey('DETECTIONS', $findings[0]);
+        $groups = $this->invokeProtected($this->action, 'groupFindings', [array_merge($this->npmRows, $this->trivyRows, [$this->npmRows[0]])]);
+        self::assertCount(2, $groups[0]->getMergedFindings());
+        self::assertSame('CVE-2026-0001', $groups[0]->getMergedFindings()[0]->getCve());
     }
 
     /** Internal identities must be unique and stable regardless of scanner execution order. */
     public function testInternalIdsAreStableAcrossScannerOrder() : void
     {
         $rows = array_merge($this->npmRows, $this->trivyRows, [$this->npmRows[0]]);
-        $findings = $this->invokeProtected($this->action, 'mergeFindings', [$rows]);
-        $reordered = $this->invokeProtected($this->action, 'mergeFindings', [array_reverse($rows)]);
+        $findings = $this->invokeProtected($this->action, 'toDataSheetRows', [$rows]);
+        $reordered = $this->invokeProtected($this->action, 'toDataSheetRows', [array_reverse($rows)]);
         foreach ($findings as $finding) {
             self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $finding['ID']);
         }
@@ -69,39 +74,161 @@ class AuditTest extends AuditTestCase
         self::assertSame($ids, $reorderedIds);
     }
 
-    /** Package or severity changes must not create a new identity for an existing advisory. */
-    public function testAffectedPackagesAreMergedWithoutChangingIdentity() : void
+    /**
+     * A shared advisory must remain independently actionable for each package.
+     * 
+     * @return void
+     */
+    public function testAffectedPackagesRemainSeparate() : void
     {
-        $anotherPackage = $this->npmRows[0];
-        $anotherPackage['PACKAGE'] = 'npm-asset/other';
-        $merged = $this->invokeProtected($this->action, 'mergeFindings', [[$this->npmRows[0], $anotherPackage]]);
-        $withTrivy = $this->invokeProtected($this->action, 'mergeFindings', [array_merge($this->npmRows, $this->trivyRows)]);
-        self::assertCount(1, $merged);
-        self::assertSame('npm-asset/scope--package; npm-asset/other', $merged[0]['PACKAGE']);
-        self::assertSame($withTrivy[0]['ID'], $merged[0]['ID']);
+        $original = $this->npmRows[0];
+        $anotherPackage = new Finding($original->getSourceId(), $original->getName(), $original->getType(),
+            'npm-asset/other', $original->getSource(), $original->getSourceLevel(), $original->getDetailsUrl(), $original->getCve());
+        $rows = $this->invokeProtected($this->action, 'toDataSheetRows', [[$original, $anotherPackage]]);
+        self::assertCount(2, $rows);
+        self::assertSame(['npm-asset/other', 'npm-asset/scope--package'], array_column($rows, 'PACKAGE'));
+        self::assertNotSame($rows[0]['ID'], $rows[1]['ID']);
+        $single = $this->invokeProtected($this->action, 'toDataSheetRows', [[$original]])[0];
+        self::assertSame($single['ID'], $rows[1]['ID']);
+        self::assertSame($single['PUBLIC_ID'], $rows[0]['PUBLIC_ID']);
+        $table = $this->invokeProtected($this->action, 'table', [[$original, $anotherPackage]]);
+        self::assertSame(2, substr_count($table, $original->getPublicId()));
+    }
+
+    /**
+     * Public identities group scanners without modifying or replacing the original findings.
+     * 
+     * @return void
+     */
+    public function testGroupingKeepsRawFindingsAndHandlesMissingPublicIds() : void
+    {
+        $first = new Finding('npm:1', 'First', 'vulnerability', 'package', 'npm', 'high', '', '', '', '', '', '', '', 'GHSA-abcd-1234-efgh');
+        $second = new Finding('trivy:2', 'Second', 'vulnerability', 'package', 'trivy', 'critical', '', '', '', '', '', '', '', 'ghsa-abcd-1234-efgh');
+        $groups = $this->invokeProtected($this->action, 'groupFindings', [[$first, $second, clone $first]]);
+        self::assertCount(1, $groups);
+        self::assertInstanceOf(MergedFinding::class, $groups[0]);
+        self::assertSame([$first, $second], $groups[0]->getMergedFindings());
+        $forward = $this->invokeProtected($this->action, 'toDataSheetRows', [[$first, $second]])[0];
+        $reverse = $this->invokeProtected($this->action, 'toDataSheetRows', [[$second, $first]])[0];
+        self::assertSame($forward['ID'], $reverse['ID']);
+        $table = $this->invokeProtected($this->action, 'table', [[$first, $second]]);
+        self::assertSame(1, substr_count($table, $first->getPublicId()));
+        self::assertStringContainsString('npm; trivy', $table);
+        self::assertSame('high', $first->getLevel());
+
+        $nativeFirst = new Finding('native', 'Unsupported', 'EOL', 'package', 'npm', 'high');
+        $nativeSecond = new Finding('native', 'Unsupported', 'EOL', 'package', 'trivy', 'high');
+        $unnamedFirst = new Finding('', 'First', 'vulnerability', 'package', 'npm', 'high');
+        $unnamedSecond = new Finding('', 'Second', 'vulnerability', 'package', 'npm', 'high');
+        $rows = $this->invokeProtected($this->action, 'toDataSheetRows', [[$nativeFirst, $nativeSecond, $unnamedFirst, $unnamedSecond]]);
+        self::assertCount(4, $rows);
+        self::assertCount(4, array_unique(array_column($rows, 'ID')));
+        self::assertSame([], $this->invokeProtected($this->action, 'toDataSheetRows', [[]]));
+    }
+
+    /**
+     * Native-ID fallback groups retain stable output IDs without object identifiers.
+     * 
+     * @return void
+     */
+    public function testOutputIdsRemainStableWithoutPublicIdentifiers() : void
+    {
+        $first = new Finding('native', 'Unsupported', 'EOL', 'package', 'npm', 'high');
+        $second = new Finding('NATIVE', 'Unsupported', 'EOL', 'package', 'npm', 'critical');
+        $single = $this->invokeProtected($this->action, 'toDataSheetRows', [[$first]])[0];
+        $merged = $this->invokeProtected($this->action, 'toDataSheetRows', [[$first, $second]])[0];
+        $reverse = $this->invokeProtected($this->action, 'toDataSheetRows', [[$second, $first]])[0];
+        $expectedId = hash('sha256', json_encode(['EOL', 'NATIVE', 'package', 'npm'], JSON_THROW_ON_ERROR));
+        self::assertSame($expectedId, $single['ID']);
+        self::assertSame($single['ID'], $merged['ID']);
+        self::assertSame($merged['ID'], $reverse['ID']);
+        self::assertSame('critical', $merged['LEVEL']);
+        $finding = new MergedFinding([$first, $second]);
+        self::assertSame('native; NATIVE', $finding->getSourceId());
+        self::assertSame($merged, $this->invokeProtected($this->action, 'toDataSheetRow', [$finding]));
+        self::assertSame($merged, $this->invokeProtected($this->action, 'toDataSheetRows', [[$finding]])[0]);
     }
 
     /** Multiple source identifiers for the same linked advisory must retain one public identity. */
     public function testSharedPublicIdDeduplicatesNativeIds() : void
     {
-        $anotherNpmId = $this->linkedNpm;
-        $anotherNpmId['ID'] = 'npm:456';
-        $merged = $this->invokeProtected($this->action, 'mergeFindings', [[$this->linkedNpm, $anotherNpmId]]);
-        $single = $this->invokeProtected($this->action, 'mergeFindings', [[$this->linkedNpm]]);
+        $anotherNpmId = new Finding('npm:456', $this->linkedNpm->getName(), $this->linkedNpm->getType(),
+            $this->linkedNpm->getPackage(), 'npm', $this->linkedNpm->getSourceLevel(), $this->linkedNpm->getDetailsUrl());
+        $merged = $this->invokeProtected($this->action, 'toDataSheetRows', [[$this->linkedNpm, $anotherNpmId]]);
+        $single = $this->invokeProtected($this->action, 'toDataSheetRows', [[$this->linkedNpm]]);
         self::assertCount(1, $merged);
         self::assertSame('GHSA-jpcq-cgw6-v4j6', $merged[0]['PUBLIC_ID']);
-        self::assertSame(['npm:123', 'npm:456'], array_column(json_decode($merged[0]['DETECTIONS'], true, 512, JSON_THROW_ON_ERROR), 'ID'));
+        $group = $this->invokeProtected($this->action, 'groupFindings', [[$this->linkedNpm, $anotherNpmId]])[0];
+        self::assertSame('npm:123; npm:456', $group->getSourceId());
+        self::assertSame([$this->linkedNpm, $anotherNpmId], $group->getMergedFindings());
         self::assertSame($single[0]['ID'], $merged[0]['ID']);
+    }
+
+    /**
+    * The action serializes raw and merged findings without exporting nested evidence.
+     * 
+     * @return void
+     */
+    public function testResultRowFormattingUsesFindingGettersWithoutDetections() : void
+    {
+        $first = new Finding('npm:1', 'Advisory', 'vulnerability', 'npm-asset/first', 'npm', 'moderate',
+            'https://example.org/advisory', 'CVE-2026-0001', 'Description', 'Upgrade', '<2', '1', '2');
+        $second = new Finding('scanner:2', 'Advisory', 'vulnerability', 'npm-asset/first', 'trivy', 'critical', '', 'CVE-2026-0001', '', '', '', '1', '3');
+        $row = $this->invokeProtected($this->action, 'toDataSheetRows', [[$first, $second, $first]])[0];
+        $single = $this->invokeProtected($this->action, 'toDataSheetRows', [[$first]])[0];
+        self::assertSame(Audit::COLUMNS, array_keys($row));
+        self::assertSame([
+            'LEVEL' => 'critical',
+            'ID' => $single['ID'],
+            'NAME' => 'Advisory',
+            'TYPE' => 'vulnerability',
+            'PACKAGE' => 'npm-asset/first',
+            'DETAILS_URL' => 'https://example.org/advisory',
+            'SOURCE' => 'npm; trivy',
+            'SOURCE_LEVEL' => 'moderate; critical',
+            'DESCRIPTION' => 'Description',
+            'REMEDIATION' => 'Upgrade',
+            'VERSIONS_AFFECTED' => '<2',
+            'VERSION_INSTALLED' => '1',
+            'VERSION_FIXED' => '2; 3',
+            'PUBLIC_ID' => 'CVE-2026-0001'
+        ], $row);
+        self::assertArrayNotHasKey('DETECTIONS', $row);
+        self::assertCount(14, Audit::COLUMNS);
+        $rawRow = $this->invokeProtected($this->action, 'toDataSheetRow', [$first]);
+        self::assertSame($single['ID'], $rawRow['ID']);
+        self::assertSame('medium', $rawRow['LEVEL']);
+        self::assertSame(Audit::COLUMNS, array_keys($rawRow));
+        $group = $this->invokeProtected($this->action, 'groupFindings', [[$first, $second, $first]])[0];
+        self::assertSame([$first, $second], $group->getMergedFindings());
+        self::assertSame($row, $this->invokeProtected($this->action, 'toDataSheetRow', [$group]));
+        self::assertSame('npm', $first->getSource());
+        self::assertSame('medium', $first->getLevel());
+    }
+
+    /**
+     * The modeled advisory attributes must match the action's output schema.
+     * 
+     * @return void
+     */
+    public function testResultColumnsMatchModeledAttributes() : void
+    {
+        $model = json_decode(file_get_contents(dirname(__DIR__, 3) . '/Model/axenox.PackageManager.AUDIT_ADVISORY/04_ATTRIBUTE.json'), true, 512, JSON_THROW_ON_ERROR);
+        $attributes = array_column($model['rows'], 'ALIAS');
+        $columns = Audit::COLUMNS;
+        sort($attributes);
+        sort($columns);
+        self::assertSame($columns, $attributes);
     }
 
     /** Public reports must hide generated hashes and verbose evidence without changing source rows. */
     public function testTableDisplaysPublicIdentifiersOnly() : void
     {
-        $npm = new ComposerNpmAuditScanner($this->workbench);
-        $noCve = $this->invokeProtected($npm, 'finding', ['composer', 'php/package', [
+        $composer = new ComposerAuditScanner($this->workbench);
+        $noCve = $this->invokeProtected($composer, 'createFinding', ['php/package', [
             'advisoryId' => 'PKSA-generated', 'title' => 'No CVE', 'severity' => 'high'
         ]]);
-        $findings = $this->invokeProtected($this->action, 'mergeFindings', [array_merge($this->npmRows, $this->trivyRows, [$noCve, $this->linkedNpm])]);
+        $findings = array_merge($this->npmRows, $this->trivyRows, [$noCve, $this->linkedNpm]);
         $table = $this->invokeProtected($this->action, 'table', [$findings]);
         self::assertStringNotContainsString('SOURCE_LEVEL', $table);
         self::assertStringNotContainsString('DETAILS_URL', $table);
@@ -111,20 +238,21 @@ class AuditTest extends AuditTestCase
         self::assertStringContainsString('PKSA-generated', $table);
         self::assertStringNotContainsString('npm:123', $table);
         self::assertStringNotContainsString('EOL:alpine', $table);
-        self::assertStringNotContainsString($findings[0]['ID'], $table);
-        self::assertSame('npm:123', $this->linkedNpm['ID']);
-        self::assertSame('', $this->linkedNpm['CVE']);
+        $rows = $this->invokeProtected($this->action, 'toDataSheetRows', [$findings]);
+        self::assertStringNotContainsString($rows[0]['ID'], $table);
+        self::assertSame('npm:123', $this->linkedNpm->getSourceId());
+        self::assertSame('', $this->linkedNpm->getCve());
     }
 
     /** CVEs take precedence over GHSA links, and repeated links must not duplicate the public label. */
     public function testPublicIdPrefersCveAndDeduplicatesLinks() : void
     {
-        $withCve = $this->linkedNpm;
-        $withCve['CVE'] = 'CVE-2020-11023';
-        self::assertSame('CVE-2020-11023', $this->invokeProtected($this->action, 'displayAdvisoryId', [$withCve]));
-        $repeatedLinks = $this->linkedNpm;
-        $repeatedLinks['DETAILS_URL'] .= '; ' . $repeatedLinks['DETAILS_URL'] . '?source=fixture';
-        self::assertSame('GHSA-jpcq-cgw6-v4j6', $this->invokeProtected($this->action, 'displayAdvisoryId', [$repeatedLinks]));
+        $withCve = new Finding('npm:123', 'Advisory', 'vulnerability', 'package', 'npm', 'high',
+            $this->linkedNpm->getDetailsUrl(), 'CVE-2020-11023');
+        self::assertSame('CVE-2020-11023', $withCve->getPublicId());
+        $url = $this->linkedNpm->getDetailsUrl();
+        $repeatedLinks = new Finding('npm:123', 'Advisory', 'vulnerability', 'package', 'npm', 'high', $url . '; ' . $url . '?source=fixture');
+        self::assertSame('GHSA-jpcq-cgw6-v4j6', $repeatedLinks->getPublicId());
     }
 
     /** Reading a standard result must not defer or repeat physical scanner execution. */
@@ -153,6 +281,7 @@ class AuditTest extends AuditTestCase
         self::assertSame($sheet, $result->getData());
         self::assertSame($message, $result->getMessage());
         self::assertCount(1, $action->findings);
+        self::assertInstanceOf(FindingInterface::class, $action->findings[0]);
         self::assertSame(1, $scanner->auditCalls);
     }
 }

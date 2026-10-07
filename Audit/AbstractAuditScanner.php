@@ -2,40 +2,78 @@
 namespace axenox\PackageManager\Audit;
 
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
-use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
+use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\Exceptions\RuntimeException;
-use exface\Core\Exceptions\CliRuntimeException;
-use exface\Core\Facades\ConsoleFacade\CliCommandRunner;
 
-/** Shares artifact handling and prerequisite diagnostics across audit engines. */
+/**
+ * Shares artifact handling and prerequisite diagnostics across audit engines.
+ * 
+ * Subclasses implement scanner-specific input detection, auditing and installation.
+ * The shared helpers resolve task inputs without depending on an action or
+ * trigger widget. Engine-specific execution belongs to the concrete scanners.
+ */
 abstract class AbstractAuditScanner implements AuditScannerInterface
 {
+    /**
+     * @var WorkbenchInterface
+     */
     protected $workbench;
+
+    /**
+     * @var string[]
+     */
     protected $hints = [];
 
-    /** Keeps scanners independent of the action and its trigger widget. */
+    /**
+     * Initializes the scanner with its workbench.
+     * 
+     * Scanners use the workbench for installation paths and services without
+     * depending on an action or its trigger widget.
+     * 
+     * @param WorkbenchInterface $workbench
+     */
     public function __construct(WorkbenchInterface $workbench)
     {
         $this->workbench = $workbench;
     }
 
-    /** {@inheritDoc} @see AuditScannerInterface::getHints() */
+    /**
+     * {@inheritDoc}
+     * 
+     * @see AuditScannerInterface::getHints()
+     * @return string[]
+     */
     public function getHints() : array
     {
         return array_values(array_unique($this->hints));
     }
 
-    /** Requires explicit artifacts for data-based tasks rather than scanning unrelated installed packages. */
+    /**
+     * Returns explicit artifact input rows from the task.
+     * 
+     * Data-based tasks must not fall back to unrelated installed packages.
+     * 
+     * @param TaskInterface $task
+     * @return array<int, array<string, mixed>>
+     */
     protected function inputRows(TaskInterface $task) : array
     {
         return $task->hasInputData() ? $task->getInputData()->getRows() : [];
     }
 
-    /** Resolves relative build folders against the installation, not the web server's working directory. */
+    /**
+     * Resolves a build folder against the installation directory.
+     * 
+     * Explicit artifact input returns null instead of falling back to the
+     * installation. Relative paths do not depend on the server's working directory.
+     * 
+     * @param TaskInterface $task
+     * @return string|null
+     */
     protected function folder(TaskInterface $task) : ?string
     {
         $path = $task->hasParameter('folder') ? $task->getParameter('folder') : null;
@@ -58,7 +96,12 @@ abstract class AbstractAuditScanner implements AuditScannerInterface
         return $resolved;
     }
 
-    /** Accepts JSON strings and already decoded artifact values from DataSheets. */
+    /**
+     * Decodes scanner JSON or accepts an already decoded artifact value.
+     * 
+     * @param string|array|UxonObject $value
+     * @return array<array-key, mixed>
+     */
     protected function decode($value) : array
     {
         if ($value instanceof UxonObject) {
@@ -77,7 +120,14 @@ abstract class AbstractAuditScanner implements AuditScannerInterface
         return $value;
     }
 
-    /** Fails on unreadable artifacts instead of returning a misleading clean scan. */
+    /**
+     * Reads and decodes a JSON artifact.
+     * 
+     * Unreadable or invalid artifacts fail instead of producing a misleading clean scan.
+     * 
+     * @param string $path
+     * @return array<array-key, mixed>
+     */
     protected function readJson(string $path) : array
     {
         $value = file_get_contents($path);
@@ -87,50 +137,14 @@ abstract class AbstractAuditScanner implements AuditScannerInterface
         return $this->decode($value);
     }
 
-    /** Prefers the scanned project's Composer PHAR while keeping isolated artifact scans shell-free.
-     * Resolves a CLI executable because PHP_BINARY can point to Apache in web consoles.
-    * Supplies a Composer home when service accounts lack the usual profile environment.
-    * Forwards profile variables explicitly because Apache's getenv() values may not reach child processes.
+    /**
+     * Records a prerequisite hint and returns an empty findings list.
+     * 
+     * The hint makes an omitted scan visible and includes the opt-in installation command.
+     * 
+     * @param string $reason
+     * @return FindingInterface[]
      */
-    protected function composer(array $arguments, string $folder, array $acceptedExitCodes = [0], ?string $composerFolder = null) : array
-    {
-        $phar = ($composerFolder ?? $folder) . '/composer.phar';
-        $local = $this->workbench->getInstallationPath() . '/vendor/composer/composer/bin/composer';
-        $script = is_file($phar) ? $phar : (is_file($local) ? $local : null);
-        $exec = $script === null ? 'composer' : CliCommandRunner::findPhpExecutable();
-        $arguments = array_merge($script === null ? [] : [$script], ['--no-interaction', '--no-ansi'], $arguments);
-        $envVars = array_filter([
-            'COMPOSER_HOME' => getenv('COMPOSER_HOME'),
-            'APPDATA' => getenv('APPDATA'),
-            'HOME' => getenv('HOME')
-        ], static function ($value) { return is_string($value) && $value !== ''; });
-        if (! isset($envVars['COMPOSER_HOME']) && ! isset($envVars[PHP_OS_FAMILY === 'Windows' ? 'APPDATA' : 'HOME'])) {
-            $envVars['COMPOSER_HOME'] = $this->workbench->filemanager()->getPathToDataFolder() . '/.composer';
-        }
-        return CliCommandRunner::runCliCommandIntoArray($exec, $arguments, $folder, $acceptedExitCodes, 300, $envVars);
-    }
-
-    /** Only a missing executable is a skippable prerequisite; other command failures must propagate. */
-    protected function composerAvailable(string $folder) : bool
-    {
-        try {
-            $result = $this->composer(['--version'], $folder);
-        } catch (CliRuntimeException $error) {
-            if (! in_array($error->getExitCode(), [127, 9009], true)) {
-                throw $error;
-            }
-            $this->missing('Composer is not available on PATH. Install Composer 2.7 or newer first.');
-            return false;
-        }
-        if (! preg_match('/Composer(?: version)?\s+(\d+\.\d+\.\d+)/i', $result['stdout'], $matches)
-            || version_compare($matches[1], '2.7.0', '<')) {
-            $this->missing('Composer 2.7 or newer is required.');
-            return false;
-        }
-        return true;
-    }
-
-    /** Makes an omitted scan visible and gives the exact opt-in installation command. */
     protected function missing(string $reason) : array
     {
         $name = (new \ReflectionClass($this))->getShortName();
@@ -138,27 +152,4 @@ abstract class AbstractAuditScanner implements AuditScannerInterface
         return [];
     }
 
-    /** Creates the shared result contract while retaining source-specific remediation data. */
-    protected function finding(string $source, string $package, array $advisory) : array
-    {
-        $sourceLevel = (string) ($advisory['severity'] ?? 'unknown');
-        $id = (string) ($advisory['cve'] ?? $advisory['id'] ?? $advisory['advisoryId'] ?? '');
-        $cve = (string) ($advisory['cve'] ?? $id);
-        return [
-            'LEVEL' => VulnerabilityLevelDataType::normalize($sourceLevel),
-            'ID' => $id,
-            'CVE' => preg_match('/^CVE-\d{4}-\d{4,}$/i', $cve) ? strtoupper($cve) : '',
-            'NAME' => (string) ($advisory['title'] ?? 'Known vulnerability'),
-            'TYPE' => 'vulnerability',
-            'PACKAGE' => $package,
-            'DETAILS_URL' => (string) ($advisory['link'] ?? $advisory['url'] ?? ''),
-            'SOURCE' => $source,
-            'SOURCE_LEVEL' => $sourceLevel,
-            'DESCRIPTION' => (string) ($advisory['overview'] ?? $advisory['description'] ?? ''),
-            'REMEDIATION' => (string) ($advisory['recommendation'] ?? ''),
-            'VERSIONS_AFFECTED' => (string) ($advisory['affectedVersions'] ?? $advisory['vulnerable_versions'] ?? ''),
-            'VERSION_INSTALLED' => '',
-            'VERSION_FIXED' => (string) ($advisory['patched_versions'] ?? '')
-        ];
-    }
 }

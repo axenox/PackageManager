@@ -1,6 +1,10 @@
 <?php
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
+use axenox\PackageManager\Audit\AbstractAuditScanner;
+use axenox\PackageManager\Audit\ComposerAuditScanner;
+use axenox\PackageManager\Audit\ComposerNpmAuditScanner;
+use axenox\PackageManager\Audit\TrivySBOMScanner;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use axenox\PackageManager\Tests\PHPUnit\Support\FixtureComposerScanner;
 use exface\Core\CommonLogic\Tasks\GenericTask;
@@ -31,18 +35,83 @@ class ComposerAuditScannerTest extends AuditTestCase
         ]]], 'abandoned' => ['old/package' => 'new/package']];
     }
 
+    /**
+     * Composer execution belongs only to the scanner that uses it.
+     * 
+     * @return void
+     */
+    public function testComposerHelpersBelongToComposerScanner() : void
+    {
+        self::assertSame(ComposerAuditScanner::class, (new \ReflectionMethod(ComposerAuditScanner::class, 'runComposer'))->getDeclaringClass()->getName());
+        self::assertSame(ComposerAuditScanner::class, (new \ReflectionMethod(ComposerAuditScanner::class, 'isComposerAvailable'))->getDeclaringClass()->getName());
+        self::assertFalse(method_exists(AbstractAuditScanner::class, 'runComposer'));
+        self::assertFalse(method_exists(AbstractAuditScanner::class, 'isComposerAvailable'));
+        self::assertFalse(method_exists(ComposerNpmAuditScanner::class, 'runComposer'));
+        self::assertFalse(method_exists(TrivySBOMScanner::class, 'runComposer'));
+    }
+
     /** Lock-only scans must preserve the project while parsing advisories and abandoned packages. */
     public function testLockOnlyScanParsesFindingsAndRemovesIsolatedFiles() : void
     {
         self::assertTrue($this->scanner->supports($this->task));
         $rows = $this->scanner->audit($this->task);
         self::assertCount(2, $rows);
-        self::assertSame('EOL', $rows[1]['TYPE']);
-        self::assertSame('CVE-2026-0003', $rows[0]['CVE']);
-        self::assertSame('', $rows[1]['CVE']);
+        self::assertSame('EOL', $rows[1]->getType());
+        self::assertSame('CVE-2026-0003', $rows[0]->getCve());
+        self::assertSame('', $rows[1]->getCve());
+        self::assertSame('1.0.0', $rows[0]->getVersionInstalled());
+        self::assertSame('Replace with new/package', $rows[1]->getRemediation());
         self::assertDirectoryDoesNotExist($this->scanner->scannedFolders[0]);
         self::assertFileDoesNotExist($this->folder . '/composer.json');
         self::assertSame($this->lockJson, file_get_contents($this->folder . '/composer.lock'));
+    }
+
+    /**
+     * Composer's native fields and ignored-policy notes remain scanner-owned evidence.
+     * 
+     * @return void
+     */
+    public function testIgnoredAdvisoriesRetainNativeFieldsAndPolicyReason() : void
+    {
+        $this->scanner->response['ignored-advisories'] = ['php/package' => [[
+            'advisoryId' => 'PKSA-ignored',
+            'cve' => null,
+            'title' => 'Ignored advisory',
+            'severity' => 'moderate',
+            'link' => 'https://example.org/composer',
+            'description' => 'Composer description',
+            'affectedVersions' => '<2',
+            'ignoreReason' => 'Reviewed exception'
+        ]]];
+        $rows = $this->scanner->audit($this->task);
+        self::assertCount(3, $rows);
+        $finding = $rows[1];
+        self::assertSame('PKSA-ignored', $finding->getSourceId());
+        self::assertSame('', $finding->getCve());
+        self::assertSame('composer', $finding->getSource());
+        self::assertSame('Ignored advisory', $finding->getName());
+        self::assertSame('medium', $finding->getLevel());
+        self::assertSame('https://example.org/composer', $finding->getDetailsUrl());
+        self::assertSame('Composer description Ignored by Composer policy: Reviewed exception', $finding->getDescription());
+        self::assertSame('<2', $finding->getVersionsAffected());
+        self::assertSame('1.0.0', $finding->getVersionInstalled());
+    }
+
+    /**
+     * Abandoned packages without a replacement still provide direct lifecycle findings.
+     * 
+     * @return void
+     */
+    public function testAbandonedPackageWithoutReplacementRetainsInstalledVersion() : void
+    {
+        $this->scanner->response['abandoned'] = ['php/package' => null];
+        $rows = $this->scanner->audit($this->task);
+        $finding = $rows[1];
+        self::assertSame('EOL', $finding->getType());
+        self::assertSame('abandoned:php/package', $finding->getSourceId());
+        self::assertSame('', $finding->getPublicId());
+        self::assertSame('Replace this unmaintained package.', $finding->getRemediation());
+        self::assertSame('1.0.0', $finding->getVersionInstalled());
     }
 
     /** Failed commands must not leak the temporary project or swallow the original failure. */

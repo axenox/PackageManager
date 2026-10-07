@@ -1,5 +1,9 @@
 # Copilot Instructions for PackageManager
 
+### Coding guidelines
+
+Always follow our [PHP](../../../exface/Core/Docs/developer_docs/code_conventions/PHP/Conventions.md) and [JavaScript](../../../exface/Core/Docs/developer_docs/code_conventions/JavaScript/Conventions.md) coding guidelines when writing code. 
+
 ## Testing
 
 Follow the [Core testing instructions](../../../exface/core/.github/instructions/testing.instructions.md)

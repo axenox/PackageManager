@@ -7,18 +7,39 @@ use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Exceptions\CliRuntimeException;
 use exface\Core\Facades\ConsoleFacade\CliCommandRunner;
 use GuzzleHttp\Client;
+use axenox\PackageManager\Interfaces\FindingInterface;
 
-/** Audits saved CycloneDX or SPDX SBOMs without unpacking build archives. */
+/**
+ * Audits saved CycloneDX or SPDX SBOMs without unpacking build archives.
+ * 
+ * Trivy produces vulnerability and operating-system lifecycle findings from
+ * folder artifacts or supplied SBOM data. Missing executables produce hints;
+ * installation only runs when explicitly requested.
+ */
 class TrivySBOMScanner extends AbstractAuditScanner
 {
-    /** Keeps the optional executable outside vendor and Composer-managed files. */
+    /**
+     * Returns the local installation path for the optional Trivy executable.
+     * 
+     * The binary is stored outside vendor and Composer-managed files.
+     * 
+     * @return string
+     */
     protected function binaryPath() : string
     {
         return $this->workbench->filemanager()->getPathToDataFolder() . '/audit/trivy/'
             . (ServerSoftwareDataType::isOsWindows() ? 'trivy.exe' : 'trivy');
     }
 
-    /** Finds the selected build's SBOM; only a current-installation scan uses the global data fallback. */
+    /**
+     * Finds the selected build's SBOM artifact.
+     * 
+     * Only a current-installation scan uses the global data-folder fallback.
+     * Explicit artifact input does not fall back to a folder scan.
+     * 
+     * @param TaskInterface $task
+     * @return string|null
+     */
     protected function sbomPath(TaskInterface $task) : ?string
     {
         $folder = $this->folder($task);
@@ -37,7 +58,13 @@ class TrivySBOMScanner extends AbstractAuditScanner
         return null;
     }
 
-    /** {@inheritDoc} @see \axenox\PackageManager\Interfaces\AuditScannerInterface::supports() */
+    /**
+     * {@inheritDoc}
+     * 
+     * @see \axenox\PackageManager\Interfaces\AuditScannerInterface::supports()
+     * @param TaskInterface $task
+     * @return bool
+     */
     public function supports(TaskInterface $task) : bool
     {
         foreach ($this->inputRows($task) as $row) {
@@ -48,7 +75,14 @@ class TrivySBOMScanner extends AbstractAuditScanner
         return $this->sbomPath($task) !== null;
     }
 
-    /** Missing binaries produce an installation hint, but a broken installed binary is an error. */
+    /**
+     * Resolves and checks an available Trivy executable.
+     * 
+     * Missing binaries produce an installation hint and return null. A broken
+     * installed binary remains an error rather than being treated as unavailable.
+     * 
+     * @return string|null
+     */
     protected function executable() : ?string
     {
         if (is_file($this->binaryPath())) {
@@ -67,7 +101,13 @@ class TrivySBOMScanner extends AbstractAuditScanner
         }
     }
 
-    /** {@inheritDoc} @see \axenox\PackageManager\Interfaces\AuditScannerInterface::audit() */
+    /**
+     * {@inheritDoc}
+     * 
+     * @see \axenox\PackageManager\Interfaces\AuditScannerInterface::audit()
+     * @param TaskInterface $task
+     * @return FindingInterface[]
+     */
     public function audit(TaskInterface $task) : array
     {
         $executable = $this->executable();
@@ -78,7 +118,7 @@ class TrivySBOMScanner extends AbstractAuditScanner
         if ($path !== null) {
             return $this->scanFile($executable, $path);
         }
-        $rows = [];
+        $findings = [];
         foreach ($this->inputRows($task) as $row) {
             if (! isset($row['SBOM'])) {
                 continue;
@@ -95,62 +135,116 @@ class TrivySBOMScanner extends AbstractAuditScanner
                 if (file_put_contents($temporary, json_encode($sbom, JSON_THROW_ON_ERROR)) === false) {
                     throw new RuntimeException('Cannot write temporary SBOM file.');
                 }
-                $rows = array_merge($rows, $this->scanFile($executable, $temporary));
+                $findings = array_merge($findings, $this->scanFile($executable, $temporary));
             } finally {
                 if (! unlink($temporary)) {
                     throw new RuntimeException('Cannot remove temporary SBOM file.');
                 }
             }
         }
-        return $rows;
+        return $findings;
     }
 
-    /** Translates Trivy's package and OS lifecycle findings into the common contract. */
+    /**
+     * Scans an SBOM file and converts Trivy's output into typed findings.
+     * 
+     * @param string $executable
+     * @param string $path
+     * @return FindingInterface[]
+     */
     protected function scanFile(string $executable, string $path) : array
     {
         $result = CliCommandRunner::runCliCommandIntoArray($executable, ['sbom', '--quiet', '--format', 'json', '--exit-code', '0', $path], null, [0], 900);
         return $this->normalize($this->decode($result['stdout']));
     }
 
-    /** Preserves fixes and distinguishes application packages from operating-system packages. */
+    /**
+     * Converts Trivy vulnerability and lifecycle results into typed findings.
+     * 
+     * Fix versions are retained. npm package names use Composer's asset notation,
+     * while operating-system package names remain in their native format.
+     * 
+     * @param array<string, mixed> $data
+     * @return FindingInterface[]
+     */
     protected function normalize(array $data) : array
     {
         if (! isset($data['SchemaVersion'])) {
             throw new RuntimeException('Trivy response has no SchemaVersion field.');
         }
-        $rows = [];
+        $findings = [];
         foreach ($data['Results'] ?? [] as $result) {
             foreach ($result['Vulnerabilities'] ?? [] as $vulnerability) {
-                $package = $vulnerability['PkgName'];
-                if (in_array($result['Type'] ?? '', ['npm', 'node-pkg', 'yarn', 'pnpm'], true)
-                    || strpos($vulnerability['PkgIdentifier']['PURL'] ?? '', 'pkg:npm/') === 0) {
-                    $package = 'npm-asset/' . (strpos($package, '@') === 0 ? str_replace('/', '--', substr($package, 1)) : $package);
-                }
-                $row = $this->finding('trivy', $package, [
-                    'id' => $vulnerability['VulnerabilityID'],
-                    'title' => $vulnerability['Title'] ?? $vulnerability['VulnerabilityID'],
-                    'severity' => $vulnerability['Severity'] ?? 'unknown',
-                    'url' => $vulnerability['PrimaryURL'] ?? ($vulnerability['References'][0] ?? ''),
-                    'description' => $vulnerability['Description'] ?? ''
-                ]);
-                $row['VERSION_INSTALLED'] = $vulnerability['InstalledVersion'] ?? '';
-                $row['VERSION_FIXED'] = $vulnerability['FixedVersion'] ?? '';
-                $row['REMEDIATION'] = $row['VERSION_FIXED'] !== '' ? 'Upgrade to ' . $row['VERSION_FIXED'] : '';
-                $rows[] = $row;
+                $findings[] = $this->createFinding($vulnerability, $result['Type'] ?? '');
             }
         }
         $os = $data['Metadata']['OS'] ?? [];
         if (! empty($os['EOSL'])) {
             $package = ($os['Family'] ?? 'OS') . ':' . ($os['Name'] ?? 'unknown');
-            $row = $this->finding('trivy', $package, ['id' => 'EOL:' . $package, 'title' => 'Operating system is end of life', 'severity' => 'high']);
-            $row['TYPE'] = 'EOL';
-            $row['REMEDIATION'] = 'Upgrade to a supported operating system release.';
-            $rows[] = $row;
+            $findings[] = new Finding(
+                'EOL:' . $package,
+                'Operating system is end of life',
+                FindingInterface::TYPE_EOL,
+                $package,
+                'trivy',
+                'high',
+                '',
+                '',
+                '',
+                'Upgrade to a supported operating system release.'
+            );
         }
-        return $rows;
+        return $findings;
     }
 
-    /** Installs a checksum-verified official binary without requiring elevation or piping scripts into a shell. */
+    /**
+     * Creates a finding directly from a native Trivy vulnerability.
+     * 
+     * npm identities use Composer asset notation. All other package names and
+     * version values retain Trivy's notation without an intermediate advisory map.
+     * 
+     * @param array{PkgName: string, VulnerabilityID: string, Title?: string, Severity?: string, PrimaryURL?: string, References?: string[], Description?: string, FixedVersion?: string, InstalledVersion?: string, PkgIdentifier?: array{PURL?: string}} $vulnerability
+     * @param string $resultType
+     * @return FindingInterface
+     */
+    protected function createFinding(array $vulnerability, string $resultType = '') : FindingInterface
+    {
+        $package = $vulnerability['PkgName'];
+        if (in_array($resultType, ['npm', 'node-pkg', 'yarn', 'pnpm'], true)
+            || strpos($vulnerability['PkgIdentifier']['PURL'] ?? '', 'pkg:npm/') === 0) {
+            $package = 'npm-asset/' . (strpos($package, '@') === 0 ? str_replace('/', '--', substr($package, 1)) : $package);
+        }
+        $fixedVersion = (string) ($vulnerability['FixedVersion'] ?? '');
+        return new Finding(
+            (string) $vulnerability['VulnerabilityID'],
+            (string) ($vulnerability['Title'] ?? $vulnerability['VulnerabilityID']),
+            FindingInterface::TYPE_VULNERABILITY,
+            $package,
+            'trivy',
+            (string) ($vulnerability['Severity'] ?? 'unknown'),
+            (string) ($vulnerability['PrimaryURL'] ?? $vulnerability['References'][0] ?? ''),
+            '',
+            (string) ($vulnerability['Description'] ?? ''),
+            $fixedVersion !== '' ? 'Upgrade to ' . $fixedVersion : '',
+            '',
+            (string) ($vulnerability['InstalledVersion'] ?? ''),
+            $fixedVersion
+        );
+    }
+
+    /**
+     * Installs a checksum-verified official Trivy binary.
+     * 
+     * Installation is local to the workbench data folder and requires neither
+     * elevation nor piping scripts into a shell. Supported hosts are Windows x64
+     * and Linux x64 or ARM64.
+     * 
+     * {@inheritDoc}
+     * 
+     * @see \axenox\PackageManager\Interfaces\AuditScannerInterface::install()
+     * @param TaskInterface $task
+     * @return void
+     */
     public function install(TaskInterface $task) : void
     {
         $windows = ServerSoftwareDataType::isOsWindows();

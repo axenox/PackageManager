@@ -52,9 +52,13 @@ class ComposerNpmAuditScannerTest extends AuditTestCase
         $this->scanner->install($folderTask);
         self::assertFileDoesNotExist($folder . '/composer.json');
         self::assertSame($this->lockJson, file_get_contents($folder . '/composer.lock'));
-        self::assertSame($folderRows, $this->scanner->audit($this->task));
-        self::assertSame('npm:123', $folderRows[0]['ID']);
-        self::assertSame('', $folderRows[0]['CVE']);
+        $archivedFindings = $this->scanner->audit($this->task);
+        self::assertCount(count($folderRows), $archivedFindings);
+        foreach ($folderRows as $index => $finding) {
+            self::assertTrue($finding->is($archivedFindings[$index]));
+        }
+        self::assertSame('npm:123', $folderRows[0]->getSourceId());
+        self::assertSame('', $folderRows[0]->getCve());
         self::assertCount(2, $this->requests);
         foreach ($this->requests as $request) {
             self::assertSame('POST', $request['request']->getMethod());

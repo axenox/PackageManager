@@ -19,14 +19,22 @@ class FixtureComposerScanner extends ComposerAuditScanner
     public $stdout = null;
     public $stderr = '';
 
-    /** {@inheritDoc} @see ComposerAuditScanner::composerAvailable() */
-    protected function composerAvailable(string $folder) : bool
+    /**
+     * {@inheritDoc}
+     * 
+     * @see ComposerAuditScanner::isComposerAvailable()
+     */
+    protected function isComposerAvailable(string $folder) : bool
     {
         return true;
     }
 
-    /** {@inheritDoc} @see ComposerAuditScanner::composer() */
-    protected function composer(array $arguments, string $folder, array $acceptedExitCodes = [0], ?string $composerFolder = null) : array
+    /**
+     * {@inheritDoc}
+     * 
+     * @see ComposerAuditScanner::runComposer()
+     */
+    protected function runComposer(array $arguments, string $folder, array $acceptedExitCodes = [0], ?string $composerFolder = null) : array
     {
         $this->scannedFolders[] = $folder;
         Assert::assertFileExists($folder . '/composer.json');
@@ -75,11 +83,6 @@ class FixtureNpmScanner extends ComposerNpmAuditScanner
         return $this->client;
     }
 
-    /** {@inheritDoc} @see ComposerNpmAuditScanner::composer() */
-    protected function composer(array $arguments, string $folder, array $acceptedExitCodes = [0], ?string $composerFolder = null) : array
-    {
-        Assert::fail('HTTP-only npm audits must not invoke Composer.');
-    }
 }
 
 /** Keeps synchronous action checks independent of persistent result metaobjects. */

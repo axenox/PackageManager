@@ -60,9 +60,9 @@ PHP;
         define('axenox\\PackageManager\\Audit\\PHP_BINARY', $this->folder . '/httpd.exe');
         $rows = $this->scanner->audit($this->task);
         self::assertCount(1, $rows);
-        self::assertSame('local-phar', $rows[0]['ID']);
-        self::assertNotSame(realpath($this->folder), $rows[0]['DESCRIPTION']);
-        self::assertDirectoryDoesNotExist($rows[0]['DESCRIPTION']);
+        self::assertSame('local-phar', $rows[0]->getSourceId());
+        self::assertNotSame(realpath($this->folder), $rows[0]->getDescription());
+        self::assertDirectoryDoesNotExist($rows[0]->getDescription());
         self::assertFileDoesNotExist($this->folder . '/composer.json');
         self::assertSame($this->lockJson, file_get_contents($this->folder . '/composer.lock'));
     }
@@ -73,8 +73,8 @@ PHP;
         $this->writeFixture($this->folder, 'composer.json', '{"name":"fixture/project","require":{}}');
         $rows = $this->scanner->audit($this->task);
         self::assertCount(1, $rows);
-        self::assertSame('local-phar', $rows[0]['ID']);
-        self::assertSame(realpath($this->folder), $rows[0]['DESCRIPTION']);
+        self::assertSame('local-phar', $rows[0]->getSourceId());
+        self::assertSame(realpath($this->folder), $rows[0]->getDescription());
         self::assertSame($this->lockJson, file_get_contents($this->folder . '/composer.lock'));
     }
 
@@ -84,7 +84,7 @@ PHP;
         $probe = <<<'PHP'
 require $argv[1];
 $scanner = new \axenox\PackageManager\Audit\ComposerAuditScanner(new \exface\Core\CommonLogic\Workbench());
-$method = new \ReflectionMethod($scanner, 'composer');
+$method = new \ReflectionMethod($scanner, 'runComposer');
 $method->setAccessible(true);
 echo $method->invoke($scanner, ['--probe-home'], $argv[2])['stdout'];
 PHP;

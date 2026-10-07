@@ -1,8 +1,9 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
+use axenox\PackageManager\Audit\MergedFinding;
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
-use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
+use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\CommonLogic\AbstractAction;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
@@ -40,11 +41,23 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
 {
     const COLUMNS = [
         'LEVEL', 'ID', 'NAME', 'TYPE', 'PACKAGE', 'DETAILS_URL', 'SOURCE', 'SOURCE_LEVEL',
-        'DESCRIPTION', 'REMEDIATION', 'VERSIONS_AFFECTED', 'VERSION_INSTALLED', 'VERSION_FIXED', 'PUBLIC_ID', 'DETECTIONS'
+        'DESCRIPTION', 'REMEDIATION', 'VERSIONS_AFFECTED', 'VERSION_INSTALLED', 'VERSION_FIXED', 'PUBLIC_ID'
     ];
 
-    /** Validates input before scanner side effects and returns completed findings for standard action processing.
-     * {@inheritDoc} @see AbstractAction::perform()
+    private const LEVEL_RANK = ['critical' => 0, 'high' => 1, 'medium' => 2, 'low' => 3];
+
+    /**
+     * Validates input and returns completed findings for standard action processing.
+     * 
+     * Validation precedes scanner side effects. Scanning and optional JSON export
+     * finish before the result DataSheet and collected status messages are returned.
+     * 
+     * {@inheritDoc}
+     * 
+     * @see AbstractAction::perform()
+     * @param TaskInterface $task
+     * @param DataTransactionInterface $transaction
+     * @return ResultInterface
      */
     protected function perform(TaskInterface $task, DataTransactionInterface $transaction) : ResultInterface
     {
@@ -128,17 +141,23 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
             $hints[] = $hint;
             $messages[] = $hint;
         }
-        $findings = $this->mergeFindings($findings);
         $sheet = $this->createResultSheet($findings);
         if ($output !== null) {
             $messages[] = 'Saving audit JSON...';
-            $this->saveOutput($output, ['findings' => $findings, 'hints' => $hints, 'scanners' => $status]);
+            $this->saveOutput($output, ['findings' => $this->toDataSheetRows($findings), 'hints' => $hints, 'scanners' => $status]);
         }
         $messages[] = $this->table($findings);
         return ResultFactory::createDataResult($task, $sheet, implode(PHP_EOL, $messages));
     }
 
-    /** Limits class instantiation to administrator-controlled scanner configuration. */
+    /**
+     * Instantiates scanners from administrator-controlled configuration.
+     * 
+     * Configured classes must implement AuditScannerInterface and be instantiable.
+     * Duplicate class names produce only one scanner instance.
+     * 
+     * @return AuditScannerInterface[]
+     */
     protected function scanners() : array
     {
         $classes = $this->getApp()->getConfig()->getOption('AUDIT.SCANNERS');
@@ -162,67 +181,86 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         return array_values($scanners);
     }
 
-    /** Generates stable internal IDs while merging public advisory identities and retaining original scanner evidence. */
-    protected function mergeFindings(array $rows) : array
+    /**
+     * Groups findings for this action's package-specific reporting policy.
+     * 
+     * A group contains one finding type, public advisory identity and package,
+     * across scanners. Missing public IDs fall back to scanner-specific native IDs,
+     * then titles, to avoid conflating unrelated scanner namespaces. MergedFinding
+     * aggregates evidence while keeping the original findings unchanged.
+     * 
+     * @param FindingInterface[] $findings
+    * @return MergedFinding[]
+     */
+    protected function groupFindings(array $findings) : array
     {
+        $groups = [];
+        foreach ($findings as $finding) {
+            if (! $finding instanceof FindingInterface) {
+                throw new ActionConfigurationError($this, 'Audit scanners must return FindingInterface instances.');
+            }
+            $key = $this->getFindingGroupKey($finding);
+            $groups[$key][] = $finding;
+        }
         $merged = [];
-        $rank = ['critical' => 0, 'high' => 1, 'medium' => 2, 'low' => 3];
-        foreach ($rows as $row) {
-            foreach (array_slice(self::COLUMNS, 0, 8) as $column) {
-                if (! array_key_exists($column, $row) || ! is_string($row[$column])) {
-                    throw new ActionConfigurationError($this, 'Audit scanner returned a missing or non-string ' . $column . ' field.');
-                }
-            }
-            $row['LEVEL'] = VulnerabilityLevelDataType::cast($row['LEVEL']);
-            foreach (array_merge(array_slice(self::COLUMNS, 8, 6), ['CVE']) as $column) {
-                if (isset($row[$column]) && ! is_string($row[$column])) {
-                    throw new ActionConfigurationError($this, 'Audit scanner returned a non-string ' . $column . ' field.');
-                }
-            }
-            if (! in_array($row['TYPE'], ['vulnerability', 'EOL'], true)) {
-                throw new ActionConfigurationError($this, 'Audit scanner returned an unsupported finding TYPE.');
-            }
-            $row += array_fill_keys(self::COLUMNS, '');
-            unset($row['DETECTIONS']);
-            if ($row['PUBLIC_ID'] === '') {
-                $row['PUBLIC_ID'] = $this->displayAdvisoryId($row);
-            }
-            $detection = array_intersect_key($row, array_flip(array_merge(self::COLUMNS, ['CVE'])));
-            $row = array_intersect_key($row, array_flip(self::COLUMNS));
-            $identity = $row['PUBLIC_ID'] !== '' ? $row['PUBLIC_ID'] : $row['ID'];
-            $key = $row['TYPE'] . ':' . ($identity !== '' ? strtoupper($identity) : $row['PACKAGE'] . ':' . $row['NAME']);
-            if (! isset($merged[$key])) {
-                $merged[$key] = $row;
-                $merged[$key]['ID'] = hash('sha256', $key);
-                $merged[$key]['DETECTIONS'] = [$detection];
-                continue;
-            }
-            $existing = &$merged[$key];
-            if (! in_array($detection, $existing['DETECTIONS'], true)) {
-                $existing['DETECTIONS'][] = $detection;
-            }
-            if ($rank[$row['LEVEL']] < $rank[$existing['LEVEL']]) {
-                $existing['LEVEL'] = $row['LEVEL'];
-            }
-            foreach (['PACKAGE', 'SOURCE', 'SOURCE_LEVEL', 'DETAILS_URL', 'DESCRIPTION', 'REMEDIATION', 'VERSIONS_AFFECTED', 'VERSION_INSTALLED', 'VERSION_FIXED', 'PUBLIC_ID'] as $column) {
-                $values = array_filter(array_column($existing['DETECTIONS'], $column), static function ($value) { return $value !== ''; });
-                $existing[$column] = implode('; ', array_unique($values));
-            }
-            unset($existing);
+        foreach ($groups as $group) {
+            $merged[] = new MergedFinding($group);
         }
-        $findings = array_values($merged);
-        usort($findings, static function (array $left, array $right) use ($rank) {
-            return [$rank[$left['LEVEL']], $left['PUBLIC_ID'], $left['PACKAGE']] <=> [$rank[$right['LEVEL']], $right['PUBLIC_ID'], $right['PACKAGE']];
-        });
-        foreach ($findings as &$finding) {
-            $finding['DETECTIONS'] = json_encode($finding['DETECTIONS'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-        }
-        unset($finding);
-        return $findings;
+        return $merged;
     }
 
-    /** Uses the advisory model for typed findings, including clean audits, unless an output object is configured. */
-    protected function createResultSheet(array $rows) : DataSheetInterface
+    /**
+    * Builds the action's reporting identity from scanner evidence.
+     * 
+     * Package names remain exact; advisory identifiers are compared without case.
+     * A structured key prevents collisions when values contain delimiters.
+    * Aggregates use their first original so combined native IDs do not change the key.
+     * 
+     * @param FindingInterface $finding
+     * @return string
+     */
+    protected function getFindingGroupKey(FindingInterface $finding) : string
+    {
+        if ($finding instanceof MergedFinding) {
+            $finding = $finding->getMergedFindings()[0];
+        }
+        $identity = $finding->getPublicId() !== '' ? $finding->getPublicId() : $finding->getSourceId();
+        $identity = $identity !== '' ? strtoupper($identity) : $finding->getName();
+        $source = $finding->getPublicId() === '' ? $finding->getSource() : '';
+        return json_encode([$finding->getType(), $identity, $finding->getPackage(), $source], JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Formats package-specific finding groups in reporting order.
+     * 
+     * CLI, DataSheet and JSON outputs share this grouping and sorting policy.
+     * Other consumers remain free to group the original findings differently.
+     * 
+     * @param FindingInterface[] $findings
+     * @return array<int, array<string, string>>
+     */
+    protected function toDataSheetRows(array $findings) : array
+    {
+        $rows = array_map(function (FindingInterface $finding) {
+            return $this->toDataSheetRow($finding);
+        }, $this->groupFindings($findings));
+        usort($rows, static function (array $left, array $right) {
+            return [self::LEVEL_RANK[$left['LEVEL']], $left['PUBLIC_ID'], $left['PACKAGE'], $left['ID']]
+                <=> [self::LEVEL_RANK[$right['LEVEL']], $right['PUBLIC_ID'], $right['PACKAGE'], $right['ID']];
+        });
+        return $rows;
+    }
+
+    /**
+     * Converts typed findings into a result DataSheet.
+     * 
+     * The advisory model is used unless an output object is configured. Clean
+     * audits return an empty sheet with the same finding columns.
+     * 
+     * @param FindingInterface[] $findings
+     * @return DataSheetInterface
+     */
+    protected function createResultSheet(array $findings) : DataSheetInterface
     {
         $object = $this->getResultObjectExpected()
             ?? MetaObjectFactory::createFromString($this->getWorkbench(), 'axenox.PackageManager.AUDIT_ADVISORY');
@@ -230,14 +268,53 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         foreach (self::COLUMNS as $column) {
             $sheet->getColumns()->addFromExpression($column);
         }
-        $sheet->addRows($rows);
+        $sheet->addRows($this->toDataSheetRows($findings));
         return $sheet;
     }
 
-    /** Shows recognizable advisory identifiers without exposing full URLs or source-native severities. */
+    /**
+     * Converts a finding into the action's result row.
+     * 
+     * Raw and merged findings share the same getter-based format. Aggregation
+    * belongs to MergedFinding, not to the result serializer. The action generates
+    * the output ID from its grouping key; findings have no internal IDs.
+     * 
+     * @param FindingInterface $finding
+     * @return array<string, string>
+     */
+    protected function toDataSheetRow(FindingInterface $finding) : array
+    {
+        return [
+            'LEVEL' => $finding->getLevel(),
+            'ID' => hash('sha256', $this->getFindingGroupKey($finding)),
+            'NAME' => $finding->getName(),
+            'TYPE' => $finding->getType(),
+            'PACKAGE' => $finding->getPackage(),
+            'DETAILS_URL' => $finding->getDetailsUrl(),
+            'SOURCE' => $finding->getSource(),
+            'SOURCE_LEVEL' => $finding->getSourceLevel(),
+            'DESCRIPTION' => $finding->getDescription(),
+            'REMEDIATION' => $finding->getRemediation(),
+            'VERSIONS_AFFECTED' => $finding->getVersionsAffected(),
+            'VERSION_INSTALLED' => $finding->getVersionInstalled(),
+            'VERSION_FIXED' => $finding->getVersionFixed(),
+            'PUBLIC_ID' => $finding->getPublicId()
+        ];
+    }
+
+    /**
+     * Formats findings as a compact console table.
+     * 
+     * Public advisory identifiers are shown instead of internal hashes.
+     * Full URLs and source-native severity labels are omitted.
+     * 
+     * @param FindingInterface[] $findings
+     * @return string
+     */
     protected function table(array $findings) : string
     {
-        if ($findings === []) {
+        $rows = $this->toDataSheetRows($findings);
+        if ($rows === []) {
             return '0 audit findings.';
         }
         $output = new BufferedOutput();
@@ -245,10 +322,11 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         $table->setHeaders(['LEVEL', 'PUBLIC ID', 'NAME', 'TYPE', 'PACKAGE', 'SOURCE']);
         $table->setColumnMaxWidth(2, 60);
         $table->setColumnMaxWidth(4, 45);
-        foreach ($findings as $finding) {
+        foreach ($rows as $findingRow) {
             $row = [];
             foreach (['LEVEL', 'PUBLIC_ID', 'NAME', 'TYPE', 'PACKAGE', 'SOURCE'] as $column) {
-                $row[] = \Symfony\Component\Console\Formatter\OutputFormatter::escape(preg_replace('/[\x00-\x1f\x7f]/', ' ', $finding[$column]));
+                $value = $findingRow[$column];
+                $row[] = \Symfony\Component\Console\Formatter\OutputFormatter::escape(preg_replace('/[\x00-\x1f\x7f]/', ' ', $value));
             }
             $table->addRow($row);
         }
@@ -256,26 +334,16 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         return rtrim($output->fetch());
     }
 
-    /** Resolves recognizable public identifiers from scanner evidence without fetching linked pages. */
-    protected function displayAdvisoryId(array $finding) : string
-    {
-        if ($finding['TYPE'] === 'EOL') {
-            return '';
-        }
-        if (($finding['CVE'] ?? '') !== '') {
-            return $finding['CVE'];
-        }
-        $identifiers = [];
-        foreach (explode('; ', $finding['DETAILS_URL']) as $url) {
-            $path = parse_url($url, PHP_URL_PATH);
-            if (is_string($path) && preg_match('~(?:^|/)(GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4})(?:/|$)~i', $path, $matches)) {
-                $identifiers[] = 'GHSA-' . strtolower(substr($matches[1], 5));
-            }
-        }
-        return $identifiers !== [] ? implode('; ', array_unique($identifiers)) : $finding['ID'];
-    }
-
-    /** Atomically exports findings and scan completeness without leaving partial JSON files. */
+    /**
+     * Atomically exports findings and scan completeness as JSON.
+     * 
+     * Relative paths resolve against the installation. A temporary file prevents
+     * a failed write from leaving partial JSON at the requested destination.
+     * 
+     * @param string $path
+     * @param array{findings: array<int, array<string, string>>, hints: string[], scanners: array<string, string>} $result
+     * @return void
+     */
     protected function saveOutput(string $path, array $result) : void
     {
         if (! FilePathDataType::isAbsolute($path)) {
@@ -300,22 +368,43 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         }
     }
 
-    /** {@inheritDoc} @see iCanBeCalledFromCLI::getCliArguments() */
+    /**
+     * {@inheritDoc}
+     * 
+     * @see iCanBeCalledFromCLI::getCliArguments()
+     * @return ServiceParameter[]
+     */
     public function getCliArguments() : array
     {
         return [new ServiceParameter($this, new UxonObject(['name' => 'folder', 'description' => 'Folder to audit; defaults to the current installation.']))];
     }
 
-    /** {@inheritDoc} @see iCanBeCalledFromCLI::getCliOptions() */
+    /**
+     * {@inheritDoc}
+     * 
+     * @see iCanBeCalledFromCLI::getCliOptions()
+     * @return ServiceParameter[]
+     */
     public function getCliOptions() : array
     {
         return [
-            new ServiceParameter($this, new UxonObject(['name' => 'output', 'description' => 'Write findings, hints and scanner status to a JSON file.'])),
-            new ServiceParameter($this, new UxonObject(['name' => 'install', 'description' => 'Install prerequisites for one configured scanner (short or full class name).']))
+            new ServiceParameter($this, new UxonObject([
+                'name' => 'output', 
+                'description' => 'Write findings, hints and scanner status to a JSON file.'
+                ])),
+            new ServiceParameter($this, new UxonObject([
+                'name' => 'install', 
+                'description' => 'Install prerequisites for one configured scanner (short or full class name).'
+                ]))
         ];
     }
 
-    /** {@inheritDoc} @see AbstractAction::isTriggerWidgetRequired() */
+    /**
+     * {@inheritDoc}
+     * 
+     * @see AbstractAction::isTriggerWidgetRequired()
+     * @return bool|null
+     */
     public function isTriggerWidgetRequired() : ?bool
     {
         return false;

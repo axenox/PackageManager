@@ -111,21 +111,55 @@ disabled; a missing issuer certificate fails the scan with a configuration hint.
 
 ## Findings
 
+Internally scanners and the action exchange immutable `FindingInterface` objects,
+implemented by [Finding](../Audit/Finding.php). Named getters expose every finding
+property. Each raw finding represents one advisory for exactly one package from one
+scanner. `getSourceId()` retains the scanner-native advisory ID, while `is()`
+compares all scalar evidence fields. Findings have no generated internal IDs;
+object references and evidence comparison suffice for internal processing.
+Raw findings do not merge or define a reporting order. Consumers can group them
+according to their own needs.
+
+[MergedFinding](../Audit/MergedFinding.php) also implements `FindingInterface` and
+owns aggregation strategies. Its constructor accepts only a nonempty group of
+findings for the same package and type, without an ID argument. Nested aggregates
+are flattened and equal evidence is omitted. `getMergedFindings()` returns the
+original `FindingInterface` instances, preserving scanner-specific associations
+without mutating them. The highest severity wins; distinct nonempty evidence
+values are joined with `; `. The first finding supplies the title and public ID.
+Individual getters can be overridden to implement different aggregation strategies.
+
+Arrays are used only at external boundaries: scanner API payloads and serialized
+output. The `Audit` action owns the result column schema, selects the result
+metaobject and creates the DataSheet. CLI, DataSheet and JSON output group findings
+by type, case-insensitive public ID and exact package name across scanners.
+Different packages always produce separate rows, so mitigation remains per-package.
+The action's `groupFindings()` helper creates a `MergedFinding` for every group;
+`toDataSheetRows()` serializes their getters and sorts the output. The serializer
+also accepts raw findings, without implementing merging logic itself. The action
+generates package-specific output IDs; removing internal finding IDs does not
+change those output IDs.
+
 Every result finding has `LEVEL`, `ID`, `PUBLIC_ID`, `NAME`, `TYPE`, `PACKAGE`,
 `DETAILS_URL`, `SOURCE` and `SOURCE_LEVEL`. Scanner-provided CVEs are normalized
-to uppercase, used as public identifiers and retained in `DETECTIONS`.
+to uppercase and used as public identifiers. Original CVEs remain accessible
+through each raw finding's `getCve()` getter.
 The npm bulk API does not supply CVEs; it supplies numeric IDs and advisory URLs.
 `PUBLIC_ID` stores the recognizable identifier: CVE when available, otherwise a GHSA
 extracted from the details URL, otherwise the scanner's ID. An explicitly supplied
 `PUBLIC_ID` is retained. EOL entries normally leave this value blank.
-CLI tables show this field in a `PUBLIC ID` column, not the internal `ID`.
+CLI tables show this field in a `PUBLIC ID` column, not the generated output `ID`.
 GHSA extraction uses existing URLs and does not fetch linked pages or add API requests.
 Full URLs and source-native levels are omitted from the table. The modeled output uses
 `PUBLIC_ID` instead of a separate `CVE` column. `ID` is a generated, deterministic
 64-character SHA-256 identifier,
-available alongside `PUBLIC_ID` in DataSheet and JSON results. It stays unchanged across
-scans of the same advisory, regardless of severity, package list or scanner order.
-Original scanner IDs are preserved inside `DETECTIONS` rather than overwritten there.
+available alongside `PUBLIC_ID` in DataSheet and JSON results. The action generates
+it from the output grouping key during row serialization. For merged findings,
+the key uses the first original rather than combined scanner-native IDs. It stays
+unchanged for the same advisory and package regardless of severity or scanner order.
+Different packages have different output IDs even when they share an advisory.
+Original scanner IDs remain accessible through `getMergedFindings()` and each
+original's `getSourceId()` getter, independently of the group's output ID.
 Internal levels
 are `critical`, `high`, `medium`, `low`; moderate becomes medium, informational
 becomes low, and unknown severity conservatively becomes high. The original level
@@ -133,14 +167,18 @@ is retained. `VulnerabilityLevelDataType` is a model-compatible static enum.
 
 Additional fields preserve useful scanner data: `DESCRIPTION`, `REMEDIATION`,
 `VERSIONS_AFFECTED`, `VERSION_INSTALLED`, and `VERSION_FIXED`. Unavailable values
-are empty strings. `DETECTIONS` contains JSON with each original package/source
-finding, retaining associations when several packages share an advisory.
+are empty strings. DataSheet and JSON output contain these 14 documented columns;
+the former `DETECTIONS` column and modeled attribute have been removed. Consumers
+that need original scanner evidence in PHP use `getMergedFindings()` instead.
+Scanners can disagree about severity, fixed versions, affected ranges or recommendations;
+those associations remain available on the originals, but are not exported as nested JSON.
 
-Rows are deduplicated by case-insensitive `PUBLIC_ID` and finding type, falling back
-to the scanner ID, then package and title when no identifier exists. The internal
-`ID` is generated from that same identity. The most severe level wins; affected packages, sources and
-other evidence are combined. Different IDs for the same underlying advisory cannot
-be matched without an explicit shared identifier. npm scoped packages use Composer's
+Rows are deduplicated by case-insensitive `PUBLIC_ID`, finding type and package.
+When a public ID is unavailable, grouping falls back to the native scanner ID,
+then title, within that scanner's namespace. The most severe level wins; sources
+and other evidence are combined, but package names are never combined.
+Different IDs for the same underlying advisory cannot be matched without an
+explicit shared identifier. npm scoped packages use Composer's
 `npm-asset/scope--package` notation. Trivy's OS package names remain native names.
 
 By default findings use the modeled object `axenox.PackageManager.AUDIT_ADVISORY`,
@@ -152,8 +190,25 @@ must define all documented columns. The action itself does not write findings to
 
 Implement `Interfaces/AuditScannerInterface.php` and accept `WorkbenchInterface`
 in the constructor, or extend `Audit/AbstractAuditScanner.php`. Implement `supports`,
-`audit`, `install`, and `getHints`. `audit` returns normalized rows with the eight
-required string fields; optional evidence fields should also be strings.
+`audit`, `install`, and `getHints`. `audit` must return `FindingInterface[]`, not row
+arrays. Composer execution and version checks belong to `ComposerAuditScanner`,
+their only consumer, rather than the generic base. npm and Trivy scanners do not
+inherit these methods. Construct `Finding` with the native ID, name, type, package, source and
+source-native severity; optional string arguments hold URLs, CVE, description,
+remediation and version evidence, plus an explicit public identifier when needed.
+Severity normalization and public-identity resolution belong to the finding.
+Each scanner owns a protected `createFinding()` method that maps its decoded native
+response directly to the `Finding` constructor. Composer uses `advisoryId`, `link`
+and `affectedVersions`; npm uses registry IDs, `overview`, `vulnerable_versions`
+and `patched_versions`; Trivy uses `VulnerabilityID`, `PkgName`, `InstalledVersion`
+and `FixedVersion`. Their methods document the native response shapes and need not
+share a signature. There is no intermediate advisory array schema or shared
+`finding()` helper in `AbstractAuditScanner`.
+Ignored Composer advisories append policy notes while being mapped, and npm CVEs
+are supplied as separate arguments rather than injected into response arrays.
+Lifecycle findings are constructed directly from abandoned-package or OS metadata.
+Custom scanners should own their native-response mapping and return the typed
+contract; arrays are not accepted as internal findings.
 Register the class in `AUDIT.SCANNERS`. Missing prerequisites return installation
 hints, while actual scanner failures must throw. Use
 `CliCommandRunner::runCliCommandIntoArray($exec, $arguments, $cwd, $acceptedExitCodes, $timeout, $envVars)`
