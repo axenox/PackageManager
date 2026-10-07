@@ -163,12 +163,16 @@ path as the first argument. Clean temporary artifacts in `finally` blocks.
 
 ## Validation
 
-Run deterministic parsing, deduplication, cleanup and command-runner regression checks:
+Run the PHPUnit unit and integration suites from the installation root:
 
 ```console
-php vendor/axenox/packagemanager/Tests/AuditTest.php
+php vendor/bin/phpunit -c vendor/axenox/packagemanager/phpunit.xml.dist
 vendor/bin/action axenox.PackageManager:Audit --help
 ```
 
-These checks do not install tools or contact advisory services. Verify live scans
-and explicit tool installation separately in the intended build-server environment.
+Use `--testsuite unit` for parsing, deduplication, mocked scanner I/O and synchronous
+action checks, or `--testsuite integration` for real local PHP subprocess checks.
+Both suites use real Workbench instances where needed, without database access.
+They do not install tools or contact advisory services. See [test conventions](../Tests/PHPUnit/README.md)
+for setup and focused execution. Verify live scans and explicit tool installation
+separately in the intended build-server environment.
