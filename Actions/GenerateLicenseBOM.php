@@ -19,14 +19,15 @@ use axenox\PackageManager\Common\LicenseBOM\MarkdownBOM;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
 use axenox\PackageManager\Common\LicenseBOM\JsonBOM;
+use axenox\PackageManager\Common\LicenseBOM\CycloneDxBOM;
 use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\DataTypes\StringDataType;
 
 /**
- * Generates a global license list for the software included in an installation.
+ * Generates a global bill of materials (BOM) for the software included in an installation.
  * 
  * Combines resolved Composer dependencies with bundled software registered in installed apps'
- * includes.json files, collects available license texts, and exports Markdown and JSON documents.
+ * `includes.json` files, collects available license texts, and exports Markdown, JSON and CycloneDX SBOM documents.
  * Use save_to_files to configure output destinations and formats. Generation reports missing license
  * information and texts so the documents can be reviewed before distribution.
  * 
@@ -41,9 +42,12 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
     
     const FORMAT_JSON = 'json';
     
+    const FORMAT_CDX = 'cdx';
+    
     private $saveTo = [
         "vendor/Licenses.md" => "markdown", 
-        "vendor/licenses.json" => "json"
+        "vendor/licenses.json" => "json", 
+        "vendor/SBOM.cdx.json" => "cdx"
     ];
 
     /**
@@ -119,6 +123,10 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
                 case self::FORMAT_JSON:
                     $markdownBOM = new JsonBOM($bigBOM);
                     $markdownBOM->saveJSON($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
+                    break;
+                case self::FORMAT_CDX:
+                    $cycloneDxBOM = new CycloneDxBOM($bigBOM);
+                    $cycloneDxBOM->saveJSON($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
                     break;
                 default:
                     throw new ActionConfigurationError($this, 'Invalid license BOM export format "' . $format . '"!');
@@ -211,12 +219,15 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
     /**
      * List of file paths relative to the installation folder and corresponding formats
      * 
+    * Supported formats are `markdown`, `json` and `cdx` (CycloneDX 1.6 JSON).
+    * Destination directories must already exist. Existing files are replaced.
+    * 
      * @uxon-property save_to_files
-     * @uxon-type object
-     * @uxon-template {"vendor/Licenses.md": "markdown", "vendor/licenses.json": "json"}
-     * @uxon-default {"vendor/Licenses.md": "markdown", "vendor/licenses.json": "json"}
+    * @uxon-type {string => [markdown,json,cdx]}
+    * @uxon-template {"vendor/Licenses.md": "markdown", "vendor/licenses.json": "json", "vendor/sbom.cdx.json": "cdx"}
+    * @uxon-default {"vendor/Licenses.md": "markdown", "vendor/licenses.json": "json", "vendor/sbom.cdx.json": "cdx"}
      * 
-     * @param UxonObject|string[] $value
+    * @param UxonObject|string[] $uxonOrArray
      * @return GenerateLicenseBOM
      */
     public function setSaveToFiles($uxonOrArray) : GenerateLicenseBOM

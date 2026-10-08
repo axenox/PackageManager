@@ -19,12 +19,13 @@ Run the `axenox.PackageManager:GenerateLicenseBOM` action for the installation. 
 vendor/bin/action axenox.PackageManager:GenerateLicenseBOM
 ```
 
-By default, generation writes two files:
+By default, generation writes three files:
 
 | File | Purpose |
 | --- | --- |
 | `vendor/Licenses.md` | A readable document listing packages grouped by the license used, with available license texts. |
 | `vendor/licenses.json` | The combined package information, including all declared licenses and available license references. |
+| `vendor/SBOM.cdx.json` | A CycloneDX 1.6 JSON software bill of materials for standards-based inventory and audit tools. |
 
 Generation replaces existing output files and reports missing license information or texts. Review both the messages and the generated files before publishing them.
 
@@ -34,12 +35,35 @@ To change the destinations, configure the action's `save_to_files` property. Pat
 {
   "save_to_files": {
     "vendor/Licenses.md": "markdown",
-    "vendor/licenses.json": "json"
+    "vendor/licenses.json": "json",
+    "vendor/SBOM.cdx.json": "cdx"
   }
 }
 ```
 
 Regenerate the list whenever dependencies, bundled libraries, or license information change.
+
+### CycloneDX SBOM
+
+The `cdx` exporter uses the same combined and enriched package data as the license documents.
+Each package becomes a library component with a stable `bom-ref`, its full package name, and
+available version, description, repository and homepage references. The document includes a UTC
+generation timestamp. Packages with missing metadata remain in the inventory; missing fields
+are omitted.
+
+Package URLs identify `npm-asset` and `bower-asset` packages using their original ecosystems,
+including scoped npm names. Other `vendor/package` names with Composer's `type` metadata receive
+Composer package URLs. Untyped bundled entries do not receive an ecosystem identifier. Do not
+add Composer `type` metadata to an includes entry unless it represents a Composer package.
+
+The effective license selection follows the rules below and is exported as a named license,
+preserving custom labels and expressions without asserting an unverified SPDX ID. Available
+license text is attached as base64-encoded plain text; license URLs are included as both license
+metadata and external references. The fallback `Other` label is omitted when no license is known.
+
+This is a flat package inventory, not a dependency graph or a vulnerability report. It does not
+invent dependency edges, checksums, suppliers or a root application component. The source and
+completeness limitations of license generation apply equally to the SBOM.
 
 ## Register Bundled Software
 
@@ -137,6 +161,6 @@ A source repository URL alone does not supply a license text. Downloading remote
 2. Check package names and versions against the software actually delivered.
 3. Review explicit license selections, especially packages with multiple declared licenses.
 4. Confirm that the readable document contains the expected license texts and copyright notices. A reference URL or a clean generation report does not prove that the text is included.
-5. Resolve missing-information warnings with the app developer and confirm that both output files were written successfully.
+5. Resolve missing-information warnings with the app developer and confirm that all configured output files were written successfully.
 
 The generated list covers resolved production dependencies from `composer.lock` and includes manifests at the root of installed apps under `vendor`. Development dependencies, the installation's root package, and unregistered or externally stored components are not automatically included. Consider these boundaries when preparing the license documentation for a release.
