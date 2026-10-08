@@ -2,7 +2,7 @@
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
-use axenox\PackageManager\Common\LicenseBOM\CycloneDxBOM;
+use axenox\PackageManager\Common\LicenseBOM\Format\CycloneDxBOM;
 use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
 use exface\Core\Exceptions\RuntimeException;
 use PHPUnit\Framework\TestCase;

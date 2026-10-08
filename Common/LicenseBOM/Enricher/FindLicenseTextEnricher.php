@@ -1,6 +1,7 @@
 <?php
-namespace axenox\PackageManager\Common\LicenseBOM;
+namespace axenox\PackageManager\Common\LicenseBOM\Enricher;
 
+use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use exface\Core\DataTypes\FilePathDataType;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 

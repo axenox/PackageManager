@@ -29,23 +29,74 @@ By default, generation writes three files:
 
 Generation replaces existing output files and reports missing license information or texts. Review both the messages and the generated files before publishing them.
 
-To change the destinations, configure the action's `save_to_files` property. Paths are relative to the installation directory; destination directories must already exist.
+To change the installation-wide defaults, configure PackageManager's `SBOM.files` option.
+To override those defaults for one action, configure its `save_to_files` property using the
+same file map. An action map replaces the defaults rather than extending them; an empty map
+disables file output. Paths are relative to the installation directory; destination directories
+must already exist.
 
 ```json
 {
   "save_to_files": {
-    "vendor/Licenses.md": "markdown",
-    "vendor/licenses.json": "json",
-    "vendor/SBOM.cdx.json": "cdx"
+    "vendor/Licenses.md": {
+      "class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\MarkdownBOM"
+    },
+    "vendor/licenses.json": {
+      "class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\JsonBOM"
+    },
+    "vendor/SBOM.cdx.json": {
+      "class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\CycloneDxBOM"
+    }
   }
 }
 ```
 
+Each file configuration requires an exporter `class`. Other properties are imported as UXON
+configuration into that exporter after removing `class`. Unknown properties are rejected.
+The JSON exporter supports the `format` option described below. Custom exporters must implement
+`LicenseBOMExporterInterface`, accept the combined BOM in their constructor, and provide
+`saveToFile()`. Use Core's `iCanBeConvertedToUxonTrait` to support configuration through setters.
+PHP class namespaces start with `axenox`, not the filesystem directory `vendor`.
+
+The old string format values (`markdown`, `json`, `cdx`) must be replaced with class configurations.
 Regenerate the list whenever dependencies, bundled libraries, or license information change.
+
+### JSON Export Format
+
+`JsonBOM` accepts `format: full` (the default) or `format: minimal`. Full exports preserve all
+combined package metadata. Minimal exports keep the same `packages` array but retain only each
+package's `name` and its `version` when present. License declarations, selected licenses, license
+texts, descriptions, source references, dependency requirements and other metadata are omitted.
+Exporting does not change the combined inventory or other exporters' output.
+
+Use this configuration in `save_to_files`, or use its file map as the `SBOM.files` option:
+
+```json
+{
+  "save_to_files": {
+    "vendor/packages.minimal.json": {
+      "class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\JsonBOM",
+      "format": "minimal"
+    }
+  }
+}
+```
+
+Minimal exports retain original names and versions, including Composer's `npm-asset` aliases.
+The npm Audit adapter uses these two fields, translating `npm-asset/scope--package` to
+`@scope/package` and removing a leading `v` from the version when constructing its bulk request.
+
+[OSV version queries](https://google.github.io/osv.dev/post-v1-query/) require a package name,
+ecosystem and version (or a package URL). An adapter can build these queries from minimal package
+identities when it knows their ecosystem, for example `Packagist` for Composer packages or `npm`
+for npm assets. The inventory is not a native OSV request and does not invent ecosystems for
+untyped bundled packages. Such packages require ecosystem information from the calling context.
+Unversioned packages remain listed, but cannot be used for version-based queries until their
+versions are supplied. Minimal JSON is not a substitute for a license document or CycloneDX SBOM.
 
 ### CycloneDX SBOM
 
-The `cdx` exporter uses the same combined and enriched package data as the license documents.
+The `CycloneDxBOM` exporter uses the same combined and enriched package data as the license documents.
 Each package becomes a library component with a stable `bom-ref`, its full package name, and
 available version, description, repository and homepage references. The document includes a UTC
 generation timestamp. Packages with missing metadata remain in the inventory; missing fields

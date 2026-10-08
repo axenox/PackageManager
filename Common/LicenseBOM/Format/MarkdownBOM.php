@@ -1,8 +1,12 @@
 <?php
-namespace axenox\PackageManager\Common\LicenseBOM;
+namespace axenox\PackageManager\Common\LicenseBOM\Format;
 
+use axenox\PackageManager\Common\LicenseBOM\AbstractBOMDecorator;
+use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
+use axenox\PackageManager\Interfaces\LicenseBOMExporterInterface;
+use exface\Core\CommonLogic\Traits\iCanBeConvertedToUxonTrait;
 
 /**
  * This bill-of-material can create a well-readable markdown file listing its packages and their licenses
@@ -10,9 +14,21 @@ use axenox\PackageManager\Interfaces\LicenseBOMInterface;
  * @author Thomas Ressel
  *
  */
-class MarkdownBOM extends AbstractBOMDecorator
+class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInterface
 {
+    use iCanBeConvertedToUxonTrait;
+
     private $licenseArray = [];
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see LicenseBOMExporterInterface::saveToFile()
+     */
+    public function saveToFile(string $filePath) : LicenseBOMInterface
+    {
+        return $this->saveMarkdown($filePath);
+    }
     
     /**
      * Saves markdown generated in method 'toMarkdown'

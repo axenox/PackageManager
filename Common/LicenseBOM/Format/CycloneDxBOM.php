@@ -1,8 +1,11 @@
 <?php
-namespace axenox\PackageManager\Common\LicenseBOM;
+namespace axenox\PackageManager\Common\LicenseBOM\Format;
 
+use axenox\PackageManager\Common\LicenseBOM\AbstractBOMDecorator;
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
+use axenox\PackageManager\Interfaces\LicenseBOMExporterInterface;
+use exface\Core\CommonLogic\Traits\iCanBeConvertedToUxonTrait;
 use exface\Core\Exceptions\RuntimeException;
 
 /**
@@ -14,8 +17,20 @@ use exface\Core\Exceptions\RuntimeException;
  * See https://cyclonedx.org for the CycloneDX specification. 
  * See also the JSON schema: https://cyclonedx.org/schema/bom-1.6.schema.json
  */
-class CycloneDxBOM extends AbstractBOMDecorator
+class CycloneDxBOM extends AbstractBOMDecorator implements LicenseBOMExporterInterface
 {
+    use iCanBeConvertedToUxonTrait;
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see LicenseBOMExporterInterface::saveToFile()
+     */
+    public function saveToFile(string $filePath) : LicenseBOMInterface
+    {
+        return $this->saveJSON($filePath);
+    }
+
     /**
      * Saves the current package inventory as a CycloneDX JSON document.
      * 

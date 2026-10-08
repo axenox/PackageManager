@@ -9,18 +9,16 @@ use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
-use axenox\PackageManager\Common\LicenseBOM\FindLicenseTextEnricher;
-use axenox\PackageManager\Common\LicenseBOM\FindLicenseGithubEnricher;
-use axenox\PackageManager\Common\LicenseBOM\FindLicenseSPDXEnricher;
+use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseTextEnricher;
+use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseGithubEnricher;
+use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseSPDXEnricher;
 use axenox\PackageManager\Common\LicenseBOM\ComposerBOM;
-use axenox\PackageManager\Common\LicenseBOM\FindLicenseFileEnricher;
+use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseFileEnricher;
 use axenox\PackageManager\Common\LicenseBOM\IncludesBOM;
-use axenox\PackageManager\Common\LicenseBOM\MarkdownBOM;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
-use axenox\PackageManager\Common\LicenseBOM\JsonBOM;
-use axenox\PackageManager\Common\LicenseBOM\CycloneDxBOM;
-use exface\Core\DataTypes\FilePathDataType;
+use axenox\PackageManager\Interfaces\LicenseBOMInterface;
+use axenox\PackageManager\Interfaces\LicenseBOMExporterInterface;
 use exface\Core\DataTypes\StringDataType;
 
 /**
@@ -38,17 +36,7 @@ use exface\Core\DataTypes\StringDataType;
  */
 class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledFromCLI
 {
-    const FORMAT_MARKDOWN = 'markdown';
-    
-    const FORMAT_JSON = 'json';
-    
-    const FORMAT_CDX = 'cdx';
-    
-    private $saveTo = [
-        "vendor/Licenses.md" => "markdown", 
-        "vendor/licenses.json" => "json", 
-        "vendor/SBOM.cdx.json" => "cdx"
-    ];
+    private $saveToFiles = null;
 
     /**
      * 
@@ -112,25 +100,11 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
             yield "  - " . StringDataType::substringAfter($include, $vendorPath . '/') .  PHP_EOL;
         }
 
-        // save complete markdown as file
-        foreach ($this->getSaveTo() as $path => $format) {
-            yield '  Saving ' . $format . ' to ' . $path . PHP_EOL;
-            switch (strtolower($format)) {
-                case self::FORMAT_MARKDOWN:
-                    $markdownBOM = new MarkdownBOM($bigBOM);
-                    $markdownBOM->saveMarkdown($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
-                    break;
-                case self::FORMAT_JSON:
-                    $markdownBOM = new JsonBOM($bigBOM);
-                    $markdownBOM->saveJSON($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
-                    break;
-                case self::FORMAT_CDX:
-                    $cycloneDxBOM = new CycloneDxBOM($bigBOM);
-                    $cycloneDxBOM->saveJSON($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
-                    break;
-                default:
-                    throw new ActionConfigurationError($this, 'Invalid license BOM export format "' . $format . '"!');
-            }
+        foreach ($this->getSaveTo() as $path => $configuration) {
+            $uxon = $configuration instanceof UxonObject ? $configuration->copy() : new UxonObject($configuration);
+            $exporter = $this->createExporter($bigBOM, $uxon);
+            yield '  Saving ' . get_class($exporter) . ' to ' . $path . PHP_EOL;
+            $exporter->saveToFile($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
         }
         
         // Show packages without license as a list
@@ -208,31 +182,58 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
     }
     
     /**
+     * Returns action-specific destinations or the installation's SBOM.files defaults.
      * 
-     * @return string[]
+     * @return array<string,array<string,mixed>>
      */
     protected function getSaveTo() : array
     {
-        return $this->saveTo;
+        if ($this->saveToFiles !== null) {
+            return $this->saveToFiles;
+        }
+        $files = $this->getApp()->getConfig()->getOption('SBOM.files');
+        return $files instanceof UxonObject ? $files->toArray() : $files;
     }
-    
+
     /**
-     * List of file paths relative to the installation folder and corresponding formats
+     * Creates an exporter and imports its configuration without the class selector.
      * 
-    * Supported formats are `markdown`, `json` and `cdx` (CycloneDX 1.6 JSON).
-    * Destination directories must already exist. Existing files are replaced.
-    * 
+     * @param LicenseBOMInterface $bom
+     * @param UxonObject $uxon
+     * @return LicenseBOMExporterInterface
+     */
+    protected function createExporter(LicenseBOMInterface $bom, UxonObject $uxon) : LicenseBOMExporterInterface
+    {
+        $class = $uxon->getProperty('class');
+        if (!is_string($class) || !is_subclass_of($class, LicenseBOMExporterInterface::class)) {
+            throw new ActionConfigurationError($this, 'License BOM exporter class must implement ' . LicenseBOMExporterInterface::class . '.');
+        }
+        $exporter = new $class($bom);
+        $uxon = $uxon->copy();
+        $uxon->unsetProperty('class');
+        $exporter->importUxonObject($uxon);
+        return $exporter;
+    }
+
+    /**
+     * Define output paths and the exporter configuration for each file.
+     * 
+     * Paths are relative to the installation folder. Each configuration requires a `class`
+     * selecting the exporter; remaining properties configure that exporter.
+     * Defaults come from the PackageManager `SBOM.files` configuration option.
+     * An explicit map replaces these defaults; an empty map disables file output.
+     * Destination directories must already exist. Existing files are replaced.
+     * 
      * @uxon-property save_to_files
-    * @uxon-type {string => [markdown,json,cdx]}
-    * @uxon-template {"vendor/Licenses.md": "markdown", "vendor/licenses.json": "json", "vendor/sbom.cdx.json": "cdx"}
-    * @uxon-default {"vendor/Licenses.md": "markdown", "vendor/licenses.json": "json", "vendor/sbom.cdx.json": "cdx"}
+     * @uxon-type {string => object}
+    * @uxon-template {"vendor/Licenses.md": {"class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\MarkdownBOM"}}
      * 
-    * @param UxonObject|string[] $uxonOrArray
+     * @param UxonObject|array<string,array<string,mixed>> $uxonOrArray
      * @return GenerateLicenseBOM
      */
     public function setSaveToFiles($uxonOrArray) : GenerateLicenseBOM
     {
-        $this->saveTo = $uxonOrArray instanceof UxonObject ? $uxonOrArray->toArray() : $uxonOrArray;
+        $this->saveToFiles = $uxonOrArray instanceof UxonObject ? $uxonOrArray->toArray() : $uxonOrArray;
         return $this;
     }
 }

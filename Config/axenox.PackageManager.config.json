@@ -1,5 +1,16 @@
 {
 	"FACADES.PACKAGIST.URL": "",
+	"SBOM.files": {
+		"vendor/Licenses.md": {
+			"class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\MarkdownBOM"
+		},
+		"vendor/licenses.json": {
+			"class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\JsonBOM"
+		},
+		"vendor/SBOM.cdx.json": {
+			"class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\CycloneDxBOM"
+		}
+	},
 	"AUDIT.SCANNERS": [
 		"axenox\\PackageManager\\Audit\\ComposerAuditScanner",
 		"axenox\\PackageManager\\Audit\\ComposerNpmAuditScanner",
