@@ -1,12 +1,24 @@
 param(
-    [string]$RepoPath = "C:\temp\cleanup.git",
-    [string]$ReplacementFile = "C:\temp\replacements.txt",
-    [string]$GitHubRepository = "ExFace/Core",
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$GitHubRepository,
+    [string]$RepoPath = "cleanup.git",
     [int]$PullRequestNumber = 0
 )
 
 $ErrorActionPreference = "Stop"
-Set-Location $RepoPath
+$temporaryDirectory = (Get-Location).Path
+$ReplacementFile = Join-Path $temporaryDirectory "replacements.txt"
+
+if (-not (Test-Path -LiteralPath $ReplacementFile -PathType Leaf)) {
+    throw "Required replacements.txt not found in $temporaryDirectory."
+}
+
+if (-not [System.IO.Path]::IsPathRooted($RepoPath)) {
+    $RepoPath = Join-Path $temporaryDirectory $RepoPath
+}
+
+Set-Location -LiteralPath $RepoPath
 
 function Assert-LastCommand {
     param([string]$Action)
@@ -86,10 +98,6 @@ function Get-ReplacementHistoryMatches {
         git log $Revision "-S$searchValue" --oneline
         Assert-LastCommand "Checking rewritten history"
     }
-}
-
-if (-not (Test-Path -LiteralPath $ReplacementFile -PathType Leaf)) {
-    throw "Replacement file not found: $ReplacementFile"
 }
 
 $replacementSearchValues = @(Get-ReplacementSearchValues -Path $ReplacementFile)
