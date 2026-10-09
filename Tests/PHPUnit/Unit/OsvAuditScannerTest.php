@@ -134,7 +134,13 @@ class OsvAuditScannerTest extends AuditTestCase
                 'source' => ['type' => 'git', 'reference' => str_repeat('a', 40)]]
         ]]);
         $this->responses->append(new Response(200, [], '{"results":[{},{}]}'));
-        self::assertSame([], $this->scanner->audit($this->task));
+        $findings = $this->scanner->audit($this->task);
+        self::assertCount(1, $findings);
+        self::assertSame('unscannable', $findings[0]->getType());
+        self::assertSame(100, $findings[0]->getLevel());
+        self::assertSame('unknown/library', $findings[0]->getPackage());
+        self::assertSame('1.0.0', $findings[0]->getVersionInstalled());
+        self::assertSame('', $findings[0]->getPublicId());
         $queries = json_decode((string) $this->requests[0]['request']->getBody(), true)['queries'];
         self::assertSame(['commit' => str_repeat('a', 40)], $queries[1]);
         self::assertCount(1, $this->scanner->getHints());
@@ -270,7 +276,15 @@ class OsvAuditScannerTest extends AuditTestCase
     {
         $this->setArtifact('sbom', ['packages' => [['name' => 'unknown/library', 'version' => 'dev-main']]]);
         self::assertTrue($this->scanner->supports($this->task));
-        self::assertSame([], $this->scanner->audit($this->task));
+        $findings = $this->scanner->audit($this->task);
+        self::assertCount(1, $findings);
+        self::assertSame('unscannable', $findings[0]->getType());
+        self::assertSame(100, $findings[0]->getLevel());
+        self::assertSame('osv', $findings[0]->getSource());
+        self::assertSame('', $findings[0]->getPublicId());
+        self::assertSame('dev-main', $findings[0]->getVersionInstalled());
+        self::assertStringContainsString('supported package identity', $findings[0]->getRemediation());
+        self::assertCount(1, $this->scanner->audit($this->task));
         self::assertCount(1, $this->scanner->getHints());
         self::assertCount(0, $this->requests);
     }

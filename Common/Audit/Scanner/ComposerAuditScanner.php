@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use axenox\PackageManager\Actions\Audit;
+use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Exceptions\CliRuntimeException;
@@ -138,7 +139,7 @@ class ComposerAuditScanner extends AbstractAuditScanner
             $findings[] = new Finding(
                 'abandoned:' . $package,
                 'Abandoned package',
-                FindingInterface::TYPE_EOL,
+                AdvisoryTypeDataType::EOL,
                 $package,
                 'composer',
                 'unknown',
@@ -174,7 +175,7 @@ class ComposerAuditScanner extends AbstractAuditScanner
         return new Finding(
             (string) ($advisory['cve'] ?? $advisory['advisoryId'] ?? ''),
             (string) ($advisory['title'] ?? 'Known vulnerability'),
-            FindingInterface::TYPE_VULNERABILITY,
+            AdvisoryTypeDataType::VULNERABILITY,
             $package,
             'composer',
             (string) ($advisory['severity'] ?? 'unknown'),

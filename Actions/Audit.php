@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\Common\Audit\MergedFinding;
+use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
@@ -174,7 +175,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
             $scannerHints = $scanner->getHints();
             $hints = array_merge($hints, $scannerHints);
             $status[$name] = $scannerHints === [] ? 'completed' : 'skipped';
-            $messages[] = $scannerName . ': ' . $status[$name] . ' (' . count($scannerFindings) . ' findings).';
+            $messages[] = $scannerName . ': ' . count($scannerFindings) . ' findings.';
             foreach (array_unique($scannerHints) as $hint) {
                 $messages[] = $hint;
             }
@@ -415,7 +416,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
      * Formats the sorted result DataSheet as a compact console table.
      * 
      * Public advisory identifiers are shown instead of internal hashes.
-     * Numeric levels use the datatype's translated names without changing result rows.
+    * Levels and advisory types use translated names without changing result rows.
      * Full URLs and source-native severity labels are omitted.
      * 
      * @param DataSheetInterface $sheet
@@ -434,9 +435,12 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         foreach ($sheet->getRows() as $findingRow) {
             $row = [];
             foreach (['LEVEL', 'PUBLIC_ID', 'NAME', 'TYPE', 'PACKAGE', 'SOURCE'] as $column) {
-                $value = $column === 'LEVEL'
-                    ? VulnerabilityLevelDataType::getLabelOfValueStatic($sheet->getWorkbench(), $findingRow[$column])
-                    : $findingRow[$column];
+                $value = $findingRow[$column];
+                if ($column === 'LEVEL') {
+                    $value = VulnerabilityLevelDataType::getLabelOfValueStatic($sheet->getWorkbench(), $value) ?? $value;
+                } elseif ($column === 'TYPE') {
+                    $value = AdvisoryTypeDataType::getLabelOfValueStatic($sheet->getWorkbench(), $value) ?? $value;
+                }
                 $row[] = \Symfony\Component\Console\Formatter\OutputFormatter::escape(preg_replace('/[\x00-\x1f\x7f]/', ' ', $value));
             }
             $table->addRow($row);

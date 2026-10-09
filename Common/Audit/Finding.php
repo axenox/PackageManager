@@ -1,6 +1,7 @@
 <?php
 namespace axenox\PackageManager\Common\Audit;
 
+use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Exceptions\InvalidArgumentException;
@@ -68,7 +69,7 @@ class Finding implements FindingInterface
         string $versionFixed = '',
         string $publicId = ''
     ) {
-        if (! in_array($type, [self::TYPE_VULNERABILITY, self::TYPE_EOL], true)) {
+        if (! in_array($type, AdvisoryTypeDataType::getValuesStatic(), true)) {
             throw new InvalidArgumentException('Unsupported audit finding type: ' . $type);
         }
         $this->sourceId = $sourceId;
@@ -213,13 +214,13 @@ class Finding implements FindingInterface
      * Resolves the public identifier without fetching advisory pages.
      * 
      * CVEs take precedence over linked GHSA identifiers and native IDs.
-     * EOL findings have no automatically resolved public identifier.
+     * EOL and unscannable findings have no automatically resolved public identifier.
      * 
      * @return string
      */
     private function resolvePublicId() : string
     {
-        if ($this->type === self::TYPE_EOL) {
+        if ($this->type === AdvisoryTypeDataType::EOL || $this->type === AdvisoryTypeDataType::UNSCANNABLE) {
             return '';
         }
         if ($this->cve !== '') {

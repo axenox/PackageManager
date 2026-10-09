@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use axenox\PackageManager\Actions\Audit;
+use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\DataTypes\ServerSoftwareDataType;
 use exface\Core\Exceptions\RuntimeException;
@@ -193,7 +194,7 @@ class TrivySBOMScanner extends AbstractAuditScanner
             $findings[] = new Finding(
                 'EOL:' . $package,
                 'Operating system is end of life',
-                FindingInterface::TYPE_EOL,
+                AdvisoryTypeDataType::EOL,
                 $package,
                 'trivy',
                 'high',
@@ -227,7 +228,7 @@ class TrivySBOMScanner extends AbstractAuditScanner
         return new Finding(
             (string) $vulnerability['VulnerabilityID'],
             (string) ($vulnerability['Title'] ?? $vulnerability['VulnerabilityID']),
-            FindingInterface::TYPE_VULNERABILITY,
+            AdvisoryTypeDataType::VULNERABILITY,
             $package,
             'trivy',
             (string) ($vulnerability['Severity'] ?? 'unknown'),

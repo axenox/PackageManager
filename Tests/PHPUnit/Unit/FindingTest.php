@@ -2,8 +2,10 @@
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
 use axenox\PackageManager\Common\Audit\Finding;
+use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;
+use exface\Core\Exceptions\DataTypes\DataTypeCastingError;
 use exface\Core\Exceptions\InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
@@ -14,6 +16,37 @@ use PHPUnit\Framework\TestCase;
  */
 class FindingTest extends TestCase
 {
+    /**
+     * Advisory enum casting preserves canonical values and legacy constant aliases.
+     * 
+     * @return void
+     */
+    public function testAdvisoryTypesPreserveStoredValues() : void
+    {
+        self::assertSame(['vulnerability', 'EOL', 'unscannable'], AdvisoryTypeDataType::getValuesStatic());
+        self::assertSame(AdvisoryTypeDataType::VULNERABILITY, FindingInterface::TYPE_VULNERABILITY);
+        self::assertSame(AdvisoryTypeDataType::EOL, FindingInterface::TYPE_EOL);
+        self::assertSame(AdvisoryTypeDataType::UNSCANNABLE, FindingInterface::TYPE_UNSCANNABLE);
+        foreach (AdvisoryTypeDataType::getValuesStatic() as $type) {
+            self::assertSame($type, AdvisoryTypeDataType::cast(' ' . strtoupper($type) . ' '));
+            $finding = new Finding('', 'Advisory', $type, 'package', 'scanner', 'low');
+            self::assertSame($type, $finding->getType());
+        }
+        self::assertNull(AdvisoryTypeDataType::cast(''));
+        self::assertNull(AdvisoryTypeDataType::cast(null));
+    }
+
+    /**
+     * Unknown advisory types cannot be cast to a supported enum value.
+     * 
+     * @return void
+     */
+    public function testAdvisoryTypeCastingRejectsUnsupportedValues() : void
+    {
+        $this->expectException(DataTypeCastingError::class);
+        AdvisoryTypeDataType::cast('unsupported');
+    }
+
     /**
      * Shared classifiers recognize whole advisory IDs rather than URLs or prefixes.
      * 

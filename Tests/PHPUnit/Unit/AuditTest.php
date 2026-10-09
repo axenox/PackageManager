@@ -7,6 +7,7 @@ use axenox\PackageManager\Common\Audit\Scanner\ComposerNpmAuditScanner;
 use axenox\PackageManager\Common\Audit\Scanner\TrivySBOMScanner;
 use axenox\PackageManager\Common\Audit\Finding;
 use axenox\PackageManager\Common\Audit\MergedFinding;
+use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
@@ -212,6 +213,39 @@ class AuditTest extends AuditTestCase
         }
         self::assertSame($rows, $sheet->getRows());
         self::assertSame([400, 300, 200, 100], array_column($sheet->getRows(), 'LEVEL'));
+    }
+
+    /**
+     * Advisory labels follow the locale without changing stored types or row identities.
+     * 
+     * @return void
+     */
+    public function testAdvisoryTypeLabelsAndCliKeepStoredValues() : void
+    {
+        $type = DataTypeFactory::createFromPrototype($this->workbench, AdvisoryTypeDataType::class);
+        self::assertInstanceOf(AdvisoryTypeDataType::class, $type);
+        $findings = [];
+        foreach (AdvisoryTypeDataType::getValuesStatic() as $value) {
+            $findings[] = new Finding('', 'Advisory', $value, 'package', 'scanner', 'low');
+        }
+        $sheet = $this->resultSheet($findings);
+        $rows = $sheet->getRows();
+        self::assertEqualsCanonicalizing(AdvisoryTypeDataType::getValuesStatic(), array_column($rows, 'TYPE'));
+        foreach ([
+            'en' => ['vulnerability' => 'Vulnerability', 'EOL' => 'End of life', 'unscannable' => 'Unscannable'],
+            'de' => ['vulnerability' => 'Sicherheitsluecke', 'EOL' => 'Supportende', 'unscannable' => 'Nicht pruefbar']
+        ] as $locale => $labels) {
+            $this->setReportLocale($locale);
+            self::assertSame($labels, AdvisoryTypeDataType::getLabelsStatic($this->workbench));
+            self::assertSame($labels, $type->getLabels());
+            $table = $this->invokeProtected($this->action, 'table', [$sheet]);
+            foreach ($labels as $value => $label) {
+                self::assertSame($label, AdvisoryTypeDataType::getLabelOfValueStatic($this->workbench, $value));
+                self::assertMatchesRegularExpression('/\|\s*' . preg_quote($label, '/') . '\s*\|/', $table);
+            }
+            self::assertNull(AdvisoryTypeDataType::getLabelOfValueStatic($this->workbench, 'unsupported'));
+            self::assertSame($rows, $sheet->getRows());
+        }
     }
 
     /** Internal identities must be unique and stable regardless of scanner execution order. */
@@ -480,7 +514,7 @@ class AuditTest extends AuditTestCase
         $task = new GenericTask($this->workbench);
         $task->setParameter('composer_lock', ['packages' => [['name' => 'npm-asset/fixture', 'version' => '1.0.0']]]);
         $scanner->client = new Client(['handler' => HandlerStack::create(new MockHandler([
-            new Response(200, [], '{"fixture":[{"id":123,"title":"Fixture","severity":"high"}]}')
+            new Response(200, [], '{"fixture":[{"id":123,"title":"Fixture","severity":"high"},{"id":123,"title":"Fixture","severity":"high"}]}')
         ]))]);
         $action->scanner = $scanner;
         $transaction = (new \ReflectionClass(DataTransaction::class))->newInstanceWithoutConstructor();
@@ -496,10 +530,12 @@ class AuditTest extends AuditTestCase
         self::assertSame(1, $scanner->auditCalls);
         $message = $result->getMessage();
         self::assertStringContainsString('FixtureNpmScanner: checking input...', $message);
-        self::assertStringContainsString('FixtureNpmScanner: completed (1 findings).', $message);
+        self::assertStringContainsString('FixtureNpmScanner: 2 findings.', $message);
+        self::assertStringNotContainsString('FixtureNpmScanner: completed', $message);
+        self::assertStringNotContainsString('FixtureNpmScanner: skipped', $message);
         self::assertSame($action->sheet, $result->getData());
         self::assertSame($message, $result->getMessage());
-        self::assertCount(1, $action->findings);
+        self::assertCount(2, $action->findings);
         self::assertInstanceOf(FindingInterface::class, $action->findings[0]);
         self::assertSame(1, $scanner->auditCalls);
     }
@@ -513,7 +549,8 @@ class AuditTest extends AuditTestCase
     {
         $sheet = $this->resultSheet([
             new Finding('Z', 'First', 'vulnerability', 'z-package', 'npm', 'high'),
-            new Finding('A', 'Second', 'vulnerability', 'a-package', 'osv', 'high')
+            new Finding('A', 'Second', 'vulnerability', 'a-package', 'osv', 'high'),
+            new Finding('', 'Package cannot be scanned', FindingInterface::TYPE_UNSCANNABLE, 'unknown/package', 'osv', 'low')
         ]);
         $folder = $this->temporaryFolder();
         $path = $folder . '/audit.json';
@@ -522,7 +559,12 @@ class AuditTest extends AuditTestCase
         $this->invokeProtected($this->action, 'saveOutput', [$path, $sheet, $hints, $scanners]);
         $output = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame($sheet->getRows(), $output['findings']);
-        self::assertSame(['a-package', 'z-package'], array_column($output['findings'], 'PACKAGE'));
+        self::assertSame(['a-package', 'z-package', 'unknown/package'], array_column($output['findings'], 'PACKAGE'));
+        self::assertSame('unscannable', $output['findings'][2]['TYPE']);
+        self::assertSame(100, $output['findings'][2]['LEVEL']);
+        self::assertSame('', $output['findings'][2]['PUBLIC_ID']);
+        $table = $this->invokeProtected($this->action, 'table', [$sheet]);
+        self::assertMatchesRegularExpression('/\|\s*Low\s*\|\s*\|\s*Package cannot be scanned\s*\|\s*Unscannable\s*\|/', $table);
         self::assertSame($hints, $output['hints']);
         self::assertSame($scanners, $output['scanners']);
         $emptySheet = $this->resultSheet([]);

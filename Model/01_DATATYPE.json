@@ -86,7 +86,7 @@
         {
             "_EXPORT_SUMMARY": "Vulnerability level",
             "CREATED_ON": "2026-10-07 12:01:15",
-            "MODIFIED_ON": "2026-10-07 12:01:15",
+            "MODIFIED_ON": "2026-10-09 15:47:12",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f19fca08d274a69fca025041000001",
@@ -95,9 +95,41 @@
             "PROTOTYPE": "axenox/packagemanager/DataTypes/VulnerabilityLevelDataType.php",
             "CONFIG_UXON": null,
             "VALIDATION_ERROR": null,
-            "DEFAULT_DISPLAY_UXON": null,
-            "DEFAULT_EDITOR_UXON": null,
+            "DEFAULT_DISPLAY_UXON": {
+                "widget_type": "ColorIndicator",
+                "attribute_alias": "",
+                "fill": true,
+                "color_only": false,
+                "color_scale": {
+                    "100": "khaki",
+                    "200": "sandybrown",
+                    "300": "salmon",
+                    "400": "tomato"
+                }
+            },
+            "DEFAULT_EDITOR_UXON": {
+                "widget_type": "InputSelect"
+            },
             "ALIAS": "VulnerabilityLevel",
+            "SHORT_DESCRIPTION": ""
+        },
+        {
+            "_EXPORT_SUMMARY": "Advisory type",
+            "CREATED_ON": "2026-10-09 15:41:17",
+            "MODIFIED_ON": "2026-10-09 15:41:17",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f1b5fa1a633d06b5fa025041000001",
+            "APP": "0x31380000000000000000000000000000",
+            "NAME": "Advisory type",
+            "PROTOTYPE": "axenox/packagemanager/DataTypes/AdvisoryTypeDataType.php",
+            "CONFIG_UXON": null,
+            "VALIDATION_ERROR": null,
+            "DEFAULT_DISPLAY_UXON": null,
+            "DEFAULT_EDITOR_UXON": {
+                "widget_type": "InputSelect"
+            },
+            "ALIAS": "AdvisoryType",
             "SHORT_DESCRIPTION": ""
         }
     ],

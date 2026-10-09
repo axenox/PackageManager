@@ -3,6 +3,7 @@ namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use axenox\PackageManager\Actions\Audit;
 use axenox\PackageManager\Common\Audit\Finding;
+use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Exceptions\RuntimeException;
@@ -15,7 +16,7 @@ use GuzzleHttp\Client;
  * Supply composer_lock, sbom, or both. SBOM input accepts the combined package JSON,
  * CycloneDX and SPDX JSON. Explicit artifacts never fall back to the installation.
  * No Composer, Node.js or scanner executable is needed. Unqueryable components
- * produce coverage hints rather than being silently treated as safe.
+ * produce low-level unscannable findings and coverage hints, not a clean bill of health.
  * 
  * Select this prototype in a named AUDIT.SCANNERS or action scanners entry:
  * `{"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\OsvAuditScanner"}`.
@@ -23,6 +24,11 @@ use GuzzleHttp\Client;
  */
 class OsvAuditScanner extends AbstractAuditScanner
 {
+    /**
+     * @var FindingInterface[]
+     */
+    private array $unscannableFindings = [];
+
     /**
      * Collects all supplied artifacts or the selected folder's saved inventory.
      * 
@@ -64,6 +70,7 @@ class OsvAuditScanner extends AbstractAuditScanner
     protected function dependencies(TaskInterface $task) : array
     {
         $this->hints = [];
+        $this->unscannableFindings = [];
         $dependencies = [];
         foreach ($this->artifacts($task) as $artifact) {
             $data = $artifact['data'];
@@ -181,7 +188,12 @@ class OsvAuditScanner extends AbstractAuditScanner
             && ($package['source']['type'] ?? '') === 'git') {
             $query = ['commit' => $package['source']['reference']];
         } else {
-            $this->hints[] = 'OsvAuditScanner: cannot query ' . $name . ' (' . $version . '): supply a supported package identity and exact version or Git commit.';
+            $hint = 'OsvAuditScanner: cannot query ' . $name . ' (' . $version . '): supply a supported package identity and exact version or Git commit.';
+            $this->hints[] = $hint;
+            $this->unscannableFindings[] = new Finding(
+                '', 'Package cannot be scanned', AdvisoryTypeDataType::UNSCANNABLE, $name, 'osv', 'low',
+                '', '', $hint, 'Supply a supported package identity and exact version or Git commit.', '', $version
+            );
             return;
         }
         $key = json_encode([$query, $name], JSON_THROW_ON_ERROR);
@@ -212,7 +224,7 @@ class OsvAuditScanner extends AbstractAuditScanner
     public function audit(TaskInterface $task) : array
     {
         $dependencies = $this->dependencies($task);
-        $findings = [];
+        $findings = $this->unscannableFindings;
         $records = [];
         $detections = [];
         $client = $this->createHttpClient();
@@ -335,7 +347,7 @@ class OsvAuditScanner extends AbstractAuditScanner
             $findings[] = new Finding(
                 $advisory['id'],
                 (string) ($advisory['summary'] ?? $advisory['id']),
-                FindingInterface::TYPE_VULNERABILITY,
+                AdvisoryTypeDataType::VULNERABILITY,
                 $dependency['name'],
                 'osv',
                 (string) $severity,

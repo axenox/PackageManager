@@ -1,6 +1,8 @@
 <?php
 namespace axenox\PackageManager\Interfaces;
 
+use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
+
 /**
  * Defines an immutable advisory for one package.
  * 
@@ -10,8 +12,13 @@ namespace axenox\PackageManager\Interfaces;
  */
 interface FindingInterface
 {
-    const TYPE_VULNERABILITY = 'vulnerability';
-    const TYPE_EOL = 'EOL';
+    const TYPE_VULNERABILITY = AdvisoryTypeDataType::VULNERABILITY;
+    const TYPE_EOL = AdvisoryTypeDataType::EOL;
+
+    /**
+     * Identifies a package that could not be checked for vulnerabilities.
+     */
+    const TYPE_UNSCANNABLE = AdvisoryTypeDataType::UNSCANNABLE;
 
     /**
      * Returns scanner-native identifiers.
@@ -44,9 +51,9 @@ interface FindingInterface
     /**
      * Returns the finding type.
      * 
-     * Vulnerabilities and end-of-life findings use separate advisory identities.
+     * Vulnerability, end-of-life and unscannable findings use separate identities.
      * 
-     * @return string Either TYPE_VULNERABILITY or TYPE_EOL.
+    * @return string One of the AdvisoryTypeDataType values.
      */
     public function getType() : string;
 

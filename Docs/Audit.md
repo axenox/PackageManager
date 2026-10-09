@@ -35,6 +35,10 @@ by map key, short class name or fully qualified class name. For example, the def
 Trivy configuration accepts `--install=trivy` or `--install=TrivySBOMScanner`.
 After explicit installation, the action runs the audit normally.
 
+Each scanner summary prints its returned finding count, for example
+`OsvAuditScanner: 32 findings.` This count includes duplicates; unique and duplicate
+findings are not counted separately. Coverage hints follow on separate lines.
+
 No scanners are installed automatically during a normal audit. Missing prerequisites
 produce visible hints; malformed artifacts, command failures and network failures
 raise errors rather than reporting a clean scan. JSON exports have `findings`,
@@ -185,8 +189,13 @@ including scoped names. PURLs take precedence. Untyped bundled package names are
 not assumed to exist on Packagist: supply a PURL or an explicit `ecosystem` field.
 Git source metadata with a 40-character commit reference can identify development
 revisions. Missing versions, unknown bundled identities, and generic/Bower PURLs
-without usable Git metadata produce coverage hints. The current action labels
-scans with coverage hints as `skipped`, even if some packages produced findings.
+without usable Git metadata produce coverage hints and findings with type
+`unscannable`, level `100` (low), and an empty `PUBLIC_ID`. These findings retain
+the package name, installed version, coverage warning and suggested remediation.
+They represent an inability to scan, not a confirmed vulnerability or proof of safety.
+They are included in scanner finding counts, the CLI table, DataSheet and JSON output.
+The JSON scanner status remains `skipped` for scans with coverage hints, even when
+some packages produced findings; CLI summaries display only the finding count.
 An empty response is not proof that OSV covers every package or advisory source.
 
 The scanner POSTs chunks of up to 100 queries to
@@ -222,7 +231,8 @@ disabled; a missing issuer certificate fails the scan with a configuration hint.
 Internally scanners and the action exchange immutable `FindingInterface` objects,
 implemented by [Finding](../Common/Audit/Finding.php). Named getters expose every finding
 property. Each raw finding represents one advisory for exactly one package from one
-scanner. `getSourceId()` retains the scanner-native advisory ID, while `is()`
+scanner, or an `unscannable` coverage gap for that package. `getSourceId()` retains
+the scanner-native advisory ID when available, while `is()`
 compares all scalar evidence fields. Findings have no generated internal IDs;
 object references and evidence comparison suffice for internal processing.
 Raw findings do not merge or define a reporting order. Consumers can group them
@@ -291,6 +301,16 @@ descending, then package ascending, with public identifier and internal ID as
 stable tie-breakers. The CLI formatter and JSON exporter receive that same sorted
 DataSheet rather than findings or row arrays. They extract rows only for rendering
 and serialization, so all three outputs share one grouping and sorting pass.
+
+`AdvisoryTypeDataType` is a string-based static enum shared by findings and all
+scanners. Its constants are `VULNERABILITY` (`vulnerability`), `EOL` (`EOL`) and
+`UNSCANNABLE` (`unscannable`). DataSheet and JSON output retain these stored `TYPE`
+values; CLI tables display translated labels (`Vulnerability`, `End of life` and
+`Unscannable` in English). Like vulnerability levels, the enum provides
+`getLabelsStatic($workbench)` and `getLabelOfValueStatic($workbench, $value)`;
+unknown values have no label. Enum casting normalizes case and surrounding
+whitespace and rejects unsupported values. Findings require canonical values.
+The existing `FindingInterface::TYPE_*` constants remain compatibility aliases.
 
 Additional fields preserve useful scanner data: `DESCRIPTION`, `REMEDIATION`,
 `VERSIONS_AFFECTED`, `VERSION_INSTALLED`, and `VERSION_FIXED`. Unavailable values

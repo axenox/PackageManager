@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use axenox\PackageManager\Actions\Audit;
+use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Exceptions\RuntimeException;
 use GuzzleHttp\Client;
@@ -163,7 +164,7 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
         return new Finding(
             $cve !== '' ? $cve : (isset($advisory['id']) ? 'npm:' . $advisory['id'] : ''),
             (string) ($advisory['title'] ?? 'Known vulnerability'),
-            FindingInterface::TYPE_VULNERABILITY,
+            AdvisoryTypeDataType::VULNERABILITY,
             $package,
             'npm',
             (string) ($advisory['severity'] ?? 'unknown'),
