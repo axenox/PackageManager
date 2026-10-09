@@ -335,7 +335,7 @@
         {
             "_EXPORT_SUMMARY": "Type [TYPE]",
             "CREATED_ON": "2026-10-07 10:59:21",
-            "MODIFIED_ON": "2026-10-07 11:04:57",
+            "MODIFIED_ON": "2026-10-09 15:52:15",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f1887e632f7768887e025041000001",
@@ -360,7 +360,7 @@
             "ICON_SET": "",
             "ABBREVIATION": "",
             "ALIAS": "TYPE",
-            "DATATYPE": "0x30000000000000000000000000000000",
+            "DATATYPE": "0x11f1b5fa1a633d06b5fa025041000001",
             "DATA_ADDRESS": "",
             "OBJECT": "0x11f1b4420ed0c6a4b442025041000001",
             "FORMATTER": "",
