@@ -138,18 +138,89 @@ git log --oneline upstream/BASE_BRANCH..refs/heads/FEATURE_BRANCH
 
 Only the feature branch's actual changes should appear.
 
-Run the companion `recover-prs.ps1` script from the designated temporary directory.
-It requires `replacements.txt` in that directory and checks that the file exists
-before accessing the mirror. Specify the GitHub repository as `OWNER/REPOSITORY`;
-the mirror defaults to `cleanup.git` relative to the calling directory.
+## Turn pull requests into branches
+
+Use the companion [recover-prs.ps1](recover-prs.ps1) script to preserve an open
+GitHub PR as a branch in the main repository after a text-replacement history
+rewrite. This is useful when the PR's fork still has old ancestry and its changes
+need to be recovered onto comparable history. The script processes one open PR
+per run; it does not rewrite the fork or update the original PR.
+
+### Prerequisites
+
+- Use a cleaned bare mirror containing the rewritten PR base branch and an
+  `origin` remote pointing to the GitHub repository whose PRs you are recovering.
+- Make Git and `git filter-repo` available on `PATH`. The script invokes
+  `git filter-repo`, not `python -m git_filter_repo`.
+- Configure Git commit identity and credentials with permission to push branches
+  to `origin`. PR discovery uses the GitHub API without authentication; private
+  repositories are not supported by the script as written, and API rate limits apply.
+- Put the same `replacements.txt` used for the original rewrite in the calling
+  directory. It is required even when reusing an earlier recovery attempt.
+- Keep a backup of the mirror. The script filters history in that mirror again
+  when importing a PR, and a confirmed rebuild deletes the earlier local attempt.
+
+Run the script from the designated temporary directory. It checks for
+`replacements.txt` there before accessing the mirror. Copy the companion script
+there first, or invoke it by its full path while keeping that working directory.
 
 ```powershell
 Set-Location C:\temp
 .\recover-prs.ps1 -GitHubRepository "ExFace/Core" -PullRequestNumber 948
 ```
 
-Use `-RepoPath "another-cleanup.git"` for a differently named mirror, or supply an
-absolute path. Omit `-PullRequestNumber` to select an open PR interactively.
+### Command-line options
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `-GitHubRepository "OWNER/REPOSITORY"` | Required | GitHub repository whose open PRs are listed. Use an owner/repository pair, not a URL; this must correspond to the mirror's `origin`. |
+| `-RepoPath "cleanup.git"` | `cleanup.git` | Path to the bare mirror. Relative paths are resolved against the calling directory; absolute paths are also accepted. |
+| `-PullRequestNumber 948` | `0` | Select one open PR by number. Omit it or pass `0` to list open PRs and enter a number interactively. Closed and merged PRs cannot be selected. |
+
+For a differently named mirror and interactive PR selection:
+
+```powershell
+Set-Location C:\temp
+.\recover-prs.ps1 -GitHubRepository "ExFace/Core" -RepoPath "another-cleanup.git"
+```
+
+There are no parameters for a replacement-file path, old text, output branch
+name, processing all PRs, or unattended publishing. Specifying a PR number skips
+only the selection prompt, not the confirmation prompts.
+
+### Recovery and confirmation prompts
+
+The script fetches the selected PR head into `recovered/pr-<number>` and applies
+the text replacements. It finds a commit in the rewritten base history with the
+same tree as a commit on the recovered PR's first-parent history, then replays
+the subsequent non-merge first-parent changes on that matching base commit.
+The result is a single new commit named `Recovered PR #<number>: <title>` on
+`pr/<number>-<title-slug>`. The slug is derived from the title automatically;
+original commit IDs, individual commit messages, and authorship are not preserved.
+Merge commits are excluded, so review the result for missing merge-only changes.
+
+Prompts require the exact uppercase response shown:
+
+| Response | When offered | Effect |
+| --- | --- | --- |
+| `IMPORT` | Before fetching the PR head | Imports the selected PR into the mirror. Any other response cancels. |
+| `FILTER` | After importing | Rewrites history using `replacements.txt`. Any other response cancels, leaving the imported history unfiltered in the mirror. Do not publish it. |
+| `REUSE` | An existing filtered `recovered/pr-<number>` passes the history checks | Reuses that local ref without fetching or filtering again. Any other response proceeds to the import confirmation. |
+| `REBUILD` | An earlier local output branch exists | Discards and rebuilds the local attempt, including forcibly removing its attached worktree if present. Back up any work in that worktree first. |
+| `PUSH` | Recovery is verified, or a completed local output branch is found | Pushes only the recovered output branch to `origin`. Any other response leaves a completed branch local; `REBUILD` is also available for a previously completed attempt. |
+
+If the generated branch already exists on `origin`, the script exits without
+changing it. A remote legacy branch named `archive/pr-<number>` blocks recovery
+until it is renamed or deleted. A completed local legacy branch can be renamed
+automatically to the new naming scheme during recovery.
+
+Review the displayed comparison with the PR base before confirming `PUSH`.
+The script stops if it cannot find a tree-equivalent base commit, cannot apply
+the recovered changes, or detects old replacement values in its history checks.
+It also skips PRs with no eligible non-merge first-parent commits. After publishing,
+review the branch on GitHub, open a replacement PR if needed, and close the old PR.
+
+### Replacement rules and limitations
 
 The script reads all original literal values from `replacements.txt` for history
 verification; no replacement-file or old-text parameter is needed.

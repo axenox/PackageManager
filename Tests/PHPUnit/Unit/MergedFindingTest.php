@@ -33,7 +33,7 @@ class MergedFindingTest extends TestCase
         self::assertSame('First title', $merged->getName());
         self::assertSame('vulnerability', $merged->getType());
         self::assertSame('package', $merged->getPackage());
-        self::assertSame('critical', $merged->getLevel());
+        self::assertSame(400, $merged->getLevel());
         self::assertSame('moderate; critical', $merged->getSourceLevel());
         self::assertSame('npm; trivy', $merged->getSource());
         self::assertSame('https://example.org/first; https://example.org/second', $merged->getDetailsUrl());
@@ -44,7 +44,7 @@ class MergedFindingTest extends TestCase
         self::assertSame('<2; <3', $merged->getVersionsAffected());
         self::assertSame('1', $merged->getVersionInstalled());
         self::assertSame('2; 3', $merged->getVersionFixed());
-        self::assertSame('medium', $first->getLevel());
+        self::assertSame(200, $first->getLevel());
         self::assertSame('2', $first->getVersionFixed());
         $originals = $merged->getMergedFindings();
         array_pop($originals);
@@ -65,8 +65,8 @@ class MergedFindingTest extends TestCase
         $reverse = new MergedFinding([$second, $first]);
         self::assertSame([$first, $second], $merged->getMergedFindings());
         self::assertSame([$second, $first], $reverse->getMergedFindings());
-        self::assertSame('high', $merged->getLevel());
-        self::assertSame('high', $reverse->getLevel());
+        self::assertSame(300, $merged->getLevel());
+        self::assertSame(300, $reverse->getLevel());
         self::assertSame('', $merged->getVersionFixed());
     }
 

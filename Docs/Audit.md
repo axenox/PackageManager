@@ -171,9 +171,15 @@ Different packages have different output IDs even when they share an advisory.
 Original scanner IDs remain accessible through `getMergedFindings()` and each
 original's `getSourceId()` getter, independently of the group's output ID.
 Internal levels
-are `critical`, `high`, `medium`, `low`; moderate becomes medium, informational
-becomes low, and unknown severity conservatively becomes high. The original level
-is retained. `VulnerabilityLevelDataType` is a model-compatible static enum.
+are integers: `100` (low), `200` (medium), `300` (high), `400` (critical).
+Moderate becomes `200`, informational becomes `100`, and unknown severity
+conservatively becomes `300`. The original scanner label is retained in `SOURCE_LEVEL`.
+`VulnerabilityLevelDataType` is an integer-based static enum with translated labels.
+Its static `compare()` method returns -1, 0 or 1 in ascending severity order;
+`isHigher()` and `isLower()` provide strict comparisons of normalized levels.
+DataSheet and JSON outputs retain numeric `LEVEL` values; the CLI table displays
+`low`, `medium`, `high` and `critical`. Audit sorts highest severity first, using
+public identifier, package and internal ID to break ties.
 
 Additional fields preserve useful scanner data: `DESCRIPTION`, `REMEDIATION`,
 `VERSIONS_AFFECTED`, `VERSION_INSTALLED`, and `VERSION_FIXED`. Unavailable values

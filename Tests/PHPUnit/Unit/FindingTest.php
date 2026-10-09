@@ -28,7 +28,7 @@ class FindingTest extends TestCase
         self::assertSame($first->getPublicId(), $second->getPublicId());
         self::assertFalse($first->is($otherScanner));
         self::assertFalse($first->is($otherPackage));
-        self::assertSame('high', $first->getLevel());
+        self::assertSame(300, $first->getLevel());
         self::assertSame('npm-asset/first', $first->getPackage());
         self::assertSame('npm', $first->getSource());
         self::assertTrue($first->is(clone $first));
@@ -59,7 +59,7 @@ class FindingTest extends TestCase
             'https://example.org/advisory', 'cve-2026-0001', 'Description', 'Upgrade', '<2', '1', '2', 'custom-public-id');
         self::assertSame('custom-public-id', $finding->getPublicId());
         self::assertSame('CVE-2026-0001', $finding->getCve());
-        self::assertSame('medium', $finding->getLevel());
+        self::assertSame(200, $finding->getLevel());
         self::assertSame('Description', $finding->getDescription());
         self::assertSame('Upgrade', $finding->getRemediation());
         self::assertSame('<2', $finding->getVersionsAffected());
@@ -97,7 +97,7 @@ class FindingTest extends TestCase
         self::assertFalse($first->is($second));
         self::assertSame('', $first->getSourceId());
         self::assertSame('', $first->getPublicId());
-        self::assertSame('high', $first->getLevel());
+        self::assertSame(300, $first->getLevel());
         $eol = new Finding('EOL:os', 'Unsupported OS', 'EOL', 'os', 'trivy', 'high', '', 'CVE-2026-0001');
         self::assertSame('', $eol->getPublicId());
         self::assertSame('EOL:os', $eol->getSourceId());

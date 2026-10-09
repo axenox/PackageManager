@@ -26,11 +26,11 @@ interface FindingInterface
     /**
      * Returns the normalized severity.
      * 
-     * Supported levels are critical, high, medium and low.
+    * Supported levels are 100 (low), 200 (medium), 300 (high) and 400 (critical).
      * 
-     * @return string
+    * @return int
      */
-    public function getLevel() : string;
+      public function getLevel() : int;
 
     /**
      * Returns the advisory title.

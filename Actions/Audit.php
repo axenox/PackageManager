@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\Audit\MergedFinding;
+use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\CommonLogic\AbstractAction;
@@ -46,8 +47,6 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         'DESCRIPTION', 'REMEDIATION', 'VERSIONS_AFFECTED', 'VERSION_INSTALLED', 'VERSION_FIXED', 'PUBLIC_ID'
     ];
 
-    private const LEVEL_RANK = ['critical' => 0, 'high' => 1, 'medium' => 2, 'low' => 3];
-    
     private ?string $composerLockAttributeAlias = null;
 
     /**
@@ -252,7 +251,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
      * Other consumers remain free to group the original findings differently.
      * 
      * @param FindingInterface[] $findings
-     * @return array<int, array<string, string>>
+    * @return array<int, array<string, string|int>>
      */
     protected function toDataSheetRows(array $findings) : array
     {
@@ -260,8 +259,9 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
             return $this->toDataSheetRow($finding);
         }, $this->groupFindings($findings));
         usort($rows, static function (array $left, array $right) {
-            return [self::LEVEL_RANK[$left['LEVEL']], $left['PUBLIC_ID'], $left['PACKAGE'], $left['ID']]
-                <=> [self::LEVEL_RANK[$right['LEVEL']], $right['PUBLIC_ID'], $right['PACKAGE'], $right['ID']];
+            return VulnerabilityLevelDataType::compare($right['LEVEL'], $left['LEVEL'])
+                ?: ([$left['PUBLIC_ID'], $left['PACKAGE'], $left['ID']]
+                    <=> [$right['PUBLIC_ID'], $right['PACKAGE'], $right['ID']]);
         });
         return $rows;
     }
@@ -295,7 +295,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
     * the output ID from its grouping key; findings have no internal IDs.
      * 
      * @param FindingInterface $finding
-     * @return array<string, string>
+    * @return array<string, string|int>
      */
     protected function toDataSheetRow(FindingInterface $finding) : array
     {
@@ -321,6 +321,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
      * Formats findings as a compact console table.
      * 
      * Public advisory identifiers are shown instead of internal hashes.
+    * Numeric levels are displayed as severity names without changing result rows.
      * Full URLs and source-native severity labels are omitted.
      * 
      * @param FindingInterface[] $findings
@@ -340,7 +341,9 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         foreach ($rows as $findingRow) {
             $row = [];
             foreach (['LEVEL', 'PUBLIC_ID', 'NAME', 'TYPE', 'PACKAGE', 'SOURCE'] as $column) {
-                $value = $findingRow[$column];
+                $value = $column === 'LEVEL'
+                    ? strtolower(VulnerabilityLevelDataType::findConstant($findingRow[$column]))
+                    : $findingRow[$column];
                 $row[] = \Symfony\Component\Console\Formatter\OutputFormatter::escape(preg_replace('/[\x00-\x1f\x7f]/', ' ', $value));
             }
             $table->addRow($row);
@@ -356,7 +359,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
      * a failed write from leaving partial JSON at the requested destination.
      * 
      * @param string $path
-     * @param array{findings: array<int, array<string, string>>, hints: string[], scanners: array<string, string>} $result
+    * @param array{findings: array<int, array<string, string|int>>, hints: string[], scanners: array<string, string>} $result
      * @return void
      */
     protected function saveOutput(string $path, array $result) : void

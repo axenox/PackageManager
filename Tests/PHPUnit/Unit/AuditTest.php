@@ -47,7 +47,7 @@ class AuditTest extends AuditTestCase
     {
         $findings = $this->invokeProtected($this->action, 'toDataSheetRows', [array_merge($this->npmRows, $this->trivyRows, [$this->npmRows[0]])]);
         self::assertCount(3, $findings);
-        self::assertSame('critical', $findings[0]['LEVEL']);
+        self::assertSame(400, $findings[0]['LEVEL']);
         self::assertSame('npm; trivy', $findings[0]['SOURCE']);
         self::assertArrayNotHasKey('CVE', $findings[0]);
         self::assertSame('CVE-2026-0001', $findings[0]['PUBLIC_ID']);
@@ -55,6 +55,47 @@ class AuditTest extends AuditTestCase
         $groups = $this->invokeProtected($this->action, 'groupFindings', [array_merge($this->npmRows, $this->trivyRows, [$this->npmRows[0]])]);
         self::assertCount(2, $groups[0]->getMergedFindings());
         self::assertSame('CVE-2026-0001', $groups[0]->getMergedFindings()[0]->getCve());
+    }
+
+    /**
+     * Numeric levels sort by descending severity before public identifier ties.
+     * 
+     * @return void
+     */
+    public function testNumericLevelsSortDescendingWithStableTies() : void
+    {
+        $findings = [];
+        foreach (['low', 'medium', 'high', 'critical'] as $level) {
+            foreach (['B', 'A'] as $identifier) {
+                $findings[] = new Finding($level . $identifier, 'Advisory', 'vulnerability', 'package', 'npm', $level);
+            }
+        }
+        $rows = $this->invokeProtected($this->action, 'toDataSheetRows', [$findings]);
+        self::assertSame([400, 400, 300, 300, 200, 200, 100, 100], array_column($rows, 'LEVEL'));
+        self::assertSame(['criticalA', 'criticalB', 'highA', 'highB', 'mediumA', 'mediumB', 'lowA', 'lowB'], array_column($rows, 'PUBLIC_ID'));
+        self::assertSame($rows, $this->invokeProtected($this->action, 'toDataSheetRows', [array_reverse($findings)]));
+    }
+
+    /**
+     * CLI reports display severity names while technical result rows stay numeric.
+     * 
+     * @return void
+     */
+    public function testCliDisplaysSeverityNamesInsteadOfNumbers() : void
+    {
+        $findings = [];
+        foreach (['low', 'medium', 'high', 'critical'] as $level) {
+            $findings[] = new Finding($level, 'Advisory', 'vulnerability', 'package', 'npm', $level);
+        }
+        $table = $this->invokeProtected($this->action, 'table', [$findings]);
+        foreach (['low', 'medium', 'high', 'critical'] as $level) {
+            self::assertMatchesRegularExpression('/\|\s*' . $level . '\s*\|/', $table);
+        }
+        foreach ([100, 200, 300, 400] as $level) {
+            self::assertStringNotContainsString((string) $level, $table);
+        }
+        $rows = $this->invokeProtected($this->action, 'toDataSheetRows', [$findings]);
+        self::assertSame([400, 300, 200, 100], array_column($rows, 'LEVEL'));
     }
 
     /** Internal identities must be unique and stable regardless of scanner execution order. */
@@ -114,7 +155,7 @@ class AuditTest extends AuditTestCase
         $table = $this->invokeProtected($this->action, 'table', [[$first, $second]]);
         self::assertSame(1, substr_count($table, $first->getPublicId()));
         self::assertStringContainsString('npm; trivy', $table);
-        self::assertSame('high', $first->getLevel());
+        self::assertSame(300, $first->getLevel());
 
         $nativeFirst = new Finding('native', 'Unsupported', 'EOL', 'package', 'npm', 'high');
         $nativeSecond = new Finding('native', 'Unsupported', 'EOL', 'package', 'trivy', 'high');
@@ -142,7 +183,7 @@ class AuditTest extends AuditTestCase
         self::assertSame($expectedId, $single['ID']);
         self::assertSame($single['ID'], $merged['ID']);
         self::assertSame($merged['ID'], $reverse['ID']);
-        self::assertSame('critical', $merged['LEVEL']);
+        self::assertSame(400, $merged['LEVEL']);
         $finding = new MergedFinding([$first, $second]);
         self::assertSame('native; NATIVE', $finding->getSourceId());
         self::assertSame($merged, $this->invokeProtected($this->action, 'toDataSheetRow', [$finding]));
@@ -178,7 +219,7 @@ class AuditTest extends AuditTestCase
         $single = $this->invokeProtected($this->action, 'toDataSheetRows', [[$first]])[0];
         self::assertSame(Audit::COLUMNS, array_keys($row));
         self::assertSame([
-            'LEVEL' => 'critical',
+            'LEVEL' => 400,
             'ID' => $single['ID'],
             'NAME' => 'Advisory',
             'TYPE' => 'vulnerability',
@@ -197,13 +238,13 @@ class AuditTest extends AuditTestCase
         self::assertCount(14, Audit::COLUMNS);
         $rawRow = $this->invokeProtected($this->action, 'toDataSheetRow', [$first]);
         self::assertSame($single['ID'], $rawRow['ID']);
-        self::assertSame('medium', $rawRow['LEVEL']);
+        self::assertSame(200, $rawRow['LEVEL']);
         self::assertSame(Audit::COLUMNS, array_keys($rawRow));
         $group = $this->invokeProtected($this->action, 'groupFindings', [[$first, $second, $first]])[0];
         self::assertSame([$first, $second], $group->getMergedFindings());
         self::assertSame($row, $this->invokeProtected($this->action, 'toDataSheetRow', [$group]));
         self::assertSame('npm', $first->getSource());
-        self::assertSame('medium', $first->getLevel());
+        self::assertSame(200, $first->getLevel());
     }
 
     /**

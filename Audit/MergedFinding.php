@@ -1,6 +1,7 @@
 <?php
 namespace axenox\PackageManager\Audit;
 
+use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Exceptions\InvalidArgumentException;
 
@@ -13,8 +14,6 @@ use exface\Core\Exceptions\InvalidArgumentException;
  */
 class MergedFinding implements FindingInterface
 {
-    private const LEVEL_RANK = ['critical' => 0, 'high' => 1, 'medium' => 2, 'low' => 3];
-
     /**
      * @var FindingInterface[]
      */
@@ -91,13 +90,13 @@ class MergedFinding implements FindingInterface
      * {@inheritDoc}
      * 
      * @see FindingInterface::getLevel()
-     * @return string
+     * @return int
      */
-    public function getLevel() : string
+    public function getLevel() : int
     {
         $level = $this->findings[0]->getLevel();
         foreach ($this->findings as $finding) {
-            if (self::LEVEL_RANK[$finding->getLevel()] < self::LEVEL_RANK[$level]) {
+            if (VulnerabilityLevelDataType::isHigher($finding->getLevel(), $level)) {
                 $level = $finding->getLevel();
             }
         }

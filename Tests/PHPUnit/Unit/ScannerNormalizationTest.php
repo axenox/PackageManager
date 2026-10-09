@@ -72,7 +72,7 @@ class ScannerNormalizationTest extends AuditTestCase
         self::assertCount(2, $rows);
         self::assertSame('npm-asset/scope--package', $rows[0]->getPackage());
         self::assertSame(['CVE-2026-0001', 'CVE-2026-0002'], array_map(static function ($finding) { return $finding->getCve(); }, $rows));
-        self::assertSame('medium', $rows[0]->getLevel());
+        self::assertSame(200, $rows[0]->getLevel());
         self::assertSame('Upgrade to version 2', $rows[0]->getRemediation());
     }
 
@@ -100,7 +100,7 @@ class ScannerNormalizationTest extends AuditTestCase
         self::assertSame('npm advisory', $finding->getName());
         self::assertSame('npm', $finding->getSource());
         self::assertSame('moderate', $finding->getSourceLevel());
-        self::assertSame('medium', $finding->getLevel());
+        self::assertSame(200, $finding->getLevel());
         self::assertSame('https://example.org/npm', $finding->getDetailsUrl());
         self::assertSame('npm description', $finding->getDescription());
         self::assertSame('Upgrade npm dependency', $finding->getRemediation());
@@ -144,7 +144,7 @@ class ScannerNormalizationTest extends AuditTestCase
     {
         $scanner = new TrivySBOMScanner($this->workbench);
         $rows = $this->invokeProtected($scanner, 'normalize', [$this->trivyResponse()]);
-        self::assertSame('critical', $rows[0]->getLevel());
+        self::assertSame(400, $rows[0]->getLevel());
         self::assertSame('EOL', $rows[1]->getType());
         self::assertSame('CVE-2026-0001', $rows[0]->getCve());
         self::assertSame('', $rows[1]->getCve());
@@ -180,7 +180,7 @@ class ScannerNormalizationTest extends AuditTestCase
         self::assertSame('Trivy advisory', $finding->getName());
         self::assertSame('trivy', $finding->getSource());
         self::assertSame('HIGH', $finding->getSourceLevel());
-        self::assertSame('high', $finding->getLevel());
+        self::assertSame(300, $finding->getLevel());
         self::assertSame('https://example.org/trivy', $finding->getDetailsUrl());
         self::assertSame('Trivy description', $finding->getDescription());
         self::assertSame('Upgrade to 2.0.0', $finding->getRemediation());
@@ -203,6 +203,40 @@ class ScannerNormalizationTest extends AuditTestCase
     /** Unknown severities must not understate risk in the consolidated report. */
     public function testUnknownSeverityDefaultsToHigh() : void
     {
-        self::assertSame('high', VulnerabilityLevelDataType::normalize('unknown'));
+        self::assertSame(300, VulnerabilityLevelDataType::normalize('unknown'));
+    }
+
+    /**
+     * Numeric levels preserve scanner aliases and support ordered comparisons.
+     * 
+     * @return void
+     */
+    public function testNumericSeverityNormalizationAndComparison() : void
+    {
+        foreach (['low' => 100, 'info' => 100, 'informational' => 100, 'negligible' => 100,
+            'medium' => 200, 'moderate' => 200, 'high' => 300, 'critical' => 400] as $label => $level) {
+            self::assertSame($level, VulnerabilityLevelDataType::normalize(' ' . strtoupper($label) . ' '));
+            self::assertSame($level, VulnerabilityLevelDataType::cast((string) $level));
+        }
+        foreach ([100, 200, 300, 400] as $left) {
+            foreach ([100, 200, 300, 400] as $right) {
+                self::assertSame($left <=> $right, VulnerabilityLevelDataType::compare($left, $right));
+                self::assertSame($left > $right, VulnerabilityLevelDataType::isHigher($left, $right));
+                self::assertSame($left < $right, VulnerabilityLevelDataType::isLower($left, $right));
+            }
+        }
+    }
+
+    /**
+    * Numeric enum values retain constant names used by severity translation keys.
+     * 
+     * @return void
+     */
+    public function testNumericSeverityConstantsRetainLabelNames() : void
+    {
+        self::assertSame([400, 300, 200, 100], VulnerabilityLevelDataType::getValuesStatic());
+        foreach ([400 => 'CRITICAL', 300 => 'HIGH', 200 => 'MEDIUM', 100 => 'LOW'] as $level => $name) {
+            self::assertSame($name, VulnerabilityLevelDataType::findConstant($level));
+        }
     }
 }

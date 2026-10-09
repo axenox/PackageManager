@@ -19,7 +19,7 @@ class Finding implements FindingInterface
     private string $package;
     private string $source;
     private string $sourceLevel;
-    private string $level;
+    private int $level;
     private string $detailsUrl;
     private string $cve;
     private string $publicId;
@@ -101,9 +101,9 @@ class Finding implements FindingInterface
      * {@inheritDoc}
      * 
      * @see FindingInterface::getLevel()
-     * @return string
+    * @return int
      */
-    public function getLevel() : string { return $this->level; }
+    public function getLevel() : int { return $this->level; }
 
     /**
      * {@inheritDoc}

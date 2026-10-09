@@ -120,7 +120,7 @@ class ComposerAuditScannerTest extends AuditTestCase
         self::assertSame('', $finding->getCve());
         self::assertSame('composer', $finding->getSource());
         self::assertSame('Ignored advisory', $finding->getName());
-        self::assertSame('medium', $finding->getLevel());
+        self::assertSame(200, $finding->getLevel());
         self::assertSame('https://example.org/composer', $finding->getDetailsUrl());
         self::assertSame('Composer description Ignored by Composer policy: Reviewed exception', $finding->getDescription());
         self::assertSame('<2', $finding->getVersionsAffected());
