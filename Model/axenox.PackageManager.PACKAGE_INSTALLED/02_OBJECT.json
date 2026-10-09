@@ -85,17 +85,17 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Package in composer.lock [axenox.PackageManager.PACKAGE_INSTALLED]",
+            "_EXPORT_SUMMARY": "Package installed [axenox.PackageManager.PACKAGE_INSTALLED]",
             "CREATED_ON": "2016-07-18 21:49:49",
-            "MODIFIED_ON": "2021-06-11 13:37:46",
+            "MODIFIED_ON": "2026-10-08 02:40:40",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e64d20c9789d1a9409c0f8dae36b4f",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
             "COMMENTS": "",
             "DOCS": "",
-            "NAME": "Package in composer.lock",
+            "NAME": "Package installed",
             "INHERIT_DATA_SOURCE_BASE_OBJECT": 1,
             "DATA_SOURCE": "0x11e64d20a1fcb3079409c0f8dae36b4f",
             "APP": "0x31380000000000000000000000000000",
@@ -106,7 +106,7 @@
             },
             "DEFAULT_EDITOR_UXON": null,
             "ALIAS": "PACKAGE_INSTALLED",
-            "DATA_ADDRESS": "composer.lock"
+            "DATA_ADDRESS": "vendor/licenses.json"
         }
     ],
     "totals_rows": [],
