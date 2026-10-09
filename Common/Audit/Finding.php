@@ -1,5 +1,5 @@
 <?php
-namespace axenox\PackageManager\Audit;
+namespace axenox\PackageManager\Common\Audit;
 
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;

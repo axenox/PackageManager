@@ -1,7 +1,7 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
-use axenox\PackageManager\Audit\MergedFinding;
+use axenox\PackageManager\Common\Audit\MergedFinding;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
@@ -28,7 +28,9 @@ use Symfony\Component\Console\Output\BufferedOutput;
 /**
  * Finds vulnerabilities and end-of-life dependencies in installations or saved build artifacts.
  * 
- * Configure scanner classes in AUDIT.SCANNERS. Scanners consume composer_lock and sbom
+ * Configure named scanners in AUDIT.SCANNERS or override them with the scanners property.
+ * Each scanner configuration selects a class and supplies its UXON options.
+ * Scanners consume composer_lock and sbom
  * task parameters. Use composer_lock_attribute_alias to supply a lock from input data.
  * Scans complete before returning a compact findings table and status messages.
  * Findings are available as a DataSheet for subsequent action mappings.
@@ -48,6 +50,8 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
     ];
 
     private ?string $composerLockAttributeAlias = null;
+
+    private ?UxonObject $scannersUxon = null;
 
     /**
      * Validates input and returns completed findings for standard action processing.
@@ -96,13 +100,13 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         $installer = null;
         if ($needInstall !== null) {
             $selected = [];
-            foreach ($scanners as $scanner) {
-                if ($needInstall === get_class($scanner) || $needInstall === (new \ReflectionClass($scanner))->getShortName()) {
+            foreach ($scanners as $key => $scanner) {
+                if ($needInstall === $key || $needInstall === get_class($scanner) || $needInstall === (new \ReflectionClass($scanner))->getShortName()) {
                     $selected[] = $scanner;
                 }
             }
             if (count($selected) !== 1) {
-                throw new ActionInputError($this, 'Install must name exactly one scanner configured in AUDIT.SCANNERS.');
+                throw new ActionInputError($this, 'Install must name exactly one configured audit scanner.');
             }
             $installer = $selected[0];
         }
@@ -122,8 +126,8 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         }
         $findings = [];
         $status = [];
-        foreach ($scanners as $scanner) {
-            $name = get_class($scanner);
+        foreach ($scanners as $key => $scanner) {
+            $name = is_string($key) ? $key : get_class($scanner);
             $scannerName = (new \ReflectionClass($scanner))->getShortName();
             $messages[] = $scannerName . ': checking input...';
             try {
@@ -168,31 +172,58 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
      * Instantiates scanners from administrator-controlled configuration.
      * 
      * Configured classes must implement AuditScannerInterface and be instantiable.
-     * Duplicate class names produce only one scanner instance.
+    * Each named entry creates its own instance and imports all options except class.
+    * An action-specific map replaces the installation defaults, including an empty map.
      * 
-     * @return AuditScannerInterface[]
+    * @return array<string,AuditScannerInterface>
      */
     protected function getScanners() : array
     {
-        $classes = $this->getApp()->getConfig()->getOption('AUDIT.SCANNERS');
-        if ($classes instanceof UxonObject) {
-            $classes = $classes->toArray();
+        $configurations = $this->scannersUxon ?? $this->getApp()->getConfig()->getOption('AUDIT.SCANNERS');
+        if ($configurations instanceof UxonObject) {
+            $configurations = $configurations->toArray();
         }
-        if (! is_array($classes)) {
-            throw new ActionConfigurationError($this, 'AUDIT.SCANNERS must be an array of scanner class names.');
+        if (! is_array($configurations)) {
+            throw new ActionConfigurationError($this, 'Audit scanners must be a named map of scanner configurations.');
         }
         $scanners = [];
-        foreach ($classes as $class) {
+        foreach ($configurations as $name => $configuration) {
+            if (! is_string($name) || $name === '' || (! is_array($configuration) && ! $configuration instanceof UxonObject)) {
+                throw new ActionConfigurationError($this, 'Audit scanners must be a named map of scanner configurations.');
+            }
+            $uxon = $configuration instanceof UxonObject ? $configuration->copy() : new UxonObject($configuration);
+            $class = $uxon->getProperty('class');
             if (! is_string($class) || ! is_subclass_of($class, AuditScannerInterface::class)
                 || ! (new \ReflectionClass($class))->isInstantiable()) {
-                throw new ActionConfigurationError($this, 'Invalid audit scanner class in AUDIT.SCANNERS.');
+                throw new ActionConfigurationError($this, 'Invalid audit scanner class for "' . $name . '".');
             }
-            $class = (new \ReflectionClass($class))->getName();
-            if (! isset($scanners[$class])) {
-                $scanners[$class] = new $class($this->getWorkbench());
-            }
+            $scanner = new $class($this->getWorkbench());
+            $uxon->unsetProperty('class');
+            $scanner->importUxonObject($uxon);
+            $scanners[$name] = $scanner;
         }
-        return array_values($scanners);
+        return $scanners;
+    }
+
+    /**
+     * Configure the named scanners used by this action instead of installation defaults.
+     * 
+     * Each entry requires a class and may include that scanner's configuration options.
+     * Keys identify scanners in status output and can select a scanner for CLI installation.
+     * The map replaces AUDIT.SCANNERS; an empty map disables all scanners.
+     * When omitted, the action uses the installation's AUDIT.SCANNERS option.
+     * 
+     * @uxon-property scanners
+     * @uxon-type object
+     * @uxon-template {"composer": {"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerAuditScanner"}}
+     * 
+     * @param UxonObject|array<string,array<string,mixed>> $uxonOrArray
+     * @return Audit
+     */
+    public function setScanners($uxonOrArray) : Audit
+    {
+        $this->scannersUxon = $uxonOrArray instanceof UxonObject ? $uxonOrArray->copy() : new UxonObject($uxonOrArray);
+        return $this;
     }
 
     /**
@@ -417,7 +448,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
                 ])),
             new ServiceParameter($this, new UxonObject([
                 'name' => 'install', 
-                'description' => 'Install prerequisites for one configured scanner (short or full class name).'
+                'description' => 'Install prerequisites for one configured scanner (map key, short or full class name).'
                 ]))
         ];
     }

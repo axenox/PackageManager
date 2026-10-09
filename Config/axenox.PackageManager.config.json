@@ -11,11 +11,17 @@
 			"class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\CycloneDxBOM"
 		}
 	},
-	"AUDIT.SCANNERS": [
-		"axenox\\PackageManager\\Audit\\ComposerAuditScanner",
-		"axenox\\PackageManager\\Audit\\ComposerNpmAuditScanner",
-		"axenox\\PackageManager\\Audit\\TrivySBOMScanner"
-	],
+	"AUDIT.SCANNERS": {
+		"composer": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerAuditScanner"
+		},
+		"npm": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerNpmAuditScanner"
+		},
+		"trivy": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\TrivySBOMScanner"
+		}
+	},
 	
 	"PAYLOAD.PUBLISHED_DATA_FOLDER_NAME" : ".publishedPackages",
 	"PAYLOAD.INSTALLED_DATA_FOLDER_NAME": ".payloadPackages",

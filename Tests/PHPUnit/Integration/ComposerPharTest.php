@@ -1,7 +1,7 @@
 <?php
 namespace axenox\PackageManager\Tests\PHPUnit\Integration;
 
-use axenox\PackageManager\Audit\ComposerAuditScanner;
+use axenox\PackageManager\Common\Audit\Scanner\ComposerAuditScanner;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use exface\Core\CommonLogic\Tasks\GenericTask;
 use exface\Core\Exceptions\CliRuntimeException;
@@ -57,7 +57,7 @@ PHP;
     #[PreserveGlobalState(false)]
     public function testLockOnlyScanUsesProjectPharAndCliPhpInAnIsolatedFolder() : void
     {
-        define('axenox\\PackageManager\\Audit\\PHP_BINARY', $this->folder . '/httpd.exe');
+        define('axenox\\PackageManager\\Common\\Audit\\Scanner\\PHP_BINARY', $this->folder . '/httpd.exe');
         $rows = $this->scanner->audit($this->task);
         self::assertCount(1, $rows);
         self::assertSame('local-phar', $rows[0]->getSourceId());
@@ -83,7 +83,7 @@ PHP;
     {
         $probe = <<<'PHP'
 require $argv[1];
-$scanner = new \axenox\PackageManager\Audit\ComposerAuditScanner(new \exface\Core\CommonLogic\Workbench());
+$scanner = new \axenox\PackageManager\Common\Audit\Scanner\ComposerAuditScanner(new \exface\Core\CommonLogic\Workbench());
 $method = new \ReflectionMethod($scanner, 'runComposer');
 $method->setAccessible(true);
 echo $method->invoke($scanner, ['--probe-home'], $argv[2])['stdout'];

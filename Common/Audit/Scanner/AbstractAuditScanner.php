@@ -16,6 +16,8 @@ use exface\Core\Exceptions\RuntimeException;
  * Subclasses implement scanner-specific input detection, auditing and installation.
  * The shared helpers resolve task inputs without depending on an action or
  * trigger widget. Engine-specific execution belongs to the concrete scanners.
+ * Scanner options are configured through UXON setters after construction; the
+ * action removes the class selector before importing the remaining properties.
  */
 abstract class AbstractAuditScanner implements AuditScannerInterface
 {

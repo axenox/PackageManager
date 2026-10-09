@@ -1,5 +1,5 @@
 <?php
-namespace axenox\PackageManager\Audit;
+namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\DataTypes\ServerSoftwareDataType;
@@ -8,6 +8,7 @@ use exface\Core\Exceptions\CliRuntimeException;
 use exface\Core\Facades\ConsoleFacade\CliCommandRunner;
 use GuzzleHttp\Client;
 use axenox\PackageManager\Interfaces\FindingInterface;
+use axenox\PackageManager\Common\Audit\Finding;
 
 /**
  * Audits saved CycloneDX or SPDX SBOMs without unpacking build archives.
@@ -15,6 +16,10 @@ use axenox\PackageManager\Interfaces\FindingInterface;
  * Trivy produces vulnerability and operating-system lifecycle findings from
  * folder artifacts or supplied SBOM data. Missing executables produce hints;
  * installation only runs when explicitly requested.
+ * 
+ * Select this prototype in a named AUDIT.SCANNERS or action scanners entry:
+ * `{"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\TrivySBOMScanner"}`.
+ * This scanner currently has no additional UXON options.
  */
 class TrivySBOMScanner extends AbstractAuditScanner
 {

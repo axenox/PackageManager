@@ -1,10 +1,10 @@
 <?php
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
-use axenox\PackageManager\Audit\AbstractAuditScanner;
-use axenox\PackageManager\Audit\ComposerAuditScanner;
-use axenox\PackageManager\Audit\ComposerNpmAuditScanner;
-use axenox\PackageManager\Audit\TrivySBOMScanner;
+use axenox\PackageManager\Common\Audit\Scanner\AbstractAuditScanner;
+use axenox\PackageManager\Common\Audit\Scanner\ComposerAuditScanner;
+use axenox\PackageManager\Common\Audit\Scanner\ComposerNpmAuditScanner;
+use axenox\PackageManager\Common\Audit\Scanner\TrivySBOMScanner;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use axenox\PackageManager\Tests\PHPUnit\Support\FixtureComposerScanner;
 use exface\Core\CommonLogic\Tasks\GenericTask;

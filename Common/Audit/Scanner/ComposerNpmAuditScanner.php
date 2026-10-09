@@ -1,10 +1,11 @@
 <?php
-namespace axenox\PackageManager\Audit;
+namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Exceptions\RuntimeException;
 use GuzzleHttp\Client;
 use axenox\PackageManager\Interfaces\FindingInterface;
+use axenox\PackageManager\Common\Audit\Finding;
 
 /**
  * Audits locked npm-asset dependencies through npm's advisory API.
@@ -12,6 +13,10 @@ use axenox\PackageManager\Interfaces\FindingInterface;
  * Folder scans and archived Composer locks use the same read-only HTTP workflow.
  * Auditing does not install packages or plugins and does not require Composer
  * or Node.js executables.
+ * 
+ * Select this prototype in a named AUDIT.SCANNERS or action scanners entry:
+ * `{"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerNpmAuditScanner"}`.
+ * This scanner currently has no additional UXON options.
  */
 class ComposerNpmAuditScanner extends AbstractAuditScanner
 {

@@ -2,11 +2,14 @@
 namespace axenox\PackageManager\Interfaces;
 
 use exface\Core\Interfaces\Tasks\TaskInterface;
+use exface\Core\Interfaces\iCanBeConvertedToUxon;
 
 /**
  * Allows additional audit engines without changing the audit action.
  * 
  * Implementations receive the workbench through their constructor.
+ * Scanner options are imported as UXON after construction, without the class selector.
+ * Extend AbstractAuditScanner or use iCanBeConvertedToUxonTrait for strict setter-based configuration.
  * Scanners consume task parameters, not input DataSheet rows: composer_lock
  * contains one Composer lock and sbom contains one CycloneDX or SPDX document.
  * Each artifact accepts a JSON string, decoded array or UxonObject. The action
@@ -14,7 +17,7 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
  * build or defaults to the installation. Artifact parameters take precedence
  * over folder and disable folder fallback for all scanners.
  */
-interface AuditScannerInterface
+interface AuditScannerInterface extends iCanBeConvertedToUxon
 {
     /**
      * Determines whether the supplied artifacts or folder can be scanned.

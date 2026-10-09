@@ -2,9 +2,9 @@
 namespace axenox\PackageManager\Tests\PHPUnit\Support;
 
 use axenox\PackageManager\Actions\Audit;
-use axenox\PackageManager\Audit\ComposerAuditScanner;
-use axenox\PackageManager\Audit\ComposerNpmAuditScanner;
-use axenox\PackageManager\Audit\TrivySBOMScanner;
+use axenox\PackageManager\Common\Audit\Scanner\ComposerAuditScanner;
+use axenox\PackageManager\Common\Audit\Scanner\ComposerNpmAuditScanner;
+use axenox\PackageManager\Common\Audit\Scanner\TrivySBOMScanner;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;

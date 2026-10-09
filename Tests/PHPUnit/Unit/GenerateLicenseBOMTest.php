@@ -2,7 +2,7 @@
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
 use axenox\PackageManager\Actions\GenerateLicenseBOM;
-use axenox\PackageManager\Audit\ComposerNpmAuditScanner;
+use axenox\PackageManager\Common\Audit\Scanner\ComposerNpmAuditScanner;
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseFileEnricher;
 use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseGithubEnricher;

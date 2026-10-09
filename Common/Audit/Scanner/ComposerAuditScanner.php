@@ -1,11 +1,12 @@
 <?php
-namespace axenox\PackageManager\Audit;
+namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Exceptions\CliRuntimeException;
 use exface\Core\Facades\ConsoleFacade\CliCommandRunner;
 use axenox\PackageManager\Interfaces\FindingInterface;
+use axenox\PackageManager\Common\Audit\Finding;
 
 /**
  * Audits locked Composer dependencies without requiring the build to be installed.
@@ -13,6 +14,10 @@ use axenox\PackageManager\Interfaces\FindingInterface;
  * Folder scans and archived locks use Composer's advisory results. Lock-only
  * scans run in isolated temporary projects without executing plugins or scripts.
  * Abandoned packages are retained as end-of-life findings.
+ * 
+ * Select this prototype in a named AUDIT.SCANNERS or action scanners entry:
+ * `{"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerAuditScanner"}`.
+ * This scanner currently has no additional UXON options.
  */
 class ComposerAuditScanner extends AbstractAuditScanner
 {

@@ -2,11 +2,11 @@
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
 use axenox\PackageManager\Actions\Audit;
-use axenox\PackageManager\Audit\ComposerAuditScanner;
-use axenox\PackageManager\Audit\ComposerNpmAuditScanner;
-use axenox\PackageManager\Audit\TrivySBOMScanner;
-use axenox\PackageManager\Audit\Finding;
-use axenox\PackageManager\Audit\MergedFinding;
+use axenox\PackageManager\Common\Audit\Scanner\ComposerAuditScanner;
+use axenox\PackageManager\Common\Audit\Scanner\ComposerNpmAuditScanner;
+use axenox\PackageManager\Common\Audit\Scanner\TrivySBOMScanner;
+use axenox\PackageManager\Common\Audit\Finding;
+use axenox\PackageManager\Common\Audit\MergedFinding;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use axenox\PackageManager\Tests\PHPUnit\Support\FixtureAudit;

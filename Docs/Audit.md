@@ -30,14 +30,17 @@ vendor/bin/action axenox.PackageManager:Audit --install=TrivySBOMScanner
 
 Relative folders and output paths resolve against the workbench installation.
 The output directory must exist. `--output` requires a `.json` file and is CLI-only,
-as is `--install`. Installation names must identify exactly one configured scanner.
+as is `--install`. Installation names must identify exactly one configured scanner
+by map key, short class name or fully qualified class name. For example, the default
+Trivy configuration accepts `--install=trivy` or `--install=TrivySBOMScanner`.
 After explicit installation, the action runs the audit normally.
 
 No scanners are installed automatically during a normal audit. Missing prerequisites
 produce visible hints; malformed artifacts, command failures and network failures
 raise errors rather than reporting a clean scan. JSON exports have `findings`,
 `hints`, and `scanners` properties. Scanner status is `completed`, `skipped`, or
-`not applicable`. An empty findings array alone does not prove scan completeness.
+`not applicable`, keyed by the names in the configured scanner map. An empty findings
+array alone does not prove scan completeness.
 Findings do not cause a non-zero action exit code: downstream build policies decide
 which severities block deployment. This action does not register Composer hooks or
 implement Deployer scheduling/database persistence.
@@ -69,9 +72,48 @@ Trivy scans the supplied SBOM and may refresh its local vulnerability database.
 
 ## Scanners
 
-`AUDIT.SCANNERS` is an array of fully qualified PHP class names. Defaults are
-`ComposerAuditScanner`, `ComposerNpmAuditScanner` and `TrivySBOMScanner` in
-`axenox\PackageManager\Audit`.
+`AUDIT.SCANNERS` is a named map of scanner UXON configurations, following the same
+structure as `SBOM.files`. Each entry requires a fully qualified `class`; any other
+properties are imported into that scanner after removing `class`. Unknown properties
+are configuration errors. The defaults are:
+
+```json
+{
+	"AUDIT.SCANNERS": {
+		"composer": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerAuditScanner"
+		},
+		"npm": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerNpmAuditScanner"
+		},
+		"trivy": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\TrivySBOMScanner"
+		}
+	}
+}
+```
+
+The action's `scanners` UXON property accepts the same named map and replaces global
+defaults when supplied. An empty map disables all scanners; omission uses the
+installation's `AUDIT.SCANNERS`. For example, to use only npm auditing:
+
+```json
+{
+	"alias": "axenox.PackageManager.Audit",
+	"scanners": {
+		"npm": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerNpmAuditScanner"
+		}
+	}
+}
+```
+
+Names identify scanner instances in status output. Two named entries selecting the
+same class create independent instances with their own options. Use a map key for
+`--install` when a class name would select more than one instance. Built-in scanners
+currently have no additional options; custom prototypes expose options through UXON
+setters. Existing class-name lists and references to the old `axenox\PackageManager\Audit`
+namespace must be migrated to the named map and `Common\Audit\Scanner` namespace.
 
 Composer requires version 2.7 or newer. A `composer.phar` in the scanned directory
 is preferred and run with a PHP CLI executable resolved by
@@ -122,7 +164,7 @@ disabled; a missing issuer certificate fails the scan with a configuration hint.
 ## Findings
 
 Internally scanners and the action exchange immutable `FindingInterface` objects,
-implemented by [Finding](../Audit/Finding.php). Named getters expose every finding
+implemented by [Finding](../Common/Audit/Finding.php). Named getters expose every finding
 property. Each raw finding represents one advisory for exactly one package from one
 scanner. `getSourceId()` retains the scanner-native advisory ID, while `is()`
 compares all scalar evidence fields. Findings have no generated internal IDs;
@@ -130,7 +172,7 @@ object references and evidence comparison suffice for internal processing.
 Raw findings do not merge or define a reporting order. Consumers can group them
 according to their own needs.
 
-[MergedFinding](../Audit/MergedFinding.php) also implements `FindingInterface` and
+[MergedFinding](../Common/Audit/MergedFinding.php) also implements `FindingInterface` and
 owns aggregation strategies. Its constructor accepts only a nonempty group of
 findings for the same package and type, without an ID argument. Nested aggregates
 are flattened and equal evidence is omitted. `getMergedFindings()` returns the
@@ -205,7 +247,11 @@ must define all documented columns. The action itself does not write findings to
 ## Extensions
 
 Implement `Interfaces/AuditScannerInterface.php` and accept `WorkbenchInterface`
-in the constructor, or extend `Audit/AbstractAuditScanner.php`. Implement `supports`,
+in the constructor, or extend `Common/Audit/Scanner/AbstractAuditScanner.php`. The
+interface also requires Core's `iCanBeConvertedToUxon` contract. Use
+`iCanBeConvertedToUxonTrait` for direct implementations; the shared base already uses it.
+Expose scanner options with annotated UXON setters, which are called after construction.
+Implement `supports`,
 `audit`, `install`, and `getHints`. `audit` must return `FindingInterface[]`, not row
 arrays. Read artifact content from `composer_lock` and `sbom` task parameters and
 leave DataSheet enrichment and context mapping to the action. Composer execution and version checks belong to `ComposerAuditScanner`,
@@ -226,7 +272,10 @@ are supplied as separate arguments rather than injected into response arrays.
 Lifecycle findings are constructed directly from abandoned-package or OS metadata.
 Custom scanners should own their native-response mapping and return the typed
 contract; arrays are not accepted as internal findings.
-Register the class in `AUDIT.SCANNERS`. Missing prerequisites return installation
+Register a named configuration containing `class` and any options in `AUDIT.SCANNERS`
+or in the action's `scanners` property. Scanner prototypes belong in
+`Common/Audit/Scanner`; findings and aggregates belong in `Common/Audit`.
+Missing prerequisites return installation
 hints, while actual scanner failures must throw. Use
 `CliCommandRunner::runCliCommandIntoArray($exec, $arguments, $cwd, $acceptedExitCodes, $timeout, $envVars)`
 for shell-free commands with separate executable and argument values. For PHP scripts,

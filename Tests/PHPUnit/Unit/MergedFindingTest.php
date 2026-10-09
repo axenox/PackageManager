@@ -1,8 +1,8 @@
 <?php
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
-use axenox\PackageManager\Audit\Finding;
-use axenox\PackageManager\Audit\MergedFinding;
+use axenox\PackageManager\Common\Audit\Finding;
+use axenox\PackageManager\Common\Audit\MergedFinding;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Exceptions\InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
