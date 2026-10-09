@@ -1,6 +1,7 @@
 <?php
 namespace axenox\PackageManager\Common\Audit\Scanner;
 
+use axenox\PackageManager\Actions\Audit;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\DataTypes\ServerSoftwareDataType;
 use exface\Core\Exceptions\RuntimeException;
@@ -47,7 +48,7 @@ class TrivySBOMScanner extends AbstractAuditScanner
      */
     protected function sbomPath(TaskInterface $task) : ?string
     {
-        if ($task->hasParameter('sbom')) {
+        if ($task->hasParameter(Audit::TASK_PARAM_SBOM)) {
             return null;
         }
         $folder = $this->getTargetFolder($task);
@@ -75,7 +76,12 @@ class TrivySBOMScanner extends AbstractAuditScanner
      */
     public function supports(TaskInterface $task) : bool
     {
-        if ($task->hasParameter('sbom')) {
+        if ($task->hasParameter(Audit::TASK_PARAM_SBOM)) {
+            $sbom = $this->decode($task->getParameter(Audit::TASK_PARAM_SBOM));
+            if (isset($sbom['packages']) && is_array($sbom['packages'])
+                && ! isset($sbom['bomFormat']) && ! isset($sbom['spdxVersion'])) {
+                return false;
+            }
             return true;
         }
         return $this->sbomPath($task) !== null;
@@ -125,8 +131,8 @@ class TrivySBOMScanner extends AbstractAuditScanner
             return $this->scanFile($executable, $path);
         }
         $findings = [];
-        if ($task->hasParameter('sbom')) {
-            $sbom = $this->decode($task->getParameter('sbom'));
+        if ($task->hasParameter(Audit::TASK_PARAM_SBOM)) {
+            $sbom = $this->decode($task->getParameter(Audit::TASK_PARAM_SBOM));
             if (($sbom['bomFormat'] ?? '') !== 'CycloneDX' && ! isset($sbom['spdxVersion'])) {
                 throw new RuntimeException('SBOM must be a CycloneDX or SPDX JSON document.');
             }

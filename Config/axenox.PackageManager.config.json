@@ -18,6 +18,9 @@
 		"npm": {
 			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerNpmAuditScanner"
 		},
+		"osv": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\OsvAuditScanner"
+		},
 		"trivy": {
 			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\TrivySBOMScanner"
 		}

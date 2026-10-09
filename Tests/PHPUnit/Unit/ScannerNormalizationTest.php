@@ -64,6 +64,20 @@ class ScannerNormalizationTest extends AuditTestCase
         $scanner->audit($task);
     }
 
+    /**
+     * Combined JSON belongs to OSV and must not trigger an unsupported Trivy audit.
+     * 
+     * @return void
+     */
+    public function testTrivyDeclinesCombinedJsonInventory() : void
+    {
+        $scanner = new FixtureTrivyScanner($this->workbench);
+        $task = new GenericTask($this->workbench);
+        $task->setParameter('sbom', '{"packages":[]}');
+        self::assertFalse($scanner->supports($task));
+        self::assertSame([], $scanner->paths);
+    }
+
     /** Ensures multiple CVEs retain separate evidence and scoped npm names use Composer aliases. */
     public function testNpmNormalizationRetainsCvesSeverityAndRemediation() : void
     {

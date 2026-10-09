@@ -116,6 +116,19 @@ class FixtureAudit extends Audit
     public $scanner;
     public $sheet;
     public $findings = [];
+    public $resultObject;
+
+    /**
+     * Supplies a real in-memory result object without loading the persisted model.
+     * 
+     * {@inheritDoc}
+     * 
+     * @see Audit::getResultObjectExpected()
+     */
+    protected function getResultObjectExpected() : ?\exface\Core\Interfaces\Model\MetaObjectInterface
+    {
+        return $this->resultObject;
+    }
 
     /** {@inheritDoc} @see Audit::getScanners() */
     protected function getScanners() : array
@@ -127,6 +140,7 @@ class FixtureAudit extends Audit
     protected function createResultSheet(array $findings) : DataSheetInterface
     {
         $this->findings = $findings;
+        $this->sheet = parent::createResultSheet($findings);
         return $this->sheet;
     }
 }

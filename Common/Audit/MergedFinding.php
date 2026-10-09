@@ -23,8 +23,9 @@ class MergedFinding implements FindingInterface
      * Creates an aggregate without choosing which advisories belong together.
      * 
      * Nested aggregates are flattened and equal evidence is omitted. All originals
-    * must belong to the same package and finding type. Output identities are
-    * the responsibility of consumers, not of the aggregate.
+    * must belong to the same package (compared without case) and finding type.
+    * Original package spelling is retained. Output identities are the responsibility
+    * of consumers, not of the aggregate.
      * 
      * @param FindingInterface[] $findings A nonempty group of findings.
      * @throws InvalidArgumentException If the group is empty or incompatible.
@@ -41,7 +42,7 @@ class MergedFinding implements FindingInterface
             }
             $members = $finding instanceof self ? $finding->getMergedFindings() : [$finding];
             foreach ($members as $member) {
-                if ($originals !== [] && ($member->getPackage() !== $originals[0]->getPackage()
+                if ($originals !== [] && (strcasecmp($member->getPackage(), $originals[0]->getPackage()) !== 0
                     || $member->getType() !== $originals[0]->getType())) {
                     throw new InvalidArgumentException('Merged findings must have the same package and finding type.');
                 }
@@ -155,7 +156,7 @@ class MergedFinding implements FindingInterface
      */
     public function getSource() : string
     {
-        return $this->mergeValues('getSource');
+        return $this->mergeValues('getSource', ', ');
     }
 
     /**
@@ -181,6 +182,11 @@ class MergedFinding implements FindingInterface
     }
 
     /**
+     * Prefers a CVE over GHSA and other public identifiers across scanner findings.
+     * 
+     * The first identifier of the preferred class wins. Original identifiers
+     * remain accessible through getMergedFindings().
+     * 
      * {@inheritDoc}
      * 
      * @see FindingInterface::getPublicId()
@@ -188,7 +194,21 @@ class MergedFinding implements FindingInterface
      */
     public function getPublicId() : string
     {
-        return $this->findings[0]->getPublicId();
+        $fallback = '';
+        $ghsa = '';
+        foreach ($this->findings as $finding) {
+            $id = $finding->getPublicId();
+            if (VulnerabilityLevelDataType::isCVE($id)) {
+                return $id;
+            }
+            if ($ghsa === '' && VulnerabilityLevelDataType::isGHSA($id)) {
+                $ghsa = $id;
+            }
+            if ($fallback === '' && $id !== '') {
+                $fallback = $id;
+            }
+        }
+        return $ghsa !== '' ? $ghsa : $fallback;
     }
 
     /**
@@ -249,12 +269,14 @@ class MergedFinding implements FindingInterface
     /**
      * Combines distinct nonempty evidence values in encounter order.
      * 
-     * Values retain their scanner notation and are separated by a semicolon and space.
+    * Values retain their scanner notation. Evidence defaults to semicolon separation;
+    * source labels request comma separation.
      * 
      * @param string $getter The evidence getter to invoke on each original finding.
+    * @param string $delimiter
      * @return string
      */
-    private function mergeValues(string $getter) : string
+    private function mergeValues(string $getter, string $delimiter = '; ') : string
     {
         $values = [];
         foreach ($this->findings as $finding) {
@@ -263,7 +285,7 @@ class MergedFinding implements FindingInterface
                 $values[] = $value;
             }
         }
-        return implode('; ', $values);
+        return implode($delimiter, $values);
     }
 
     /**

@@ -35,7 +35,7 @@ class MergedFindingTest extends TestCase
         self::assertSame('package', $merged->getPackage());
         self::assertSame(400, $merged->getLevel());
         self::assertSame('moderate; critical', $merged->getSourceLevel());
-        self::assertSame('npm; trivy', $merged->getSource());
+        self::assertSame('npm, trivy', $merged->getSource());
         self::assertSame('https://example.org/first; https://example.org/second', $merged->getDetailsUrl());
         self::assertSame('CVE-2026-0001', $merged->getCve());
         self::assertSame('CVE-2026-0001', $merged->getPublicId());
@@ -68,6 +68,25 @@ class MergedFindingTest extends TestCase
         self::assertSame(300, $merged->getLevel());
         self::assertSame(300, $reverse->getLevel());
         self::assertSame('', $merged->getVersionFixed());
+    }
+
+    /**
+     * CVE public IDs win over GHSA labels regardless of scanner encounter order.
+     * 
+     * @return void
+     */
+    public function testPublicIdPrefersCveThenGhsaThenNativeIdentity() : void
+    {
+        $native = new Finding('OSV-1', 'Advisory', 'vulnerability', 'package', 'osv', 'high');
+        $ghsa = new Finding('npm:1', 'Advisory', 'vulnerability', 'package', 'npm', 'high',
+            'https://github.com/advisories/GHSA-abcd-1234-efgh');
+        $cve = new Finding('OSV-2', 'Advisory', 'vulnerability', 'package', 'osv', 'critical', '', 'CVE-2026-1234');
+        self::assertSame('CVE-2026-1234', (new MergedFinding([$native, $ghsa, $cve]))->getPublicId());
+        self::assertSame('CVE-2026-1234', (new MergedFinding([$cve, $ghsa, $native]))->getPublicId());
+        self::assertSame('GHSA-abcd-1234-efgh', (new MergedFinding([$native, $ghsa]))->getPublicId());
+        self::assertSame('OSV-1', (new MergedFinding([$native]))->getPublicId());
+        self::assertSame('osv, npm', (new MergedFinding([$native, $ghsa, $cve]))->getSource());
+        self::assertSame('GHSA-abcd-1234-efgh', $ghsa->getPublicId());
     }
 
     /**

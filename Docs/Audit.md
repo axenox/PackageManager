@@ -1,6 +1,6 @@
 # Vulnerability Audits
 
-The `axenox.PackageManager.Audit` action combines Composer, npm-asset and Trivy
+The `axenox.PackageManager.Audit` action combines Composer, npm-asset, OSV and Trivy
 findings. It returns scanner status and a compact findings table together with
 a DataSheet result for buttons, scheduled tasks and action chains.
 Action authorization applies to every invocation.
@@ -49,8 +49,22 @@ implement Deployer scheduling/database persistence.
 
 Scanners consume separate task parameters, not DataSheet rows:
 
+The shared task parameter names are declared on `Actions\Audit` for scanner authors:
+
+| Constant | Parameter | Purpose |
+| --- | --- | --- |
+| `TASK_PARAM_COMPOSER_LOCK` | `composer_lock` | Composer lock artifact. |
+| `TASK_PARAM_SBOM` | `sbom` | Combined package JSON, CycloneDX or SPDX artifact. |
+| `TASK_PARAM_FOLDER` | `folder` | Target build directory when no explicit artifacts are supplied. |
+| `TASK_PARAM_INSTALL` | `install` | CLI-only selector for prerequisite installation. |
+| `TASK_PARAM_OUTPUT` | `output` | CLI-only JSON export destination. |
+
+Use these constants when accessing task parameters in scanners. Artifact values are:
+
 - `composer_lock`: one entire composer.lock JSON document.
-- `sbom`: one CycloneDX or SPDX JSON document.
+- `sbom`: one combined package JSON (as exported to `vendor/licenses.json`),
+  CycloneDX or SPDX JSON document. OSV accepts all three; Trivy only accepts
+  CycloneDX and SPDX.
 
 Each parameter accepts a JSON string, decoded array or `UxonObject`. Both can be
 supplied on the same task; no `audit_artifacts` array is used. Artifact parameters
@@ -85,6 +99,9 @@ are configuration errors. The defaults are:
 		},
 		"npm": {
 			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerNpmAuditScanner"
+		},
+		"osv": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\OsvAuditScanner"
 		},
 		"trivy": {
 			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\TrivySBOMScanner"
@@ -150,6 +167,45 @@ No scanner installation is needed; its interface-compatible `install()` is a no-
 The scanner never changes the target Composer setup or removes previously installed
 plugins. The `ComposerNpmAuditScanner` class name remains unchanged for compatibility.
 
+### OSV
+
+`OsvAuditScanner` scans both `composer_lock` and `sbom` when both task parameters
+are present. Composer locks include development dependencies. Combined JSON uses
+its `packages` entries; CycloneDX includes nested components and its metadata
+component; SPDX uses package PURL external references. Overlapping package/version
+queries are deduplicated. Distinct installed versions remain separate detections.
+
+Without explicit artifacts, OSV reads the target folder's `composer.lock` and the
+first available BOM in this order: `vendor/licenses.json`, `vendor/SBOM.cdx.json`,
+`sbom.cdx.json`, `data/sbom.cdx.json`. Regenerate BOM files for each build; OSV does
+not generate inventories or verify that a saved inventory matches installed files.
+
+OSV maps Composer dependencies to `Packagist` and `npm-asset` aliases to `npm`,
+including scoped names. PURLs take precedence. Untyped bundled package names are
+not assumed to exist on Packagist: supply a PURL or an explicit `ecosystem` field.
+Git source metadata with a 40-character commit reference can identify development
+revisions. Missing versions, unknown bundled identities, and generic/Bower PURLs
+without usable Git metadata produce coverage hints. The current action labels
+scans with coverage hints as `skipped`, even if some packages produced findings.
+An empty response is not proof that OSV covers every package or advisory source.
+
+The scanner POSTs chunks of up to 100 queries to
+`https://api.osv.dev/v1/querybatch`, follows per-query pagination, and fetches full
+records from `/v1/vulns/{id}` once per advisory within the scan. Withdrawn advisories
+are omitted. Native IDs, CVE aliases, descriptions and installed versions are
+retained. Severity uses OSV's database-specific or affected ecosystem-specific
+labels; records without a label retain `unknown` (conservatively high). CVSS vectors
+are not converted to severity labels. Affected range events are retained as JSON
+in `VERSIONS_AFFECTED`; `VERSION_FIXED` lists fix events for the queried package,
+not a computed upgrade recommendation. Multiple CVE aliases produce separate
+findings. API, malformed-response and pagination errors fail the scan.
+
+Only package identities, versions or Git commits are sent to OSV; license texts
+and the complete BOM are not uploaded. No executable installation is required;
+`install()` is a no-op. HTTPS uses the normal trusted CA configuration.
+
+### Trivy
+
 Trivy looks for `sbom.cdx.json` in the target folder or its `data` subfolder. Current
 installation scans also check the workbench data folder. It uses Trivy on PATH or
 the binary in `<data>/audit/trivy/`. Explicit installation downloads the latest
@@ -174,20 +230,23 @@ according to their own needs.
 
 [MergedFinding](../Common/Audit/MergedFinding.php) also implements `FindingInterface` and
 owns aggregation strategies. Its constructor accepts only a nonempty group of
-findings for the same package and type, without an ID argument. Nested aggregates
+findings for the same case-insensitive package and type, without an ID argument. Nested aggregates
 are flattened and equal evidence is omitted. `getMergedFindings()` returns the
 original `FindingInterface` instances, preserving scanner-specific associations
 without mutating them. The highest severity wins; distinct nonempty evidence
-values are joined with `; `. The first finding supplies the title and public ID.
+values are joined with `; `, except source labels, which use `, `. The first finding
+supplies the title. Public IDs prefer the first CVE, then the first GHSA, then the
+first nonempty remaining identifier, regardless of which scanner ran first.
 Individual getters can be overridden to implement different aggregation strategies.
 
 Arrays are used only at external boundaries: scanner API payloads and serialized
 output. The `Audit` action owns the result column schema, selects the result
 metaobject and creates the DataSheet. CLI, DataSheet and JSON output group findings
-by type, case-insensitive public ID and exact package name across scanners.
-Different packages always produce separate rows, so mitigation remains per-package.
+by finding type and case-insensitive package name, matching either advisory identity
+or a nonempty case-insensitive title across scanners. Different packages always
+produce separate rows, so mitigation remains per-package.
 The action's `groupFindings()` helper creates a `MergedFinding` for every group;
-`toDataSheetRows()` serializes their getters and sorts the output. The serializer
+`toDataSheetRows()` serializes their getters when populating the result sheet. The serializer
 also accepts raw findings, without implementing merging logic itself. The action
 generates package-specific output IDs; removing internal finding IDs does not
 change those output IDs.
@@ -207,8 +266,10 @@ Full URLs and source-native levels are omitted from the table. The modeled outpu
 64-character SHA-256 identifier,
 available alongside `PUBLIC_ID` in DataSheet and JSON results. The action generates
 it from the output grouping key during row serialization. For merged findings,
-the key uses the first original rather than combined scanner-native IDs. It stays
-unchanged for the same advisory and package regardless of severity or scanner order.
+the key uses the lexically smallest original key rather than combined scanner-native
+IDs. Package names are lowercased in keys. For the same set of detections, IDs stay
+unchanged regardless of severity or scanner order. Adding a different advisory
+identity to a title-matched group can change its output ID.
 Different packages have different output IDs even when they share an advisory.
 Original scanner IDs remain accessible through `getMergedFindings()` and each
 original's `getSourceId()` getter, independently of the group's output ID.
@@ -220,8 +281,16 @@ conservatively becomes `300`. The original scanner label is retained in `SOURCE_
 Its static `compare()` method returns -1, 0 or 1 in ascending severity order;
 `isHigher()` and `isLower()` provide strict comparisons of normalized levels.
 DataSheet and JSON outputs retain numeric `LEVEL` values; the CLI table displays
-`low`, `medium`, `high` and `critical`. Audit sorts highest severity first, using
-public identifier, package and internal ID to break ties.
+translated datatype labels (`Low`, `Medium`, `High` and `Critical` in English).
+`VulnerabilityLevelDataType::getLabelsStatic($workbench)` returns labels indexed
+by numeric level; `getLabelOfValueStatic($workbench, $value)` returns one label
+or `null` for an unknown value. Both use the same translations as the enum's
+instance labels. The action builds one result DataSheet and
+uses `DataSheet::sort()` with explicit sorters to order its rows by level
+descending, then package ascending, with public identifier and internal ID as
+stable tie-breakers. The CLI formatter and JSON exporter receive that same sorted
+DataSheet rather than findings or row arrays. They extract rows only for rendering
+and serialization, so all three outputs share one grouping and sorting pass.
 
 Additional fields preserve useful scanner data: `DESCRIPTION`, `REMEDIATION`,
 `VERSIONS_AFFECTED`, `VERSION_INSTALLED`, and `VERSION_FIXED`. Unavailable values
@@ -231,12 +300,22 @@ that need original scanner evidence in PHP use `getMergedFindings()` instead.
 Scanners can disagree about severity, fixed versions, affected ranges or recommendations;
 those associations remain available on the originals, but are not exported as nested JSON.
 
-Rows are deduplicated by case-insensitive `PUBLIC_ID`, finding type and package.
-When a public ID is unavailable, grouping falls back to the native scanner ID,
-then title, within that scanner's namespace. The most severe level wins; sources
-and other evidence are combined, but package names are never combined.
-Different IDs for the same underlying advisory cannot be matched without an
-explicit shared identifier. npm scoped packages use Composer's
+Rows are deduplicated by finding type, case-insensitive package and either
+case-insensitive `PUBLIC_ID` or nonempty case-insensitive `NAME`. The title check
+matches npm GHSA findings with OSV CVE findings even when their public IDs differ.
+When a public ID is unavailable, the primary identity still falls back to the native
+scanner ID, then title, within that scanner's namespace. A finding matching one
+group's identity and another group's title joins both groups. Empty titles do not
+provide an additional match.
+
+Title matching is a heuristic: distinct advisories with the same package and title
+will also merge, including multiple CVE identities. Every original identity remains
+available through `getMergedFindings()`; the first finding supplies the displayed
+title and package spelling. The displayed public ID prefers CVE over GHSA over
+other identities. The most severe level wins, and sources and other evidence are
+combined. Source labels are separated by a comma and space, for example `npm, osv`.
+The shared `VulnerabilityLevelDataType::isCVE()` and `isGHSA()` helpers classify
+complete identifiers without case sensitivity. npm scoped packages use Composer's
 `npm-asset/scope--package` notation. Trivy's OS package names remain native names.
 
 By default findings use the modeled object `axenox.PackageManager.AUDIT_ADVISORY`,

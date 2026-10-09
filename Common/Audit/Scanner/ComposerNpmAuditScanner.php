@@ -1,6 +1,7 @@
 <?php
 namespace axenox\PackageManager\Common\Audit\Scanner;
 
+use axenox\PackageManager\Actions\Audit;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Exceptions\RuntimeException;
 use GuzzleHttp\Client;
@@ -28,8 +29,8 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
      */
     protected function locks(TaskInterface $task) : array
     {
-        if ($task->hasParameter('composer_lock')) {
-            return [$this->decode($task->getParameter('composer_lock'))];
+        if ($task->hasParameter(Audit::TASK_PARAM_COMPOSER_LOCK)) {
+            return [$this->decode($task->getParameter(Audit::TASK_PARAM_COMPOSER_LOCK))];
         }
         $folder = $this->getTargetFolder($task);
         if ($folder !== null) {

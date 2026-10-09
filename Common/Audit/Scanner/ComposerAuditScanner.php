@@ -1,6 +1,7 @@
 <?php
 namespace axenox\PackageManager\Common\Audit\Scanner;
 
+use axenox\PackageManager\Actions\Audit;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Exceptions\CliRuntimeException;
@@ -30,7 +31,7 @@ class ComposerAuditScanner extends AbstractAuditScanner
      */
     public function supports(TaskInterface $task) : bool
     {
-        if ($task->hasParameter('composer_lock')) {
+        if ($task->hasParameter(Audit::TASK_PARAM_COMPOSER_LOCK)) {
             return true;
         }
         $folder = $this->getTargetFolder($task);
@@ -52,7 +53,7 @@ class ComposerAuditScanner extends AbstractAuditScanner
         }
         $findings = [];
         $inputs = $folder === null
-            ? ($task->hasParameter('composer_lock') ? [$task->getParameter('composer_lock')] : [])
+            ? ($task->hasParameter(Audit::TASK_PARAM_COMPOSER_LOCK) ? [$task->getParameter(Audit::TASK_PARAM_COMPOSER_LOCK)] : [])
             : [$this->readJson($folder . '/composer.lock')];
         foreach ($inputs as $input) {
             $lock = $this->decode($input);

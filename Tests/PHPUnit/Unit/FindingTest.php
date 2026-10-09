@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
 use axenox\PackageManager\Common\Audit\Finding;
+use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Exceptions\InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
@@ -13,6 +14,29 @@ use PHPUnit\Framework\TestCase;
  */
 class FindingTest extends TestCase
 {
+    /**
+     * Shared classifiers recognize whole advisory IDs rather than URLs or prefixes.
+     * 
+     * @return void
+     */
+    public function testAdvisoryIdClassificationIsCaseInsensitiveAndAnchored() : void
+    {
+        foreach (['CVE-2026-1234', 'cve-2026-1234567'] as $id) {
+            self::assertTrue(VulnerabilityLevelDataType::isCVE($id));
+            self::assertFalse(VulnerabilityLevelDataType::isGHSA($id));
+        }
+        foreach (['GHSA-abcd-1234-efgh', 'ghsa-ABCD-1234-EFGH'] as $id) {
+            self::assertTrue(VulnerabilityLevelDataType::isGHSA($id));
+            self::assertFalse(VulnerabilityLevelDataType::isCVE($id));
+        }
+        foreach (['', 'OSV-1', 'CVE-26-1234', 'CVE-2026-123', 'CVE-2026-1234-extra',
+            'GHSA-abcd-1234', 'GHSA-abc-1234-efgh', 'https://github.com/advisories/GHSA-abcd-1234-efgh',
+            "CVE-2026-1234\n", "GHSA-abcd-1234-efgh\n"] as $id) {
+            self::assertFalse(VulnerabilityLevelDataType::isCVE($id));
+            self::assertFalse(VulnerabilityLevelDataType::isGHSA($id));
+        }
+    }
+
     /**
      * Findings retain one package and one scanner even when public IDs match.
      * 

@@ -80,7 +80,7 @@ class Finding implements FindingInterface
         $this->level = VulnerabilityLevelDataType::normalize($sourceLevel);
         $this->detailsUrl = $detailsUrl;
         $cve = $cve !== '' ? $cve : $sourceId;
-        $this->cve = preg_match('/^CVE-\d{4}-\d{4,}$/i', $cve) ? strtoupper($cve) : '';
+        $this->cve = VulnerabilityLevelDataType::isCVE($cve) ? strtoupper($cve) : '';
         $this->description = $description;
         $this->remediation = $remediation;
         $this->versionsAffected = $versionsAffected;
@@ -228,8 +228,13 @@ class Finding implements FindingInterface
         $identifiers = [];
         foreach (explode('; ', $this->detailsUrl) as $url) {
             $path = parse_url($url, PHP_URL_PATH);
-            if (is_string($path) && preg_match('~(?:^|/)(GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4})(?:/|$)~i', $path, $matches)) {
-                $identifiers[] = 'GHSA-' . strtolower(substr($matches[1], 5));
+            if (! is_string($path)) {
+                continue;
+            }
+            foreach (explode('/', $path) as $identifier) {
+                if (VulnerabilityLevelDataType::isGHSA($identifier)) {
+                    $identifiers[] = 'GHSA-' . strtolower(substr($identifier, 5));
+                }
             }
         }
         return $identifiers !== [] ? implode('; ', array_unique($identifiers)) : $this->sourceId;

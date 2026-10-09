@@ -11,7 +11,8 @@ use exface\Core\Interfaces\iCanBeConvertedToUxon;
  * Scanner options are imported as UXON after construction, without the class selector.
  * Extend AbstractAuditScanner or use iCanBeConvertedToUxonTrait for strict setter-based configuration.
  * Scanners consume task parameters, not input DataSheet rows: composer_lock
- * contains one Composer lock and sbom contains one CycloneDX or SPDX document.
+ * contains one Composer lock and sbom contains one combined package JSON,
+ * CycloneDX or SPDX document, depending on the selected scanner.
  * Each artifact accepts a JSON string, decoded array or UxonObject. The action
  * owns context enrichment. Without artifact parameters, folder selects a local
  * build or defaults to the installation. Artifact parameters take precedence

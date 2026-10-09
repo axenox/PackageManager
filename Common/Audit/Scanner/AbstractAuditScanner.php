@@ -1,6 +1,7 @@
 <?php
 namespace axenox\PackageManager\Common\Audit\Scanner;
 
+use axenox\PackageManager\Actions\Audit;
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
@@ -68,10 +69,10 @@ abstract class AbstractAuditScanner implements AuditScannerInterface
      */
     protected function getTargetFolder(TaskInterface $task) : ?string
     {
-        if ($task->hasParameter('composer_lock') || $task->hasParameter('sbom')) {
+        if ($task->hasParameter(Audit::TASK_PARAM_COMPOSER_LOCK) || $task->hasParameter(Audit::TASK_PARAM_SBOM)) {
             return null;
         }
-        $path = $task->hasParameter('folder') ? $task->getParameter('folder') : null;
+        $path = $task->hasParameter(Audit::TASK_PARAM_FOLDER) ? $task->getParameter(Audit::TASK_PARAM_FOLDER) : null;
         if ($path === null || $path === '') {
             $path = $this->workbench->getInstallationPath();
         }
