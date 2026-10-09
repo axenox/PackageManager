@@ -1,6 +1,6 @@
 # Rewriting Git history
 
-Use this procedure to replace sensitive or incorrect text, or delete a file from every reachable commit, branch, and tag of a repository.
+Use this procedure to replace sensitive or incorrect text, or delete a file or folder from every reachable commit, branch, and tag of a repository.
 
 History rewriting changes commit IDs. Coordinate the operation with all contributors, stop pushes while it runs, and keep a backup until the result has been verified.
 
@@ -53,7 +53,7 @@ python -m git_filter_repo `
   --replace-text C:\path\to\replacements.txt
 ```
 
-### Option B: Delete a file
+### Option B: Delete a file or folder
 
 Remove a file from all local history using its repository-relative path with forward slashes:
 
@@ -65,7 +65,19 @@ python -m git_filter_repo `
 
 This deletes the file from rewritten commits, not just the current branch. No `replacements.txt` is needed for file removal alone.
 
-Path filtering does not follow renames automatically. Include every historical path in the same command if the file was renamed or moved:
+Remove an entire folder from all local history using its repository-relative path with forward slashes and a trailing slash:
+
+```powershell
+python -m git_filter_repo `
+  --path "private-data/" `
+  --invert-paths
+```
+
+This deletes every file under the folder from rewritten commits, not just the current branch. No `replacements.txt` is needed for folder removal alone.
+
+Paths are case-sensitive, even on Windows.
+
+Path filtering does not follow renames automatically. Include every historical path in the same command if the file or folder was renamed or moved:
 
 ```powershell
 python -m git_filter_repo `
@@ -74,7 +86,16 @@ python -m git_filter_repo `
   --invert-paths
 ```
 
-If both operations are needed, add `--replace-text C:\path\to\replacements.txt` to the file-removal command and verify both results. Deleting a file does not remove copies of its contents from other files or commit messages. If it contained credentials, revoke or rotate them as well.
+For a renamed or moved folder, use the same pattern with folder paths:
+
+```powershell
+python -m git_filter_repo `
+  --path "private-data/" `
+  --path "previous/location/private-data/" `
+  --invert-paths
+```
+
+If both operations are needed, add `--replace-text C:\path\to\replacements.txt` to the file- or folder-removal command and verify both results. Deleting a file or folder does not remove copies of its contents from other files or commit messages. If it contained credentials, revoke or rotate them as well.
 
 ### Restore the remote
 
@@ -98,7 +119,13 @@ For file removal, check each historical path:
 git log --all -- "path/to/file.ext" "previous/path/file.ext"
 ```
 
-Expected result for either check: no output. Run both checks if you combined the operations.
+For folder removal, check the folder and any previous locations included in the filter:
+
+```powershell
+git log --all -- "private-data/" "previous/location/private-data/"
+```
+
+Expected result for each check: no output. Run both text and path checks if you combined the operations.
 
 Inspect important branches and compare their changes before publishing the rewrite.
 
@@ -124,7 +151,7 @@ For a complete verification, compare every `refs/tags/*` object ID. Matching tag
 
 ## Update forks
 
-Every fork that should remain comparable must run the same mirror-clone procedure with identical filters: the same `replacements.txt` for text replacement, the same historical paths with `--invert-paths` for file removal, or both. Then force-push all fork branches and tags.
+Every fork that should remain comparable must run the same mirror-clone procedure with identical filters: the same `replacements.txt` for text replacement, the same historical paths with `--invert-paths` for file or folder removal, or both. Then force-push all fork branches and tags.
 
 After rewriting a fork, compare an important branch with the rewritten upstream:
 
@@ -140,33 +167,40 @@ Only the feature branch's actual changes should appear.
 
 ## Turn pull requests into branches
 
-Use the companion [recover-prs.ps1](recover-prs.ps1) script to preserve an open
+Use the companion [recover-prs.ps1](recover-prs.ps1) script to preserve a
 GitHub PR as a branch in the main repository after a text-replacement history
 rewrite. This is useful when the PR's fork still has old ancestry and its changes
-need to be recovered onto comparable history. The script processes one open PR
-per run; it does not rewrite the fork or update the original PR.
+need to be recovered onto comparable history. The script processes one PR
+per run; it does not rewrite the fork or update or reopen the original PR.
 
 ### Prerequisites
 
-- Use a cleaned bare mirror containing the rewritten PR base branch and an
-  `origin` remote pointing to the GitHub repository whose PRs you are recovering.
+- Use a cleaned bare mirror or normal clone containing the rewritten PR base
+  branch and an `origin` remote pointing to the GitHub repository whose PRs you
+  are recovering. For a normal clone, the script creates a sibling bare mirror
+  automatically and leaves the source clone untouched.
 - Make Git and `git filter-repo` available on `PATH`. The script invokes
   `git filter-repo`, not `python -m git_filter_repo`.
 - Configure Git commit identity and credentials with permission to push branches
   to `origin`. PR discovery uses the GitHub API without authentication; private
   repositories are not supported by the script as written, and API rate limits apply.
-- Put the same `replacements.txt` used for the original rewrite in the calling
-  directory. It is required even when reusing an earlier recovery attempt.
+- Put the same `replacements.txt` used for the original rewrite in the folder
+  containing `recover-prs.ps1`, not in the mirror or calling directory. It is
+  required even when reusing an earlier recovery attempt. Do not commit it.
 - Keep a backup of the mirror. The script filters history in that mirror again
   when importing a PR, and a confirmed rebuild deletes the earlier local attempt.
+  For a normal clone, recovery branches are created in the generated mirror,
+  not in the source clone; uncommitted and untracked files are not copied.
 
-Run the script from the designated temporary directory. It checks for
-`replacements.txt` there before accessing the mirror. Copy the companion script
-there first, or invoke it by its full path while keeping that working directory.
+Run the script from the designated temporary directory so the default relative
+mirror path resolves there. Copy the companion script and `replacements.txt`
+there first, or invoke the script by its full path with `replacements.txt` beside
+it. The script uses its own folder (`$PSScriptRoot`) to locate `replacements.txt`
+before accessing the mirror, regardless of the working directory.
 
 ```powershell
 Set-Location C:\temp
-.\recover-prs.ps1 -GitHubRepository "ExFace/Core" -PullRequestNumber 948
+.\recover-prs.ps1 -GitHubRepository "OWNER/REPOSITORY" -PullRequestNumber 948
 ```
 
 ### Command-line options
@@ -174,15 +208,31 @@ Set-Location C:\temp
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `-GitHubRepository "OWNER/REPOSITORY"` | Required | GitHub repository whose open PRs are listed. Use an owner/repository pair, not a URL; this must correspond to the mirror's `origin`. |
-| `-RepoPath "cleanup.git"` | `cleanup.git` | Path to the bare mirror. Relative paths are resolved against the calling directory; absolute paths are also accepted. |
-| `-PullRequestNumber 948` | `0` | Select one open PR by number. Omit it or pass `0` to list open PRs and enter a number interactively. Closed and merged PRs cannot be selected. |
+| `-RepoPath "cleanup.git"` | `cleanup.git` | Path to a cleaned bare mirror or normal clone. A normal clone is copied to a sibling `<clone-name>-recovery.git` mirror. Relative paths are resolved against the calling directory; absolute paths are also accepted. |
+| `-PullRequestNumber 948` | `0` | Fetch one PR directly by number, including closed or merged PRs. Omit it or pass `0` to list open PRs and enter a number interactively. |
 
 For a differently named mirror and interactive PR selection:
 
 ```powershell
 Set-Location C:\temp
-.\recover-prs.ps1 -GitHubRepository "ExFace/Core" -RepoPath "another-cleanup.git"
+.\recover-prs.ps1 -GitHubRepository "OWNER/REPOSITORY" -RepoPath "another-cleanup.git"
 ```
+
+For an already-rewritten normal clone:
+
+```powershell
+.\recover-prs.ps1 -GitHubRepository "OWNER/REPOSITORY" -RepoPath "C:\temp\REPOSITORY"
+```
+
+This creates `C:\temp\REPOSITORY-recovery.git` from the local rewritten history, sets
+its `origin` to the source clone's remote URL, and copies the configured Git
+commit identity. Publishing still requires confirmation and pushes only the
+recovered branch, not every mirrored ref.
+
+The script never overwrites an existing sibling mirror. To resume an earlier
+attempt, pass that mirror explicitly with `-RepoPath "C:\temp\REPOSITORY-recovery.git"`.
+The mirror is a snapshot: later changes in the source clone are not imported
+automatically.
 
 There are no parameters for a replacement-file path, old text, output branch
 name, processing all PRs, or unattended publishing. Specifying a PR number skips
@@ -192,12 +242,14 @@ only the selection prompt, not the confirmation prompts.
 
 The script fetches the selected PR head into `recovered/pr-<number>` and applies
 the text replacements. It finds a commit in the rewritten base history with the
-same tree as a commit on the recovered PR's first-parent history, then replays
-the subsequent non-merge first-parent changes on that matching base commit.
+same tree as a commit on the recovered PR's first-parent history, then applies
+one net patch from that boundary to the filtered PR head on the matching base commit.
+Before committing, it verifies that the staged tree exactly matches the filtered PR head.
 The result is a single new commit named `Recovered PR #<number>: <title>` on
 `pr/<number>-<title-slug>`. The slug is derived from the title automatically;
 original commit IDs, individual commit messages, and authorship are not preserved.
-Merge commits are excluded, so review the result for missing merge-only changes.
+Changes introduced by merges are preserved. Review the comparison with the current
+base carefully, including any upstream changes merged into the PR after the boundary.
 
 Prompts require the exact uppercase response shown:
 
@@ -216,8 +268,9 @@ automatically to the new naming scheme during recovery.
 
 Review the displayed comparison with the PR base before confirming `PUSH`.
 The script stops if it cannot find a tree-equivalent base commit, cannot apply
-the recovered changes, or detects old replacement values in its history checks.
-It also skips PRs with no eligible non-merge first-parent commits. After publishing,
+the recovered changes, the staged tree differs from the filtered PR head, or it
+detects old replacement values in its history checks.
+It also skips PRs with no commits after the recovered boundary. After publishing,
 review the branch on GitHub, open a replacement PR if needed, and close the old PR.
 
 ### Replacement rules and limitations
@@ -228,11 +281,11 @@ It supports `old value==>replacement value`, optional `literal:` prefixes,
 and values without `==>` (which `git-filter-repo` replaces with its default text).
 Regex and glob rules are rejected before recovery because the script's history
 checks use literal matching. This recovery script handles text replacements only;
-it does not apply or verify file-removal history filters.
+it does not apply or verify file- or folder-removal history filters.
 
 ## Replace working clones
 
-These steps apply equally to text replacement and file removal: both change commit IDs and invalidate the old ancestry for affected history. Merely pulling the rewritten branches or deleting the file in an old clone is not sufficient.
+These steps apply equally to text replacement and file or folder removal: both change commit IDs and invalidate the old ancestry for affected history. Merely pulling the rewritten branches or deleting the file or folder in an old clone is not sufficient.
 
 The safest option is to replace every old working clone:
 
@@ -261,7 +314,7 @@ GitHub releases normally continue to reference rewritten tags by name. Check rel
 
 - All required branches were force-pushed.
 - All tags were force-pushed and their object IDs match the remote.
-- Text searches return no results for every replaced value, and path-history checks return no results for every deleted file's historical paths, as applicable.
+- Text searches return no results for every replaced value, and path-history checks return no results for every deleted file or folder's historical paths, as applicable.
 - Forks used for pull requests were rewritten identically.
 - Contributors replaced or repaired old working clones.
 - Old branches are never pushed back into the rewritten repository.

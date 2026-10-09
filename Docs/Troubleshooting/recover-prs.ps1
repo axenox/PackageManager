@@ -8,10 +8,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 $temporaryDirectory = (Get-Location).Path
-$ReplacementFile = Join-Path $temporaryDirectory "replacements.txt"
+$ReplacementFile = Join-Path $PSScriptRoot "replacements.txt"
 
 if (-not (Test-Path -LiteralPath $ReplacementFile -PathType Leaf)) {
-    throw "Required replacements.txt not found in $temporaryDirectory."
+    throw "Required replacements.txt not found in $PSScriptRoot."
 }
 
 if (-not [System.IO.Path]::IsPathRooted($RepoPath)) {
@@ -95,7 +95,7 @@ function Get-ReplacementHistoryMatches {
     )
 
     foreach ($searchValue in $SearchValues) {
-        git log $Revision "-S$searchValue" --oneline
+        git --git-dir=$RepoPath log $Revision "-S$searchValue" --oneline
         Assert-LastCommand "Checking rewritten history"
     }
 }
@@ -105,42 +105,87 @@ if ($replacementSearchValues.Count -eq 0) {
     throw "Replacement file contains no search values: $ReplacementFile"
 }
 
-$isBareRepository = git rev-parse --is-bare-repository
+$repositoryGitDirectory = $RepoPath
+if (Test-Path -LiteralPath (Join-Path $RepoPath ".git")) {
+    $repositoryGitDirectory = Join-Path $RepoPath ".git"
+}
+$isBareRepository = git --git-dir=$repositoryGitDirectory rev-parse --is-bare-repository
 Assert-LastCommand "Checking repository"
 
-if ($isBareRepository -ne "true") {
-    throw "Expected a bare mirror repository at $RepoPath."
-}
-
 # Preserve origin because git-filter-repo may remove it.
-$originUrl = git remote get-url origin
+$originUrl = git --git-dir=$repositoryGitDirectory remote get-url origin
 Assert-LastCommand "Reading origin URL"
 
-# Discover all open PRs, including repositories with more than 100.
-$pullRequests = @()
-$page = 1
+if ($isBareRepository -ne "true") {
+    $sourceRoot = git rev-parse --show-toplevel
+    Assert-LastCommand "Finding source repository root"
+    $sourceRoot = (Get-Item -LiteralPath $sourceRoot).FullName
+    $mirrorName = "$(Split-Path -Leaf $sourceRoot)-recovery.git"
+    $mirrorPath = Join-Path (Split-Path -Parent $sourceRoot) $mirrorName
 
-do {
-    $uri = "https://api.github.com/repos/$GitHubRepository/pulls?state=open&per_page=100&page=$page"
-    $response = Invoke-RestMethod -Uri $uri -Headers @{
+    if (Test-Path -LiteralPath $mirrorPath) {
+        throw "Recovery mirror path already exists: $mirrorPath. To resume an earlier recovery, rerun with -RepoPath `"$mirrorPath`". Otherwise choose a separate bare mirror; the existing path was not changed."
+    }
+
+    Write-Host "Creating recovery mirror at $mirrorPath. The source clone will not be changed."
+    git clone --mirror --no-hardlinks -- $sourceRoot $mirrorPath
+    Assert-LastCommand "Creating recovery mirror"
+
+    # A local mirror initially points to the source clone and enables mirror pushes.
+    git --git-dir=$mirrorPath remote set-url origin $originUrl
+    Assert-LastCommand "Setting recovery mirror origin"
+    git --git-dir=$mirrorPath config remote.origin.mirror false
+    Assert-LastCommand "Disabling mirror pushes in recovery mirror"
+
+    foreach ($setting in @("user.name", "user.email")) {
+        $value = git config --get $setting
+        $configExitCode = $LASTEXITCODE
+        if ($configExitCode -eq 0) {
+            git --git-dir=$mirrorPath config $setting $value
+            Assert-LastCommand "Copying Git $setting to recovery mirror"
+        }
+        elseif ($configExitCode -ne 1) {
+            Assert-LastCommand "Reading Git $setting"
+        }
+    }
+
+    $RepoPath = $mirrorPath
+    Set-Location -LiteralPath $RepoPath
+}
+
+$pullRequests = @()
+if ($PullRequestNumber -ne 0) {
+    $uri = "https://api.github.com/repos/$GitHubRepository/pulls/$PullRequestNumber"
+    $pullRequests = @(Invoke-RestMethod -Uri $uri -Headers @{
         Accept = "application/vnd.github+json"
         "User-Agent" = "ExFace-PR-Recovery"
+    })
+}
+else {
+    $page = 1
+
+    do {
+        $uri = "https://api.github.com/repos/$GitHubRepository/pulls?state=open&per_page=100&page=$page"
+        $response = Invoke-RestMethod -Uri $uri -Headers @{
+            Accept = "application/vnd.github+json"
+            "User-Agent" = "ExFace-PR-Recovery"
+        }
+
+        $pageCount = 0
+
+        # Explicit foreach unwraps Invoke-RestMethod arrays in Windows PowerShell 5.1.
+        foreach ($pullRequest in $response) {
+            $pullRequests += $pullRequest
+            $pageCount++
+        }
+
+        $page++
+    } while ($pageCount -eq 100)
+
+    if ($pullRequests.Count -eq 0) {
+        Write-Host "No open pull requests found."
+        exit 0
     }
-
-    $pageCount = 0
-
-    # Explicit foreach unwraps Invoke-RestMethod arrays in Windows PowerShell 5.1.
-    foreach ($pullRequest in $response) {
-        $pullRequests += $pullRequest
-        $pageCount++
-    }
-
-    $page++
-} while ($pageCount -eq 100)
-
-if ($pullRequests.Count -eq 0) {
-    Write-Host "No open pull requests found."
-    exit 0
 }
 
 $metadata = @()
@@ -155,7 +200,12 @@ foreach ($pullRequest in $pullRequests) {
     }
 }
 
-Write-Host "`nOpen pull requests:"
+if ($PullRequestNumber -eq 0) {
+    Write-Host "`nOpen pull requests:"
+}
+else {
+    Write-Host "`nSelected pull request:"
+}
 $metadata | Format-Table Number, Base, Author, Head, Title -AutoSize
 
 if ($PullRequestNumber -eq 0) {
@@ -171,7 +221,7 @@ if ($PullRequestNumber -eq 0) {
 
 $metadata = @($metadata | Where-Object { $_.Number -eq $PullRequestNumber })
 if ($metadata.Count -ne 1) {
-    throw "Open PR #$PullRequestNumber was not found."
+    throw "PR #$PullRequestNumber was not found."
 }
 
 $pr = $metadata[0]
@@ -180,7 +230,7 @@ $archiveRef = "refs/heads/$archiveBranch"
 $legacyArchiveBranch = "archive/pr-$($pr.Number)"
 $legacyArchiveRef = "refs/heads/$legacyArchiveBranch"
 
-git ls-remote --exit-code --heads origin $archiveRef | Out-Null
+git --git-dir=$RepoPath ls-remote --exit-code --heads origin $archiveRef | Out-Null
 $remoteArchiveExitCode = $LASTEXITCODE
 
 if ($remoteArchiveExitCode -eq 0) {
@@ -191,7 +241,7 @@ if ($remoteArchiveExitCode -ne 2) {
     Assert-LastCommand "Checking remote archive branch for PR #$($pr.Number)"
 }
 
-git ls-remote --exit-code --heads origin $legacyArchiveRef | Out-Null
+git --git-dir=$RepoPath ls-remote --exit-code --heads origin $legacyArchiveRef | Out-Null
 $legacyRemoteExitCode = $LASTEXITCODE
 if ($legacyRemoteExitCode -eq 0) {
     throw "Legacy branch $legacyArchiveBranch already exists on origin. Rename or delete it before continuing."
@@ -200,12 +250,12 @@ if ($legacyRemoteExitCode -ne 2) {
     Assert-LastCommand "Checking legacy remote branch for PR #$($pr.Number)"
 }
 
-git show-ref --verify --quiet $archiveRef
+git --git-dir=$RepoPath show-ref --verify --quiet $archiveRef
 $localArchiveExitCode = $LASTEXITCODE
 $rebuildConfirmed = $false
 
 if ($localArchiveExitCode -eq 1) {
-    git show-ref --verify --quiet $legacyArchiveRef
+    git --git-dir=$RepoPath show-ref --verify --quiet $legacyArchiveRef
     $legacyLocalExitCode = $LASTEXITCODE
 
     if ($legacyLocalExitCode -eq 0) {
@@ -219,7 +269,7 @@ if ($localArchiveExitCode -eq 1) {
 }
 
 if ($localArchiveExitCode -eq 0) {
-    $archiveSubject = git show -s --format="%s" $archiveRef
+    $archiveSubject = git --git-dir=$RepoPath show -s --format="%s" $archiveRef
     Assert-LastCommand "Reading local archive branch for PR #$($pr.Number)"
 
     if ($archiveSubject -like "Recovered PR #$($pr.Number):*") {
@@ -231,19 +281,19 @@ if ($localArchiveExitCode -eq 0) {
 
         if ($archiveBranch -eq $legacyArchiveBranch) {
             $newArchiveBranch = Get-RecoveredBranchName -Number $pr.Number -Title $pr.Title
-            git branch -m $legacyArchiveBranch $newArchiveBranch
+            git --git-dir=$RepoPath branch -m $legacyArchiveBranch $newArchiveBranch
             Assert-LastCommand "Renaming local archive branch for PR #$($pr.Number)"
             $archiveBranch = $newArchiveBranch
             $archiveRef = "refs/heads/$archiveBranch"
         }
 
         Write-Host "`nCompleted local archive found:"
-        git show --stat --oneline $archiveRef
+        git --git-dir=$RepoPath show --stat --oneline $archiveRef
         Assert-LastCommand "Showing local archive branch for PR #$($pr.Number)"
 
         $confirmation = Read-Host "Type PUSH to publish $archiveBranch or REBUILD to replace it"
         if ($confirmation -ceq "PUSH") {
-            git push origin "${archiveRef}:${archiveRef}"
+            git --git-dir=$RepoPath push origin "${archiveRef}:${archiveRef}"
             Assert-LastCommand "Publishing PR #$($pr.Number)"
             Write-Host "Published $archiveBranch."
             exit 0
@@ -266,20 +316,20 @@ if ($localArchiveExitCode -eq 0) {
     }
 
     $worktreePath = $null
-    foreach ($line in @(git worktree list --porcelain)) {
+    foreach ($line in @(git --git-dir=$RepoPath worktree list --porcelain)) {
         if ($line -like "worktree *") {
             $worktreePath = $line.Substring(9)
             continue
         }
 
         if ($line -eq "branch $archiveRef" -and $null -ne $worktreePath) {
-            git worktree remove --force $worktreePath
+            git --git-dir=$RepoPath worktree remove --force $worktreePath
             Assert-LastCommand "Removing incomplete worktree for PR #$($pr.Number)"
             break
         }
     }
 
-    git branch -D $archiveBranch
+    git --git-dir=$RepoPath branch -D $archiveBranch
     Assert-LastCommand "Removing incomplete archive branch for PR #$($pr.Number)"
 
     $archiveBranch = Get-RecoveredBranchName -Number $pr.Number -Title $pr.Title
@@ -291,7 +341,7 @@ elseif ($localArchiveExitCode -ne 1) {
 
 $recoveredRef = "refs/heads/recovered/pr-$($pr.Number)"
 $reuseRecovered = $false
-git show-ref --verify --quiet $recoveredRef
+git --git-dir=$RepoPath show-ref --verify --quiet $recoveredRef
 $recoveredExitCode = $LASTEXITCODE
 
 if ($recoveredExitCode -eq 0) {
@@ -317,7 +367,7 @@ if (-not $reuseRecovered) {
         $target = "refs/heads/recovered/pr-$($pr.Number)"
 
         Write-Host "Importing PR #$($pr.Number)..."
-        git fetch --no-tags origin "+${source}:${target}"
+        git --git-dir=$RepoPath fetch --no-tags origin "+${source}:${target}"
         Assert-LastCommand "Importing PR #$($pr.Number)"
     }
 
@@ -326,13 +376,13 @@ if (-not $reuseRecovered) {
         throw "Cancelled. Imported branches have not been filtered."
     }
 
-    git filter-repo --force --replace-text $ReplacementFile
+    git --git-dir=$RepoPath filter-repo --force --replace-text $ReplacementFile
     Assert-LastCommand "Filtering PR histories"
 
     # Restore origin when filter-repo removed it.
-    $remotes = @(git remote)
+    $remotes = @(git --git-dir=$RepoPath remote)
     if ($remotes -notcontains "origin") {
-        git remote add origin $originUrl
+        git --git-dir=$RepoPath remote add origin $originUrl
         Assert-LastCommand "Restoring origin"
     }
 }
@@ -350,7 +400,7 @@ foreach ($pr in $metadata) {
     $patchPath = Join-Path $temporaryRoot "pr-$($pr.Number).patch"
     $worktreePath = Join-Path $temporaryRoot "pr-$($pr.Number)"
 
-    git show-ref --verify --quiet $archiveRef
+    git --git-dir=$RepoPath show-ref --verify --quiet $archiveRef
     if ($LASTEXITCODE -eq 0) {
         throw "Archive branch $archiveBranch already exists. Delete or rename it before retrying."
     }
@@ -359,7 +409,7 @@ foreach ($pr in $metadata) {
     }
 
     $targetCommitsByTree = @{}
-    $targetHistory = @(git log $baseRef --format="%T %H")
+    $targetHistory = @(git --git-dir=$RepoPath log $baseRef --format="%T %H")
     Assert-LastCommand "Reading target history for PR #$($pr.Number)"
 
     foreach ($line in $targetHistory) {
@@ -371,7 +421,7 @@ foreach ($pr in $metadata) {
 
     $recoveredBoundary = $null
     $matchingTargetCommit = $null
-    $recoveredHistory = @(git log --first-parent $recoveredRef --format="%H %T")
+    $recoveredHistory = @(git --git-dir=$RepoPath log --first-parent $recoveredRef --format="%H %T")
     Assert-LastCommand "Reading recovered history for PR #$($pr.Number)"
 
     foreach ($line in $recoveredHistory) {
@@ -390,25 +440,31 @@ foreach ($pr in $metadata) {
         throw "Could not find a tree-equivalent target commit for PR #$($pr.Number)."
     }
 
-    $commitsToRecover = @(git rev-list --reverse --first-parent --no-merges "$recoveredBoundary..$recoveredRef")
-    Assert-LastCommand "Finding PR-owned commits for PR #$($pr.Number)"
+    $commitsToRecover = @(git --git-dir=$RepoPath rev-list --reverse --first-parent "$recoveredBoundary..$recoveredRef")
+    Assert-LastCommand "Finding recovered commits for PR #$($pr.Number)"
 
     if ($commitsToRecover.Count -eq 0) {
-        Write-Host "PR #$($pr.Number) has no non-merge first-parent commits and was skipped."
+        Write-Host "PR #$($pr.Number) has no commits after the recovered boundary and was skipped."
         continue
     }
 
-    git worktree add -b $archiveBranch $worktreePath $matchingTargetCommit
+    git --git-dir=$RepoPath worktree add -b $archiveBranch $worktreePath $matchingTargetCommit
     Assert-LastCommand "Creating archive branch for PR #$($pr.Number)"
 
-    foreach ($commit in $commitsToRecover) {
-        git diff --binary --full-index "$commit^" $commit "--output=$patchPath"
-        Assert-LastCommand "Creating patch from commit $commit for PR #$($pr.Number)"
+    git --git-dir=$RepoPath diff --binary --full-index $recoveredBoundary $recoveredRef "--output=$patchPath"
+    Assert-LastCommand "Creating recovered patch for PR #$($pr.Number)"
 
-        git -C $worktreePath apply --index $patchPath
-        if ($LASTEXITCODE -ne 0) {
-            throw "Applying commit $commit from PR #$($pr.Number) failed. Resolve it in $worktreePath before continuing."
-        }
+    git -C $worktreePath apply --index $patchPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Applying recovered changes from PR #$($pr.Number) failed. Inspect the worktree at $worktreePath."
+    }
+
+    $stagedTree = git -C $worktreePath write-tree
+    Assert-LastCommand "Reading staged tree for PR #$($pr.Number)"
+    $recoveredTree = git --git-dir=$RepoPath rev-parse "${recoveredRef}^{tree}"
+    Assert-LastCommand "Reading recovered tree for PR #$($pr.Number)"
+    if ($stagedTree -ne $recoveredTree) {
+        throw "Recovered changes for PR #$($pr.Number) do not match its filtered head. Nothing was pushed."
     }
 
     git -C $worktreePath diff --cached --quiet
@@ -423,7 +479,7 @@ foreach ($pr in $metadata) {
     git -C $worktreePath commit -m "Recovered PR #$($pr.Number): $($pr.Title)"
     Assert-LastCommand "Committing recovered changes for PR #$($pr.Number)"
 
-    git worktree remove $worktreePath
+    git --git-dir=$RepoPath worktree remove $worktreePath
     Assert-LastCommand "Removing temporary worktree for PR #$($pr.Number)"
     Remove-Item -LiteralPath $patchPath
 
@@ -431,8 +487,8 @@ foreach ($pr in $metadata) {
     Write-Host "  Target:             $($pr.Base)"
     Write-Host "  Recovered boundary: $recoveredBoundary"
     Write-Host "  Matching target:    $matchingTargetCommit"
-    Write-Host "  Recovered commits:  $($commitsToRecover.Count) (first-parent merges excluded)"
-    git diff --stat "$baseRef...$archiveRef"
+    Write-Host "  Recovered commits:  $($commitsToRecover.Count) (first-parent, including merges)"
+    git --git-dir=$RepoPath diff --stat "$baseRef...$archiveRef"
     Assert-LastCommand "Comparing archive branch for PR #$($pr.Number)"
 }
 
@@ -458,7 +514,7 @@ foreach ($pr in $metadata) {
     $branchName = Get-RecoveredBranchName -Number $pr.Number -Title $pr.Title
     $source = "refs/heads/$branchName"
 
-    git show-ref --verify --quiet $source
+    git --git-dir=$RepoPath show-ref --verify --quiet $source
     if ($LASTEXITCODE -eq 1) {
         Write-Host "Skipping PR #$($pr.Number), which produced no archive branch."
         continue
@@ -466,7 +522,7 @@ foreach ($pr in $metadata) {
     Assert-LastCommand "Checking archive branch for PR #$($pr.Number)"
 
     Write-Host "Publishing archive branch for PR #$($pr.Number)..."
-    git push origin "${source}:${source}"
+    git --git-dir=$RepoPath push origin "${source}:${source}"
     Assert-LastCommand "Publishing PR #$($pr.Number)"
 }
 
