@@ -6,6 +6,7 @@ use axenox\PackageManager\Common\Audit\Finding;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;
+use Composer\Semver\VersionParser;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use GuzzleHttp\Client;
@@ -292,8 +293,8 @@ class OsvAuditScanner extends AbstractAuditScanner
     /**
      * Converts a full native OSV record to findings for the queried package only.
      * 
-     * CVE aliases remain separate public identities. Affected range events are
-     * retained as JSON to preserve disjoint ranges and Git versus release semantics.
+    * CVE aliases remain separate public identities. Release ranges use Composer-like
+    * constraints, while evidence without release-version semantics retains its JSON.
      * 
      * @param array<string, mixed> $advisory
      * @param array{query: array, name: string, version: string} $dependency
@@ -335,13 +336,7 @@ class OsvAuditScanner extends AbstractAuditScanner
         $cves = array_values(array_filter($advisory['aliases'] ?? [], static function ($alias) {
             return is_string($alias) && VulnerabilityLevelDataType::isCVE($alias);
         }));
-        $evidence = [];
-        if ($ranges !== []) {
-            $evidence['ranges'] = $ranges;
-        }
-        if ($versions !== []) {
-            $evidence['versions'] = array_values(array_unique($versions));
-        }
+        $versionsAffected = $this->formatAffectedVersions($ranges, $versions);
         $findings = [];
         foreach (array_unique($cves !== [] ? $cves : ['']) as $cve) {
             $findings[] = new Finding(
@@ -355,12 +350,77 @@ class OsvAuditScanner extends AbstractAuditScanner
                 $cve,
                 (string) ($advisory['details'] ?? ''),
                 '',
-                $evidence !== [] ? json_encode($evidence, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) : '',
+                $versionsAffected,
                 $dependency['version'],
                 implode('; ', array_unique($fixed))
             );
         }
         return $findings;
+    }
+
+    /**
+     * Makes OSV release evidence readable alongside Composer and npm constraints.
+     * 
+     * Introduced versions are inclusive, fixed and limit versions exclusive, and
+     * last_affected versions inclusive. Introduced "0" means no lower bound.
+     * Disjoint intervals and explicit versions are alternatives, not intersections.
+     * Non-release ranges and unparseable ecosystem versions retain their JSON rather
+     * than presenting commit hashes or incompatible version schemes as semver.
+     * 
+     * @param array<int, array<string, mixed>> $ranges
+     * @param string[] $versions
+     * @return string
+     */
+    protected function formatAffectedVersions(array $ranges, array $versions) : string
+    {
+        $parser = new VersionParser();
+        $constraints = [];
+        $evidence = [];
+        foreach ($ranges as $range) {
+            if (! in_array($range['type'] ?? '', ['SEMVER', 'ECOSYSTEM'], true)) {
+                $evidence['ranges'][] = $range;
+                continue;
+            }
+            $intervals = [];
+            $lower = null;
+            try {
+                foreach ($range['events'] ?? [] as $event) {
+                    foreach ($event as $type => $version) {
+                        $parser->normalize($version);
+                        if ($type === 'introduced') {
+                            $lower = $version === '0' ? '' : '>=' . $version;
+                        } elseif (in_array($type, ['fixed', 'last_affected', 'limit'], true)) {
+                            $upper = ($type === 'last_affected' ? '<=' : '<') . $version;
+                            $intervals[] = $lower !== null && $lower !== '' ? $lower . ' ' . $upper : $upper;
+                            $lower = null;
+                        }
+                    }
+                }
+                if ($lower !== null) {
+                    $intervals[] = $lower !== '' ? $lower : '*';
+                }
+                if ($intervals === []) {
+                    $evidence['ranges'][] = $range;
+                } else {
+                    $constraints = array_merge($constraints, $intervals);
+                }
+            } catch (\UnexpectedValueException $exception) {
+                $evidence['ranges'][] = $range;
+            }
+        }
+        foreach (array_unique($versions) as $version) {
+            try {
+                $parser->normalize($version);
+                $constraints[] = '=' . $version;
+            } catch (\UnexpectedValueException $exception) {
+                $evidence['versions'][] = $version;
+            }
+        }
+        $formatted = implode(' || ', array_unique($constraints));
+        if ($evidence !== []) {
+            $formatted .= ($formatted !== '' ? '; ' : '') . json_encode($evidence, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        }
+        return $formatted;
     }
 
     /**

@@ -204,8 +204,14 @@ records from `/v1/vulns/{id}` once per advisory within the scan. Withdrawn advis
 are omitted. Native IDs, CVE aliases, descriptions and installed versions are
 retained. Severity uses OSV's database-specific or affected ecosystem-specific
 labels; records without a label retain `unknown` (conservatively high). CVSS vectors
-are not converted to severity labels. Affected range events are retained as JSON
-in `VERSIONS_AFFECTED`; `VERSION_FIXED` lists fix events for the queried package,
+are not converted to severity labels. `VERSIONS_AFFECTED` converts OSV `SEMVER`
+and Composer-compatible `ECOSYSTEM` ranges to Composer-like constraints: introduced
+versions use `>=`, fixed and limit versions use `<`, and last-affected versions use
+`<=`. Introduced `0` omits the lower bound, so a fix at `3.4.6` produces `<3.4.6`.
+Disjoint ranges and explicit affected versions use `||`, for example
+`>=1.0.0 <1.2.0 || >=2.0.0 <2.3.0 || =3.0.0`. Git ranges and versions that cannot
+be parsed as Composer versions retain their JSON evidence rather than misleading
+semver constraints. `VERSION_FIXED` lists fix events for the queried package,
 not a computed upgrade recommendation. Multiple CVE aliases produce separate
 findings. API, malformed-response and pagination errors fail the scan.
 

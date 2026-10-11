@@ -3,6 +3,7 @@ namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
 use axenox\PackageManager\Common\Audit\Scanner\OsvAuditScanner;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
+use Composer\Semver\Semver;
 use exface\Core\CommonLogic\Tasks\GenericTask;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\RuntimeException;
@@ -12,6 +13,7 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Exercises OSV's artifact and HTTP contracts without public network access.
@@ -109,6 +111,7 @@ class OsvAuditScannerTest extends AuditTestCase
         self::assertSame('osv', $findings[0]->getSource());
         self::assertSame('3.0.0', $findings[0]->getVersionInstalled());
         self::assertSame('4.0.0', $findings[0]->getVersionFixed());
+        self::assertSame('<4.0.0', $findings[0]->getVersionsAffected());
         self::assertSame(300, $findings[0]->getLevel());
         self::assertSame('Full details', $findings[0]->getDescription());
         self::assertCount(2, $this->requests);
@@ -118,6 +121,97 @@ class OsvAuditScannerTest extends AuditTestCase
             ['package' => ['ecosystem' => 'npm', 'name' => 'bundled'], 'version' => '3.0.0']
         ]], json_decode((string) $this->requests[0]['request']->getBody(), true));
         self::assertSame('https://api.osv.dev/v1/querybatch', (string) $this->requests[0]['request']->getUri());
+    }
+
+    /**
+     * Checks readable range output and endpoint membership through the real scanner.
+     * 
+     * @param array<string, mixed> $affected
+     * @param string $expected
+     * @param string[] $included
+     * @param string[] $excluded
+     * @return void
+     */
+    #[DataProvider('affectedVersionCases')]
+    public function testAffectedVersionsUseComposerConstraints(array $affected, string $expected, array $included, array $excluded) : void
+    {
+        $this->setArtifact('composer_lock', ['packages' => [['name' => 'vendor/php', 'version' => '1.0.0']]]);
+        $affected['package'] = ['ecosystem' => 'Packagist', 'name' => 'vendor/php'];
+        $this->responses->append(
+            new Response(200, [], '{"results":[{"vulns":[{"id":"OSV-ranges"}]}]}'),
+            new Response(200, [], json_encode(['id' => 'OSV-ranges', 'affected' => [$affected]]))
+        );
+        $findings = $this->scanner->audit($this->task);
+        self::assertCount(1, $findings);
+        self::assertSame($expected, $findings[0]->getVersionsAffected());
+        foreach ($included as $version) {
+            self::assertTrue(Semver::satisfies($version, $expected), $version . ' must be affected.');
+        }
+        foreach ($excluded as $version) {
+            self::assertFalse(Semver::satisfies($version, $expected), $version . ' must not be affected.');
+        }
+    }
+
+    /**
+     * Supplies independent OSV event combinations to guard against boundary drift.
+     * 
+     * @return array<string, array{array<string, mixed>, string, string[], string[]}>
+     */
+    public static function affectedVersionCases() : array
+    {
+        return [
+            'reported JSON example' => [
+                ['ranges' => [['type' => 'SEMVER', 'events' => [['introduced' => '0'], ['fixed' => '3.4.6']]]]],
+                '<3.4.6', ['0.0.0', '3.4.5'], ['3.4.6']
+            ],
+            'disjoint intervals' => [
+                ['ranges' => [['type' => 'SEMVER', 'events' => [
+                    ['introduced' => '1.0.0'], ['fixed' => '1.2.0'], ['introduced' => '2.0.0'], ['fixed' => '2.3.0']
+                ]]]],
+                '>=1.0.0 <1.2.0 || >=2.0.0 <2.3.0', ['1.0.0', '1.1.9', '2.0.0'], ['0.9.0', '1.2.0', '2.3.0']
+            ],
+            'inclusive last affected' => [
+                ['ranges' => [['type' => 'SEMVER', 'events' => [['introduced' => '1.0.0'], ['last_affected' => '1.2.0']]]]],
+                '>=1.0.0 <=1.2.0', ['1.0.0', '1.2.0'], ['0.9.0', '1.2.1']
+            ],
+            'exclusive limit' => [
+                ['ranges' => [['type' => 'SEMVER', 'events' => [['introduced' => '0'], ['limit' => '2.0.0']]]]],
+                '<2.0.0', ['1.9.9'], ['2.0.0']
+            ],
+            'open ended' => [
+                ['ranges' => [['type' => 'SEMVER', 'events' => [['introduced' => '2.0.0']]]]],
+                '>=2.0.0', ['2.0.0', '3.0.0'], ['1.9.9']
+            ],
+            'all versions' => [
+                ['ranges' => [['type' => 'SEMVER', 'events' => [['introduced' => '0']]]]],
+                '*', ['0.0.0', '99.0.0'], []
+            ],
+            'ecosystem ranges and explicit versions' => [
+                ['ranges' => [['type' => 'ECOSYSTEM', 'events' => [['introduced' => '1.0.0'], ['fixed' => '2.0.0']]]],
+                    'versions' => ['3.0.0', '3.0.0', '4.0.0-beta.1']],
+                '>=1.0.0 <2.0.0 || =3.0.0 || =4.0.0-beta.1', ['1.0.0', '3.0.0', '4.0.0-beta.1'], ['2.0.0', '3.0.1']
+            ],
+            'separate ranges' => [
+                ['ranges' => [
+                    ['type' => 'SEMVER', 'events' => [['introduced' => '0'], ['fixed' => '1.0.0']]],
+                    ['type' => 'SEMVER', 'events' => [['introduced' => '2.0.0']]]
+                ]],
+                '<1.0.0 || >=2.0.0', ['0.9.0', '2.0.0'], ['1.0.0', '1.9.9']
+            ],
+            'Git evidence is not semver' => [
+                ['ranges' => [['type' => 'GIT', 'events' => [['introduced' => 'abc123'], ['fixed' => 'def456']]]]],
+                '{"ranges":[{"type":"GIT","events":[{"introduced":"abc123"},{"fixed":"def456"}]}]}', [], []
+            ],
+            'incompatible ecosystem retains entire range' => [
+                ['ranges' => [['type' => 'ECOSYSTEM', 'events' => [['introduced' => '1.0.0'], ['fixed' => 'release-final']]]]],
+                '{"ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"1.0.0"},{"fixed":"release-final"}]}]}', [], []
+            ],
+            'explicit versions only' => [
+                ['versions' => ['1.0.0', '2.0.0']],
+                '=1.0.0 || =2.0.0', ['1.0.0', '2.0.0'], ['1.0.1']
+            ],
+            'empty evidence' => [[], '', [], []]
+        ];
     }
 
     /**
