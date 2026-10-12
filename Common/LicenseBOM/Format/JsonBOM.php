@@ -96,6 +96,8 @@ class JsonBOM extends AbstractBOMDecorator implements LicenseBOMExporterInterfac
                 if (($source['type'] ?? '') === 'git' && is_string($source['reference'] ?? null) && $source['reference'] !== '') {
                     $data['source'] = ['type' => 'git', 'reference' => $source['reference']];
                 }
+            } else {
+                $data['license_used'] = $package->getLicenseUsed();
             }
             $arr['packages'][] = $data;
         }

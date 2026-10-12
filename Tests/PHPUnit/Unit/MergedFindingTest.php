@@ -15,6 +15,19 @@ use PHPUnit\Framework\TestCase;
 class MergedFindingTest extends TestCase
 {
     /**
+     * Aggregation must not erase ecosystem identity for packages with matching names.
+     * 
+     * @return void
+     */
+    public function testRejectsDifferentEcosystems() : void
+    {
+        $npm = new Finding('id', 'Advisory', 'vulnerability', 'library', 'osv', 'high', ecosystem: 'npm');
+        $nuget = new Finding('id', 'Advisory', 'vulnerability', 'library', 'osv', 'high', ecosystem: 'nuget');
+        self::assertSame('npm', (new MergedFinding([$npm]))->getEcosystem());
+        $this->expectException(InvalidArgumentException::class);
+        new MergedFinding([$npm, $nuget]);
+    }
+    /**
      * Aggregates must satisfy the finding contract without losing the originals.
      * 
      * @return void

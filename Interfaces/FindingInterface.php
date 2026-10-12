@@ -67,6 +67,16 @@ interface FindingInterface
     public function getPackage() : string;
 
     /**
+    * Returns the lowercase package ecosystem, or "unknown" when not established.
+     * 
+     * Package names alone do not identify a registry, so consumers must retain
+     * this value when grouping findings or persisting advisory identities.
+     * 
+     * @return string
+     */
+    public function getEcosystem() : string;
+
+    /**
      * Returns advisory URLs.
      * 
      * Multiple URLs are separated by a semicolon and space; unavailable URLs

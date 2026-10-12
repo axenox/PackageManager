@@ -15,6 +15,22 @@ use exface\Core\Exceptions\RuntimeException;
 class ScannerNormalizationTest extends AuditTestCase
 {
     /**
+     * Trivy's known registries must be retained while OS and unknown registries stay unknown.
+     * 
+     * @return void
+     */
+    public function testTrivyRetainsEcosystemMetadata() : void
+    {
+        $scanner = new TrivySBOMScanner($this->workbench);
+        foreach ([['nuget', '', 'nuget'], ['other', 'pkg:pypi/library@1', 'pypi'],
+            ['composer', '', 'composer'], ['debian', 'pkg:deb/debian/library@1', 'unknown'], ['other', '', 'unknown']] as [$type, $purl, $ecosystem]) {
+            $finding = $this->invokeProtected($scanner, 'createFinding', [[
+                'PkgName' => 'library', 'VulnerabilityID' => 'CVE-2026-1234', 'PkgIdentifier' => ['PURL' => $purl]
+            ], $type]);
+            self::assertSame($ecosystem, $finding->getEcosystem());
+        }
+    }
+    /**
      * SBOM parameters accept JSON, arrays and UXON without using folder artifacts.
      * 
      * @return void
@@ -85,6 +101,7 @@ class ScannerNormalizationTest extends AuditTestCase
         $rows = $this->invokeProtected($scanner, 'normalize', [$this->npmResponse()]);
         self::assertCount(2, $rows);
         self::assertSame('npm-asset/scope--package', $rows[0]->getPackage());
+        self::assertSame('npm', $rows[0]->getEcosystem());
         self::assertSame(['CVE-2026-0001', 'CVE-2026-0002'], array_map(static function ($finding) { return $finding->getCve(); }, $rows));
         self::assertSame(200, $rows[0]->getLevel());
         self::assertSame('Upgrade to version 2', $rows[0]->getRemediation());
@@ -162,6 +179,7 @@ class ScannerNormalizationTest extends AuditTestCase
         self::assertSame('EOL', $rows[1]->getType());
         self::assertSame('CVE-2026-0001', $rows[0]->getCve());
         self::assertSame('', $rows[1]->getCve());
+        self::assertSame('unknown', $rows[1]->getEcosystem());
         self::assertSame('npm-asset/scope--package', $rows[0]->getPackage());
     }
 

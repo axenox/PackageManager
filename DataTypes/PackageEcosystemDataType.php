@@ -33,6 +33,7 @@ class PackageEcosystemDataType extends StringDataType implements EnumDataTypeInt
     const CONAN_CENTER = 'conancenter';
     const CRAN = 'cran';
     const OPAM = 'opam';
+    const UNKNOWN = 'unknown';
 
     /**
      * Returns ecosystem display names with their language or platform where applicable.
@@ -60,7 +61,8 @@ class PackageEcosystemDataType extends StringDataType implements EnumDataTypeInt
             static::HACKAGE => 'Haskell Hackage',
             static::CONAN_CENTER => 'C/C++ ConanCenter',
             static::CRAN => 'R CRAN',
-            static::OPAM => 'OCaml opam'
+            static::OPAM => 'OCaml opam',
+            static::UNKNOWN => 'Unknown'
         ];
     }
 
@@ -153,6 +155,36 @@ class PackageEcosystemDataType extends StringDataType implements EnumDataTypeInt
     }
 
     /**
+     * Resolves known PURL registry types without assigning unknown or OS packages to Composer.
+     * 
+     * PURL type names differ from ecosystem names for Go, Rust and Ruby. Generic
+     * Conan packages do not establish ConanCenter as their registry.
+     * 
+     * @param string $type
+     * @return string|null
+     */
+    public static function convertFromPurlType(string $type) : ?string
+    {
+        return [
+            'composer' => static::COMPOSER,
+            'npm' => static::NPM,
+            'bower' => static::BOWER,
+            'nuget' => static::NUGET,
+            'maven' => static::MAVEN,
+            'pypi' => static::PYPI,
+            'golang' => static::GO,
+            'cargo' => static::CRATES_IO,
+            'gem' => static::RUBYGEMS,
+            'hex' => static::HEX,
+            'pub' => static::PUB,
+            'swift' => static::SWIFT_URL,
+            'hackage' => static::HACKAGE,
+            'cran' => static::CRAN,
+            'opam' => static::OPAM
+        ][strtolower($type)] ?? null;
+    }
+
+    /**
      * Maps inventory ecosystem values to OSV's registry names.
      * 
     * Bower returns null because OSV has no Bower registry identity. This does not
@@ -179,7 +211,8 @@ class PackageEcosystemDataType extends StringDataType implements EnumDataTypeInt
             static::HACKAGE => 'Hackage',
             static::CONAN_CENTER => 'ConanCenter',
             static::CRAN => 'CRAN',
-            static::OPAM => 'opam'
+            static::OPAM => 'opam',
+            static::UNKNOWN => null
         ][static::findEcosystem('', $ecosystem)];
     }
 }

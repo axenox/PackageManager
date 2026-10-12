@@ -155,6 +155,7 @@ class OsvAuditScanner extends AbstractAuditScanner
         }
         $version = (string) ($package['version'] ?? '');
         $identity = null;
+        $ecosystem = PackageEcosystemDataType::UNKNOWN;
         if (! empty($package['purl'])) {
             if (! is_string($package['purl']) || ! preg_match('~^pkg:([^/]+)/([^?#]+)(?:\?[^#]*)?(?:#.*)?$~', $package['purl'], $matches)) {
                 throw new RuntimeException('Invalid OSV package URL for ' . $name . '.');
@@ -165,13 +166,17 @@ class OsvAuditScanner extends AbstractAuditScanner
                 ? [substr($matches[2], 0, $versionPosition), substr($matches[2], $versionPosition + 1)]
                 : [$matches[2]];
             $purlName = rawurldecode($parts[0]);
+            $ecosystem = PackageEcosystemDataType::convertFromPurlType($matches[1]) ?? PackageEcosystemDataType::UNKNOWN;
             if (isset($parts[1])) {
                 $version = rawurldecode($parts[1]);
             }
-            if (in_array($matches[1], ['npm', 'composer', 'nuget'], true)) {
+            if (in_array($matches[1], ['npm', 'composer', 'nuget', 'bower'], true)) {
                 $ecosystem = PackageEcosystemDataType::findEcosystem($purlName, $matches[1]);
                 $nativeName = PackageEcosystemDataType::convertNameFromAssetPackagist($purlName, $ecosystem);
-                $identity = ['ecosystem' => PackageEcosystemDataType::convertToOsvEcosystem($ecosystem), 'name' => $nativeName];
+                $osvEcosystem = PackageEcosystemDataType::convertToOsvEcosystem($ecosystem);
+                if ($osvEcosystem !== null) {
+                    $identity = ['ecosystem' => $osvEcosystem, 'name' => $nativeName];
+                }
                 $name = PackageEcosystemDataType::convertNameToAssetPackagist($nativeName, $ecosystem);
             } elseif (! in_array($matches[1], ['generic', 'bower'], true)) {
                 $identity = ['purl' => 'pkg:' . $matches[1] . '/' . $parts[0]
@@ -198,12 +203,13 @@ class OsvAuditScanner extends AbstractAuditScanner
             $this->hints[] = $hint;
             $this->unscannableFindings[] = new Finding(
                 '', 'Package cannot be scanned', AdvisoryTypeDataType::UNSCANNABLE, $name, 'osv', 'low',
-                '', '', $hint, 'Supply a supported package identity and exact version or Git commit.', '', $version
+                '', '', $hint, 'Supply a supported package identity and exact version or Git commit.', '', $version,
+                ecosystem: $ecosystem
             );
             return;
         }
-        $key = json_encode([$query, $name], JSON_THROW_ON_ERROR);
-        $dependencies[$key] = ['query' => $query, 'name' => $name, 'version' => $version];
+        $key = json_encode([$query, $name, $ecosystem], JSON_THROW_ON_ERROR);
+        $dependencies[$key] = ['query' => $query, 'name' => $name, 'version' => $version, 'ecosystem' => $ecosystem];
     }
 
     /**
@@ -262,7 +268,7 @@ class OsvAuditScanner extends AbstractAuditScanner
                                 throw new RuntimeException('OSV advisory response does not match ' . $id . '.');
                             }
                         }
-                        $key = json_encode([$id, $dependency['name'], $dependency['version']], JSON_THROW_ON_ERROR);
+                        $key = json_encode([$id, $dependency['ecosystem'], $dependency['name'], $dependency['version']], JSON_THROW_ON_ERROR);
                         if (! isset($detections[$key]) && empty($records[$id]['withdrawn'])) {
                             $findings = array_merge($findings, $this->normalize($records[$id], $dependency));
                             $detections[$key] = true;
@@ -270,7 +276,7 @@ class OsvAuditScanner extends AbstractAuditScanner
                     }
                     if (! empty($result['next_page_token'])) {
                         $token = $result['next_page_token'];
-                        $key = json_encode([$dependency['name'], $dependency['version'], $token], JSON_THROW_ON_ERROR);
+                        $key = json_encode([$dependency['ecosystem'], $dependency['name'], $dependency['version'], $token], JSON_THROW_ON_ERROR);
                         if (! is_string($token) || isset($tokens[$key])) {
                             throw new RuntimeException('Invalid or repeated OSV pagination token.');
                         }
@@ -357,7 +363,8 @@ class OsvAuditScanner extends AbstractAuditScanner
                 '',
                 $versionsAffected,
                 $dependency['version'],
-                implode('; ', array_unique($fixed))
+                implode('; ', array_unique($fixed)),
+                ecosystem: $dependency['ecosystem'] ?? null
             );
         }
         return $findings;

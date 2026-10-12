@@ -17,6 +17,22 @@ use PHPUnit\Framework\TestCase;
 class FindingTest extends TestCase
 {
     /**
+     * Same-named packages from different registries must remain distinct evidence.
+     * 
+     * @return void
+     */
+    public function testEcosystemIsNormalizedAndParticipatesInEquality() : void
+    {
+        $nuget = new Finding('id', 'Advisory', 'vulnerability', 'library', 'osv', 'high', ecosystem: 'NuGet');
+        $npm = new Finding('id', 'Advisory', 'vulnerability', 'library', 'osv', 'high', ecosystem: 'npm');
+        self::assertSame('nuget', $nuget->getEcosystem());
+        self::assertSame('npm', $npm->getEcosystem());
+        self::assertFalse($nuget->is($npm));
+        self::assertTrue($nuget->is(clone $nuget));
+        self::assertSame('npm', (new Finding('id', 'Advisory', 'vulnerability', 'npm-asset/library', 'npm', 'high'))->getEcosystem());
+        self::assertSame('unknown', (new Finding('id', 'Advisory', 'EOL', 'linux:1', 'trivy', 'high', ecosystem: ''))->getEcosystem());
+    }
+    /**
      * Advisory enum casting preserves canonical values and legacy constant aliases.
      * 
      * @return void

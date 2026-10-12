@@ -276,7 +276,7 @@ according to their own needs.
 
 [MergedFinding](../Common/Audit/MergedFinding.php) also implements `FindingInterface` and
 owns aggregation strategies. Its constructor accepts only a nonempty group of
-findings for the same case-insensitive package and type, without an ID argument. Nested aggregates
+findings for the same ecosystem, case-insensitive package and type, without an ID argument. Nested aggregates
 are flattened and equal evidence is omitted. `getMergedFindings()` returns the
 original `FindingInterface` instances, preserving scanner-specific associations
 without mutating them. The highest severity wins; distinct nonempty evidence
@@ -290,8 +290,8 @@ Individual getters can be overridden to implement different aggregation strategi
 Arrays are used only at external boundaries: scanner API payloads and serialized
 output. The `Audit` action owns the result column schema, selects the result
 metaobject and creates the DataSheet. CLI, DataSheet and JSON output group findings
-by finding type and case-insensitive package name, matching either advisory identity
-or a nonempty case-insensitive title across scanners. Different packages always
+by finding type, ecosystem and case-insensitive package name, matching either advisory identity
+or a nonempty case-insensitive title across scanners. Different ecosystems or packages always
 produce separate rows, so mitigation remains per-package.
 The action's `groupFindings()` helper creates a `MergedFinding` for every group;
 `toDataSheetRows()` serializes their getters when populating the result sheet. The serializer
@@ -299,7 +299,7 @@ also accepts raw findings, without implementing merging logic itself. The action
 generates package-specific output IDs; removing internal finding IDs does not
 change those output IDs.
 
-Every result finding has `LEVEL`, `ID`, `PUBLIC_ID`, `NAME`, `TYPE`, `PACKAGE`,
+Every result finding has `LEVEL`, `ID`, `PUBLIC_ID`, `NAME`, `TYPE`, `PACKAGE`, `ECOSYSTEM`,
 `DETAILS_URL`, `SOURCE` and `SOURCE_LEVEL`. Scanner-provided CVEs are normalized
 to uppercase and used as public identifiers. Original CVEs remain accessible
 through each raw finding's `getCve()` getter.
@@ -319,6 +319,8 @@ IDs. Package names are lowercased in keys. For the same set of detections, IDs s
 unchanged regardless of severity or scanner order. Adding a different advisory
 identity to a title-matched group can change its output ID.
 Different packages have different output IDs even when they share an advisory.
+Different ecosystems also remain separate. Existing Composer and asset-package
+keys stay stable; explicit ecosystems differing from name-based inference extend the key.
 Original scanner IDs remain accessible through `getMergedFindings()` and each
 original's `getSourceId()` getter, independently of the group's output ID.
 Internal levels
@@ -350,15 +352,22 @@ unknown values have no label. Enum casting normalizes case and surrounding
 whitespace and rejects unsupported values. Findings require canonical values.
 The existing `FindingInterface::TYPE_*` constants remain compatibility aliases.
 
+`ECOSYSTEM` uses `PackageEcosystemDataType` and always contains a lowercase value.
+`getEcosystem()` retains this identity on both raw and merged findings. OSV keeps
+the inventory or PURL ecosystem even for Git-commit queries; Trivy uses known PURL
+types or its language-package metadata. OS packages and unestablished registries use
+the enum value `unknown`, rather than an empty string or a guessed Composer registry.
+Unknown ecosystems have no OSV registry mapping, but usable Git commits remain scannable.
+
 Additional fields preserve useful scanner data: `DESCRIPTION`, `REMEDIATION`,
 `VERSIONS_AFFECTED`, `VERSION_INSTALLED`, and `VERSION_FIXED`. Unavailable values
-are empty strings. DataSheet and JSON output contain these 14 documented columns;
+are empty strings. DataSheet and JSON output contain these 15 documented columns;
 the former `DETECTIONS` column and modeled attribute have been removed. Consumers
 that need original scanner evidence in PHP use `getMergedFindings()` instead.
 Scanners can disagree about severity, fixed versions, affected ranges or recommendations;
 those associations remain available on the originals, but are not exported as nested JSON.
 
-Rows are deduplicated by finding type, case-insensitive package and either
+Rows are deduplicated by finding type, ecosystem, case-insensitive package and either
 case-insensitive `PUBLIC_ID` or nonempty case-insensitive `NAME`. The title check
 matches npm GHSA findings with OSV CVE findings even when their public IDs differ.
 When a public ID is unavailable, the primary identity still falls back to the native
@@ -366,7 +375,7 @@ scanner ID, then title, within that scanner's namespace. A finding matching one
 group's identity and another group's title joins both groups. Empty titles do not
 provide an additional match.
 
-Title matching is a heuristic: distinct advisories with the same package and title
+Title matching is a heuristic: distinct advisories with the same ecosystem, package and title
 will also merge, including multiple CVE identities. Every original identity remains
 available through `getMergedFindings()`; the first finding supplies the displayed
 title and package spelling. The displayed public ID prefers CVE over GHSA over
@@ -398,6 +407,9 @@ their only consumer, rather than the generic base. npm and Trivy scanners do not
 inherit these methods. Construct `Finding` with the native ID, name, type, package, source and
 source-native severity; optional string arguments hold URLs, CVE, description,
 remediation and version evidence, plus an explicit public identifier when needed.
+The final optional `ecosystem` argument retains explicit registry metadata. Legacy
+callers default to Composer or infer npm/Bower from asset prefixes; pass `unknown`
+when the registry cannot be established. Do not infer a registry from a bare package name.
 Severity normalization and public-identity resolution belong to the finding.
 Each scanner owns a protected `createFinding()` method that maps its decoded native
 response directly to the `Finding` constructor. Composer uses `advisoryId`, `link`

@@ -3,6 +3,7 @@ namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\Common\Audit\MergedFinding;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
@@ -71,7 +72,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
     public const TASK_PARAM_OUTPUT = 'output';
     
     const COLUMNS = [
-        'LEVEL', 'ID', 'NAME', 'TYPE', 'PACKAGE', 'DETAILS_URL', 'SOURCE', 'SOURCE_LEVEL',
+        'LEVEL', 'ID', 'NAME', 'TYPE', 'PACKAGE', 'ECOSYSTEM', 'DETAILS_URL', 'SOURCE', 'SOURCE_LEVEL',
         'DESCRIPTION', 'REMEDIATION', 'VERSIONS_AFFECTED', 'VERSION_INSTALLED', 'VERSION_FIXED', 'PUBLIC_ID'
     ];
 
@@ -255,7 +256,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
     /**
      * Groups findings for this action's package-specific reporting policy.
      * 
-     * A group contains one finding type and package, matched by advisory identity
+    * A group contains one finding type, ecosystem and package, matched by advisory identity
      * or a nonempty title. Package names, public IDs and titles are compared without
      * case. Matches can link existing groups across scanner-specific public IDs.
      * Missing public IDs still use scanner-specific native identity for the primary
@@ -278,7 +279,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
                 $keys = ['identity:' . $this->getFindingGroupKey($original)];
                 if ($original->getName() !== '') {
                     $keys[] = 'title:' . json_encode([
-                        $original->getType(), strtolower($original->getPackage()), strtolower($original->getName())
+                        $original->getType(), $original->getEcosystem(), strtolower($original->getPackage()), strtolower($original->getName())
                     ], JSON_THROW_ON_ERROR);
                 }
                 $matchingGroups = [];
@@ -321,6 +322,8 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
       * A structured key prevents collisions when values contain delimiters.
       * Aggregates use the smallest original key so title-based merges have stable
       * output IDs regardless of scanner order or combined native identifiers.
+    * Legacy Composer and asset-package keys remain stable. Explicit ecosystems
+    * differing from name-based inference extend the key to prevent collisions.
       * 
       * @param FindingInterface $finding
       * @return string
@@ -337,7 +340,11 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         $identity = $finding->getPublicId() !== '' ? $finding->getPublicId() : $finding->getSourceId();
         $identity = $identity !== '' ? strtoupper($identity) : $finding->getName();
         $source = $finding->getPublicId() === '' ? $finding->getSource() : '';
-        return json_encode([$finding->getType(), $identity, strtolower($finding->getPackage()), $source], JSON_THROW_ON_ERROR);
+        $key = [$finding->getType(), $identity, strtolower($finding->getPackage()), $source];
+        if ($finding->getEcosystem() !== PackageEcosystemDataType::findEcosystem(strtolower($finding->getPackage()))) {
+            $key[] = $finding->getEcosystem();
+        }
+        return json_encode($key, JSON_THROW_ON_ERROR);
     }
 
      /**
@@ -400,6 +407,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
             'NAME' => $finding->getName(),
             'TYPE' => $finding->getType(),
             'PACKAGE' => $finding->getPackage(),
+            'ECOSYSTEM' => $finding->getEcosystem(),
             'DETAILS_URL' => $finding->getDetailsUrl(),
             'SOURCE' => $finding->getSource(),
             'SOURCE_LEVEL' => $finding->getSourceLevel(),

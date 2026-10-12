@@ -112,6 +112,7 @@ class GenerateLicenseBOMTest extends AuditTestCase
         $bom = $this->createLicenseBOM();
         $expected = ['packages' => array_values(array_map(static function ($package) {
             $data = $package->toComposerArray();
+            $data['license_used'] = $package->getLicenseUsed();
             $data['ecosystem'] = $data['name'] === 'example/library' ? 'composer' : 'npm';
             if ($data['ecosystem'] === 'npm') {
                 $data['name'] = '@scope/package';
@@ -126,6 +127,46 @@ class GenerateLicenseBOMTest extends AuditTestCase
             self::assertSame(file_get_contents($path), $exporter->buildJson());
             self::assertSame($expected, json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR));
         }
+    }
+
+    /**
+     * Full inventories expose the effective license without changing declared package metadata.
+     * 
+     * @return void
+     */
+    public function testJsonFullFormatIncludesEffectiveLicense() : void
+    {
+        $bom = new LicenseBOM();
+        foreach ([
+            ['name' => 'example/selected', 'license' => ['MIT', 'Apache-2.0'], 'license_used' => 'Apache-2.0'],
+            ['name' => 'example/default', 'license' => ['MIT', 'Apache-2.0']],
+            ['name' => 'example/empty-selection', 'license' => ['BSD-3-Clause'], 'license_used' => ''],
+            ['name' => 'example/unknown']
+        ] as $data) {
+            $bom->addPackage(new BOMPackage($data));
+        }
+        $before = array_map(static function ($package) {
+            return $package->toComposerArray();
+        }, $bom->getPackages());
+        $path = $this->temporaryFolder() . '/effective-licenses.json';
+        foreach (['full', 'minimal'] as $format) {
+            $exporter = (new JsonBOM($bom))->setFormat($format);
+            $exporter->saveToFile($path);
+            self::assertSame($exporter->buildJson(), file_get_contents($path));
+            $packages = json_decode($exporter->buildJson(), true, 512, JSON_THROW_ON_ERROR)['packages'];
+            if ($format === 'full') {
+                self::assertSame(['Apache-2.0', 'MIT', 'BSD-3-Clause', 'Other'], array_column($packages, 'license_used'));
+                self::assertSame(['MIT', 'Apache-2.0'], $packages[0]['license']);
+                self::assertSame(['MIT', 'Apache-2.0'], $packages[1]['license']);
+            } else {
+                foreach ($packages as $package) {
+                    self::assertArrayNotHasKey('license_used', $package);
+                }
+            }
+        }
+        self::assertSame($before, array_map(static function ($package) {
+            return $package->toComposerArray();
+        }, $bom->getPackages()));
     }
 
     /**

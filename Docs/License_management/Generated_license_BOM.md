@@ -64,7 +64,10 @@ Regenerate the list whenever dependencies, bundled libraries, or license informa
 ### JSON Export Format
 
 `JsonBOM` accepts `format: full` (the default) or `format: minimal`. Full exports preserve all
-combined package metadata. Minimal exports keep the same `packages` array and retain each
+combined package metadata and include `license_used` with the effective license: the explicit
+selection when configured, otherwise the first declared license, or `Other` when none is declared.
+The `license` array still contains all declared alternatives.
+Minimal exports keep the same `packages` array and retain each
 package's `name`, `ecosystem` and its `version` when present. Git sources with a nonempty
 reference also retain `source.type` and `source.reference` for commit-based auditing.
 License declarations, selected licenses, license texts, descriptions, repository URLs,

@@ -12,6 +12,22 @@ use exface\Core\Factories\SelectorFactory;
 class PackageEcosystemDataTypeTest extends AuditTestCase
 {
     /**
+     * PURL registry names must not default unknown or OS package identities to Composer.
+     * 
+     * @return void
+     */
+    public function testPurlTypesResolveOnlyKnownRegistries() : void
+    {
+        foreach (['composer' => 'composer', 'npm' => 'npm', 'bower' => 'bower', 'nuget' => 'nuget',
+            'maven' => 'maven', 'pypi' => 'pypi', 'golang' => 'go', 'cargo' => 'crates.io', 'gem' => 'rubygems',
+            'hex' => 'hex', 'pub' => 'pub', 'swift' => 'swifturl', 'hackage' => 'hackage', 'cran' => 'cran', 'opam' => 'opam'] as $type => $ecosystem) {
+            self::assertSame($ecosystem, PackageEcosystemDataType::convertFromPurlType($type));
+        }
+        foreach (['', 'generic', 'deb', 'rpm', 'conan'] as $type) {
+            self::assertNull(PackageEcosystemDataType::convertFromPurlType($type));
+        }
+    }
+    /**
      * Display labels identify languages and registries without changing the stored ecosystem values.
      * 
      * @return void
@@ -39,7 +55,8 @@ class PackageEcosystemDataTypeTest extends AuditTestCase
             'hackage' => 'Haskell Hackage',
             'conancenter' => 'C/C++ ConanCenter',
             'cran' => 'R CRAN',
-            'opam' => 'OCaml opam'
+            'opam' => 'OCaml opam',
+            'unknown' => 'Unknown'
         ], $labels);
     }
 
@@ -78,6 +95,8 @@ class PackageEcosystemDataTypeTest extends AuditTestCase
         self::assertSame('NuGet', PackageEcosystemDataType::convertToOsvEcosystem('nuget'));
         self::assertSame('PyPI', PackageEcosystemDataType::convertToOsvEcosystem('pypi'));
         self::assertNull(PackageEcosystemDataType::convertToOsvEcosystem('bower'));
+        self::assertSame('unknown', PackageEcosystemDataType::findEcosystem('library', 'UNKNOWN'));
+        self::assertNull(PackageEcosystemDataType::convertToOsvEcosystem('unknown'));
         foreach (PackageEcosystemDataType::getValuesStatic() as $ecosystem) {
             self::assertSame(strtolower($ecosystem), $ecosystem);
             self::assertSame($ecosystem, PackageEcosystemDataType::cast(strtoupper($ecosystem)));

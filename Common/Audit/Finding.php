@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\Audit;
 
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Exceptions\InvalidArgumentException;
@@ -18,6 +19,7 @@ class Finding implements FindingInterface
     private string $name;
     private string $type;
     private string $package;
+    private string $ecosystem;
     private string $source;
     private string $sourceLevel;
     private int $level;
@@ -36,6 +38,8 @@ class Finding implements FindingInterface
      * Optional evidence defaults to an empty string. Severity is normalized,
      * valid CVEs are uppercased, and public identifiers are resolved locally.
      * An explicit public identifier takes precedence over automatic resolution.
+    * Ecosystems default to Composer/asset inference for legacy callers; an
+    * explicit empty string becomes the unknown ecosystem, such as for OS packages.
      * 
      * @param string $sourceId
      * @param string $name
@@ -51,6 +55,7 @@ class Finding implements FindingInterface
      * @param string $versionInstalled
      * @param string $versionFixed
      * @param string $publicId
+    * @param string|null $ecosystem
      * @throws InvalidArgumentException If the finding type is unsupported.
      */
     public function __construct(
@@ -67,7 +72,8 @@ class Finding implements FindingInterface
         string $versionsAffected = '',
         string $versionInstalled = '',
         string $versionFixed = '',
-        string $publicId = ''
+        string $publicId = '',
+        ?string $ecosystem = null
     ) {
         if (! in_array($type, AdvisoryTypeDataType::getValuesStatic(), true)) {
             throw new InvalidArgumentException('Unsupported audit finding type: ' . $type);
@@ -76,6 +82,8 @@ class Finding implements FindingInterface
         $this->name = $name;
         $this->type = $type;
         $this->package = $package;
+        $this->ecosystem = $ecosystem === '' ? PackageEcosystemDataType::UNKNOWN
+            : PackageEcosystemDataType::findEcosystem(strtolower($package), $ecosystem);
         $this->source = $source;
         $this->sourceLevel = $sourceLevel;
         $this->level = VulnerabilityLevelDataType::normalize($sourceLevel);
@@ -129,6 +137,17 @@ class Finding implements FindingInterface
      * @return string
      */
     public function getPackage() : string { return $this->package; }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see FindingInterface::getEcosystem()
+     * @return string
+     */
+    public function getEcosystem() : string
+    {
+        return $this->ecosystem;
+    }
 
     /**
      * {@inheritDoc}
@@ -254,6 +273,7 @@ class Finding implements FindingInterface
             && $this->name === $finding->getName()
             && $this->type === $finding->getType()
             && $this->package === $finding->getPackage()
+            && $this->ecosystem === $finding->getEcosystem()
             && $this->source === $finding->getSource()
             && $this->sourceLevel === $finding->getSourceLevel()
             && $this->level === $finding->getLevel()

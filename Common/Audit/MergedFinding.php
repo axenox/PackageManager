@@ -23,9 +23,9 @@ class MergedFinding implements FindingInterface
      * Creates an aggregate without choosing which advisories belong together.
      * 
      * Nested aggregates are flattened and equal evidence is omitted. All originals
-    * must belong to the same package (compared without case) and finding type.
-    * Original package spelling is retained. Output identities are the responsibility
-    * of consumers, not of the aggregate.
+        * must belong to the same ecosystem, package (compared without case) and finding type.
+        * Original package spelling is retained. Output identities are the responsibility
+        * of consumers, not of the aggregate.
      * 
      * @param FindingInterface[] $findings A nonempty group of findings.
      * @throws InvalidArgumentException If the group is empty or incompatible.
@@ -43,8 +43,9 @@ class MergedFinding implements FindingInterface
             $members = $finding instanceof self ? $finding->getMergedFindings() : [$finding];
             foreach ($members as $member) {
                 if ($originals !== [] && (strcasecmp($member->getPackage(), $originals[0]->getPackage()) !== 0
+                    || $member->getEcosystem() !== $originals[0]->getEcosystem()
                     || $member->getType() !== $originals[0]->getType())) {
-                    throw new InvalidArgumentException('Merged findings must have the same package and finding type.');
+                    throw new InvalidArgumentException('Merged findings must have the same ecosystem, package and finding type.');
                 }
                 $duplicate = false;
                 foreach ($originals as $existing) {
@@ -135,6 +136,17 @@ class MergedFinding implements FindingInterface
     public function getPackage() : string
     {
         return $this->findings[0]->getPackage();
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see FindingInterface::getEcosystem()
+     * @return string
+     */
+    public function getEcosystem() : string
+    {
+        return $this->findings[0]->getEcosystem();
     }
 
     /**
@@ -308,7 +320,7 @@ class MergedFinding implements FindingInterface
      */
     public function is(FindingInterface $finding) : bool
     {
-        foreach (['getSourceId', 'getName', 'getType', 'getPackage', 'getSource', 'getSourceLevel',
+        foreach (['getSourceId', 'getName', 'getType', 'getPackage', 'getEcosystem', 'getSource', 'getSourceLevel',
             'getLevel', 'getDetailsUrl', 'getCve', 'getPublicId', 'getDescription', 'getRemediation',
             'getVersionsAffected', 'getVersionInstalled', 'getVersionFixed'] as $getter) {
             if ($this->$getter() !== $finding->$getter()) {

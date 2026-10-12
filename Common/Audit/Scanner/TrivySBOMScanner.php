@@ -202,7 +202,8 @@ class TrivySBOMScanner extends AbstractAuditScanner
                 '',
                 '',
                 '',
-                'Upgrade to a supported operating system release.'
+                'Upgrade to a supported operating system release.',
+                ecosystem: PackageEcosystemDataType::UNKNOWN
             );
         }
         return $findings;
@@ -221,8 +222,28 @@ class TrivySBOMScanner extends AbstractAuditScanner
     protected function createFinding(array $vulnerability, string $resultType = '') : FindingInterface
     {
         $package = $vulnerability['PkgName'];
-        if (in_array($resultType, ['npm', 'node-pkg', 'yarn', 'pnpm'], true)
-            || strpos($vulnerability['PkgIdentifier']['PURL'] ?? '', 'pkg:npm/') === 0) {
+        $ecosystem = [
+            'composer' => PackageEcosystemDataType::COMPOSER,
+            'npm' => PackageEcosystemDataType::NPM,
+            'node-pkg' => PackageEcosystemDataType::NPM,
+            'yarn' => PackageEcosystemDataType::NPM,
+            'pnpm' => PackageEcosystemDataType::NPM,
+            'nuget' => PackageEcosystemDataType::NUGET,
+            'dotnet-core' => PackageEcosystemDataType::NUGET,
+            'jar' => PackageEcosystemDataType::MAVEN,
+            'pom' => PackageEcosystemDataType::MAVEN,
+            'pip' => PackageEcosystemDataType::PYPI,
+            'python-pkg' => PackageEcosystemDataType::PYPI,
+            'gomod' => PackageEcosystemDataType::GO,
+            'gobinary' => PackageEcosystemDataType::GO,
+            'cargo' => PackageEcosystemDataType::CRATES_IO,
+            'gemspec' => PackageEcosystemDataType::RUBYGEMS,
+            'bundler' => PackageEcosystemDataType::RUBYGEMS
+        ][$resultType] ?? PackageEcosystemDataType::UNKNOWN;
+        if (preg_match('~^pkg:([^/]+)/~', $vulnerability['PkgIdentifier']['PURL'] ?? '', $matches)) {
+            $ecosystem = PackageEcosystemDataType::convertFromPurlType($matches[1]) ?? PackageEcosystemDataType::UNKNOWN;
+        }
+        if ($ecosystem === PackageEcosystemDataType::NPM) {
             $package = PackageEcosystemDataType::convertNameToAssetPackagist($package, PackageEcosystemDataType::NPM);
         }
         $fixedVersion = (string) ($vulnerability['FixedVersion'] ?? '');
@@ -239,7 +260,8 @@ class TrivySBOMScanner extends AbstractAuditScanner
             $fixedVersion !== '' ? 'Upgrade to ' . $fixedVersion : '',
             '',
             (string) ($vulnerability['InstalledVersion'] ?? ''),
-            $fixedVersion
+            $fixedVersion,
+            ecosystem: $ecosystem
         );
     }
 

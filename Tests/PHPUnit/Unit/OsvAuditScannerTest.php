@@ -23,6 +23,27 @@ use PHPUnit\Framework\Attributes\DataProvider;
  */
 class OsvAuditScannerTest extends AuditTestCase
 {
+    /**
+     * Same-named packages and shared Git commits must retain their separate registries.
+     * 
+     * @return void
+     */
+    public function testSharedCommitRetainsEachEcosystem() : void
+    {
+        $source = ['type' => 'git', 'reference' => str_repeat('a', 40)];
+        $this->setArtifact('sbom', ['packages' => [
+            ['name' => 'library', 'ecosystem' => 'nuget', 'version' => 'dev-main', 'source' => $source],
+            ['name' => 'library', 'ecosystem' => 'pypi', 'version' => 'dev-main', 'source' => $source]
+        ]]);
+        $this->responses->append(
+            new Response(200, [], '{"results":[{"vulns":[{"id":"OSV-shared"}]},{"vulns":[{"id":"OSV-shared"}]}]}'),
+            new Response(200, [], '{"id":"OSV-shared","summary":"Shared advisory"}')
+        );
+        $findings = $this->scanner->audit($this->task);
+        self::assertCount(2, $findings);
+        self::assertSame(['library', 'library'], array_map(static fn ($finding) => $finding->getPackage(), $findings));
+        self::assertSame(['nuget', 'pypi'], array_map(static fn ($finding) => $finding->getEcosystem(), $findings));
+    }
     private OsvAuditScanner $scanner;
     private GenericTask $task;
     private MockHandler $responses;
@@ -105,6 +126,7 @@ class OsvAuditScannerTest extends AuditTestCase
         self::assertCount(1, $findings);
         self::assertSame('bower-asset/library', $findings[0]->getPackage());
         self::assertSame('vulnerability', $findings[0]->getType());
+        self::assertSame('bower', $findings[0]->getEcosystem());
         self::assertSame('1.0.0', $findings[0]->getVersionInstalled());
         self::assertSame(['queries' => [['commit' => $commit]]],
             json_decode((string) $this->requests[0]['request']->getBody(), true));
@@ -178,6 +200,7 @@ class OsvAuditScannerTest extends AuditTestCase
         $findings = $this->scanner->audit($this->task);
         self::assertCount(1, $findings);
         self::assertSame('Newtonsoft.Json', $findings[0]->getPackage());
+        self::assertSame('nuget', $findings[0]->getEcosystem());
         self::assertSame('12.0.1', $findings[0]->getVersionInstalled());
         self::assertSame(['queries' => [
             ['package' => ['ecosystem' => 'npm', 'name' => '@openui5/sap.ui.core'], 'version' => '1.0.0'],

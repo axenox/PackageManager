@@ -288,6 +288,24 @@ class AuditTest extends AuditTestCase
     }
 
     /**
+     * Identical names and advisories must not merge across package registries.
+     * 
+     * @return void
+     */
+    public function testSameNamedPackagesRemainSeparateAcrossEcosystems() : void
+    {
+        $npm = new Finding('CVE-2026-1234', 'Shared title', 'vulnerability', 'library', 'osv', 'high', ecosystem: 'npm');
+        $nuget = new Finding('CVE-2026-1234', 'Shared title', 'vulnerability', 'library', 'osv', 'high', ecosystem: 'nuget');
+        $composer = new Finding('CVE-2026-1234', 'Shared title', 'vulnerability', 'library', 'osv', 'high');
+        $rows = $this->resultSheet([$npm, $nuget, $composer])->getRows();
+        self::assertCount(3, $rows);
+        self::assertCount(3, array_unique(array_column($rows, 'ID')));
+        $ecosystems = array_column($rows, 'ECOSYSTEM');
+        sort($ecosystems);
+        self::assertSame(['composer', 'npm', 'nuget'], $ecosystems);
+    }
+
+    /**
      * Matching package and title identify duplicates even when public IDs differ.
      * 
      * @return void
@@ -434,6 +452,7 @@ class AuditTest extends AuditTestCase
             'NAME' => 'Advisory',
             'TYPE' => 'vulnerability',
             'PACKAGE' => 'npm-asset/first',
+            'ECOSYSTEM' => 'npm',
             'DETAILS_URL' => 'https://example.org/advisory',
             'SOURCE' => 'npm, trivy',
             'SOURCE_LEVEL' => 'moderate; critical',
@@ -445,7 +464,7 @@ class AuditTest extends AuditTestCase
             'PUBLIC_ID' => 'CVE-2026-0001'
         ], $row);
         self::assertArrayNotHasKey('DETECTIONS', $row);
-        self::assertCount(14, Audit::COLUMNS);
+        self::assertCount(15, Audit::COLUMNS);
         $rawRow = $this->invokeProtected($this->action, 'toDataSheetRow', [$first]);
         self::assertSame($single['ID'], $rawRow['ID']);
         self::assertSame(200, $rawRow['LEVEL']);
@@ -465,6 +484,9 @@ class AuditTest extends AuditTestCase
     public function testResultColumnsMatchModeledAttributes() : void
     {
         $model = json_decode(file_get_contents(dirname(__DIR__, 3) . '/Model/axenox.PackageManager.AUDIT_ADVISORY/04_ATTRIBUTE.json'), true, 512, JSON_THROW_ON_ERROR);
+        $ecosystem = array_column($model['rows'], null, 'ALIAS')['ECOSYSTEM'];
+        self::assertSame(1, $ecosystem['REQUIREDFLAG']);
+        self::assertSame("'unknown'", $ecosystem['DEFAULT_VALUE']);
         $attributes = array_column($model['rows'], 'ALIAS');
         $columns = Audit::COLUMNS;
         sort($attributes);
