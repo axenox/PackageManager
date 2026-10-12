@@ -81,6 +81,16 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
     private ?UxonObject $scannersUxon = null;
 
     /**
+     * {@inheritDoc}
+     * @see AbstractAction::init()
+     */
+    protected function init()
+    {
+        parent::init();
+        $this->setIcon('fa fa-shield');
+    }
+
+    /**
      * Validates input and returns completed findings for standard action processing.
      * 
      * Validation precedes scanner side effects. Scanning and optional JSON export

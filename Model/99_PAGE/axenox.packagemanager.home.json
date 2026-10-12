@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2020-04-17 12:40:39",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2026-10-12 11:26:22",
+    "modified_on": "2026-10-12 12:08:23",
     "icon": "cube",
     "contents": {
         "object_alias": "axenox.PackageManager.PACKAGE_INSTALLED",
@@ -208,7 +208,7 @@
                             {
                                 "caption": "Refresh license BOM",
                                 "action": {
-                                    "icon": "fa fa-terminal",
+                                    "icon": "fa fa-certificate",
                                     "alias": "exface.core.ShowDialog",
                                     "widget": {
                                         "widgets": [
@@ -227,7 +227,7 @@
                             {
                                 "caption": "Audit",
                                 "action": {
-                                    "icon": "fa fa-certificate",
+                                    "icon": "fa fa-shield",
                                     "alias": "exface.core.ShowDialog",
                                     "widget": {
                                         "widgets": [
