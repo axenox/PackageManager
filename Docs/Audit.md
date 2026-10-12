@@ -250,8 +250,10 @@ findings for the same case-insensitive package and type, without an ID argument.
 are flattened and equal evidence is omitted. `getMergedFindings()` returns the
 original `FindingInterface` instances, preserving scanner-specific associations
 without mutating them. The highest severity wins; distinct nonempty evidence
-values are joined with `; `, except source labels, which use `, `. The first finding
-supplies the title. Public IDs prefer the first CVE, then the first GHSA, then the
+values are joined with `; `, except source labels, which use `, `, and the details
+URL, which uses only the first nonempty URL in encounter order so the result can
+be opened directly. Other URLs remain available through `getMergedFindings()`.
+The first finding supplies the title. Public IDs prefer the first CVE, then the first GHSA, then the
 first nonempty remaining identifier, regardless of which scanner ran first.
 Individual getters can be overridden to implement different aggregation strategies.
 

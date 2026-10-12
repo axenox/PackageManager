@@ -36,7 +36,8 @@ class MergedFindingTest extends TestCase
         self::assertSame(400, $merged->getLevel());
         self::assertSame('moderate; critical', $merged->getSourceLevel());
         self::assertSame('npm, trivy', $merged->getSource());
-        self::assertSame('https://example.org/first; https://example.org/second', $merged->getDetailsUrl());
+        self::assertSame('https://example.org/first', $merged->getDetailsUrl());
+        self::assertSame('https://example.org/second', $second->getDetailsUrl());
         self::assertSame('CVE-2026-0001', $merged->getCve());
         self::assertSame('CVE-2026-0001', $merged->getPublicId());
         self::assertSame('Description', $merged->getDescription());
@@ -49,6 +50,33 @@ class MergedFindingTest extends TestCase
         $originals = $merged->getMergedFindings();
         array_pop($originals);
         self::assertCount(2, $merged->getMergedFindings());
+    }
+
+    /**
+     * Missing scanner links must not hide a later directly openable URL.
+     * 
+     * @return void
+     */
+    public function testDetailsUrlUsesFirstNonemptyUrl() : void
+    {
+        $missing = new Finding('1', 'Advisory', 'vulnerability', 'package', 'npm', 'low');
+        $first = new Finding('2', 'Advisory', 'vulnerability', 'package', 'osv', 'high',
+            'https://example.org/first');
+        $second = new Finding('3', 'Advisory', 'vulnerability', 'package', 'trivy', 'high',
+            'https://example.org/second');
+        self::assertSame('https://example.org/first', (new MergedFinding([$missing, $first, $second]))->getDetailsUrl());
+    }
+
+    /**
+     * Findings without advisory links must retain an empty URL field.
+     * 
+     * @return void
+     */
+    public function testDetailsUrlIsEmptyWhenAllUrlsAreMissing() : void
+    {
+        $first = new Finding('1', 'Advisory', 'vulnerability', 'package', 'npm', 'low');
+        $second = new Finding('2', 'Advisory', 'vulnerability', 'package', 'trivy', 'high');
+        self::assertSame('', (new MergedFinding([$first, $second]))->getDetailsUrl());
     }
 
     /**

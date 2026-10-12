@@ -138,6 +138,11 @@ class MergedFinding implements FindingInterface
     }
 
     /**
+     * Returns one directly openable URL instead of combining advisory links.
+     * 
+     * The first nonempty URL in encounter order wins. Other URLs remain
+     * accessible through getMergedFindings().
+     * 
      * {@inheritDoc}
      * 
      * @see FindingInterface::getDetailsUrl()
@@ -145,7 +150,13 @@ class MergedFinding implements FindingInterface
      */
     public function getDetailsUrl() : string
     {
-        return $this->mergeValues('getDetailsUrl');
+        foreach ($this->findings as $finding) {
+            $url = $finding->getDetailsUrl();
+            if ($url !== '') {
+                return $url;
+            }
+        }
+        return '';
     }
 
     /**
