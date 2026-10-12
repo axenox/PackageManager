@@ -11,6 +11,7 @@ use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseTextEnricher;
 use axenox\PackageManager\Common\LicenseBOM\Format\CycloneDxBOM;
 use axenox\PackageManager\Common\LicenseBOM\Format\JsonBOM;
 use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
+use axenox\PackageManager\Common\LicenseBOM\IncludesBOM;
 use axenox\PackageManager\Common\LicenseBOM\Format\MarkdownBOM;
 use axenox\PackageManager\Interfaces\LicenseBOMExporterInterface;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
@@ -93,8 +94,8 @@ class GenerateLicenseBOMTest extends AuditTestCase
         self::assertSame(file_get_contents($path), $exporter->buildJson());
         $document = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame(['packages' => [
-            ['name' => 'example/library', 'version' => 'v1.2.3'],
-            ['name' => 'npm-asset/scope--package', 'version' => 'v2.0.0']
+            ['name' => 'example/library', 'version' => 'v1.2.3', 'ecosystem' => 'composer'],
+            ['name' => '@scope/package', 'version' => 'v2.0.0', 'ecosystem' => 'npm']
         ]], $document);
         $scanner = new ComposerNpmAuditScanner($this->workbench);
         self::assertSame(['@scope/package' => ['2.0.0']], $this->invokeProtected($scanner, 'dependencies', [$document]));
@@ -110,7 +111,12 @@ class GenerateLicenseBOMTest extends AuditTestCase
     {
         $bom = $this->createLicenseBOM();
         $expected = ['packages' => array_values(array_map(static function ($package) {
-            return $package->toComposerArray();
+            $data = $package->toComposerArray();
+            $data['ecosystem'] = $data['name'] === 'example/library' ? 'composer' : 'npm';
+            if ($data['ecosystem'] === 'npm') {
+                $data['name'] = '@scope/package';
+            }
+            return $data;
         }, $bom->getPackages()))];
         $path = $this->temporaryFolder() . '/full.json';
         foreach ([[], ['format' => 'full']] as $configuration) {
@@ -138,7 +144,71 @@ class GenerateLicenseBOMTest extends AuditTestCase
         $bom->addPackage(new BOMPackage(['name' => 'example/unversioned', 'license' => ['MIT']]));
         $exporter->saveToFile($path);
         self::assertSame(file_get_contents($path), $exporter->buildJson());
-        self::assertSame(['packages' => [['name' => 'example/unversioned']]], json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR));
+        self::assertSame(['packages' => [['name' => 'example/unversioned', 'ecosystem' => 'composer']]], json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * Minimal snapshots retain Git query identities without leaking repository or transport metadata.
+     * 
+     * @return void
+     */
+    public function testJsonMinimalFormatPreservesGitReferences() : void
+    {
+        $commit = str_repeat('a', 40);
+        $sources = [
+            ['type' => 'git', 'reference' => $commit, 'url' => 'https://example.org/library.git', 'mirrors' => []],
+            ['type' => 'git', 'reference' => $commit, 'url' => 'https://example.org/dev.git'],
+            ['type' => 'svn', 'reference' => '123', 'url' => 'https://example.org/svn'],
+            ['type' => 'git', 'url' => 'https://example.org/unlocked.git'],
+            ['reference' => $commit],
+            ['type' => 'git', 'reference' => ''],
+            ['type' => 'git', 'reference' => null]
+        ];
+        $bom = new LicenseBOM();
+        foreach ($sources as $index => $source) {
+            $bom->addPackage(new BOMPackage([
+                'name' => 'library-' . $index, 'ecosystem' => 'bower',
+                'version' => $index === 1 ? 'dev-main' : '1.0.0', 'source' => $source,
+                'license' => ['MIT']
+            ]));
+        }
+        $before = array_map(static function ($package) {
+            return $package->toComposerArray();
+        }, $bom->getPackages());
+        $exporter = (new JsonBOM($bom))->setFormat('minimal');
+        $path = $this->temporaryFolder() . '/minimal-git.json';
+        $exporter->saveToFile($path);
+        self::assertSame($exporter->buildJson(), file_get_contents($path));
+        $packages = json_decode($exporter->buildJson(), true)['packages'];
+        foreach ($packages as $index => $package) {
+            self::assertArrayNotHasKey('license', $package);
+            if ($index < 2) {
+                self::assertSame(['type' => 'git', 'reference' => $commit], $package['source']);
+            } else {
+                self::assertArrayNotHasKey('source', $package);
+            }
+        }
+        self::assertSame('dev-main', $packages[1]['version']);
+        self::assertSame($before, array_map(static function ($package) {
+            return $package->toComposerArray();
+        }, $bom->getPackages()));
+    }
+
+    /**
+     * JSON ecosystem properties must be lowercase in both metadata formats.
+     * 
+     * @return void
+     */
+    public function testJsonEcosystemsAreLowercase() : void
+    {
+        $bom = new LicenseBOM();
+        foreach (['NuGet', 'PyPI', 'Maven', 'Go', 'RubyGems'] as $ecosystem) {
+            $bom->addPackage(new BOMPackage(['name' => 'example-' . strtolower($ecosystem), 'ecosystem' => $ecosystem]));
+        }
+        foreach (['minimal', 'full'] as $format) {
+            $packages = json_decode((new JsonBOM($bom))->setFormat($format)->buildJson(), true)['packages'];
+            self::assertSame(['nuget', 'pypi', 'maven', 'go', 'rubygems'], array_column($packages, 'ecosystem'));
+        }
     }
 
     /**
@@ -180,6 +250,34 @@ class GenerateLicenseBOMTest extends AuditTestCase
             ]));
         }
         return $bom;
+    }
+
+    /**
+     * Includes must supplement asset aliases and preserve same-named packages from other registries.
+     * 
+     * @return void
+     */
+    public function testIncludesNativeEcosystemsMergeAndExport() : void
+    {
+        $folder = $this->temporaryFolder();
+        $this->writeFixture($folder, 'includes.json', json_encode([
+            ['name' => '@scope/package', 'ecosystem' => 'npm', 'license_used' => 'Apache-2.0'],
+            ['name' => 'Newtonsoft.Json', 'ecosystem' => 'nuget', 'version' => '12.0.1'],
+            ['name' => 'same-name', 'ecosystem' => 'npm', 'version' => '1.0.0'],
+            ['name' => 'same-name', 'ecosystem' => 'bower', 'version' => '2.0.0'],
+            ['name' => 'same-name', 'ecosystem' => 'nuget', 'version' => '3.0.0'],
+            ['name' => 'same-name', 'version' => '4.0.0']
+        ], JSON_THROW_ON_ERROR));
+        $bom = $this->createLicenseBOM();
+        $bom->merge(new IncludesBOM($folder . '/includes.json', $folder));
+        self::assertCount(7, $bom->getPackages());
+        self::assertTrue($bom->hasPackage('Newtonsoft.Json'));
+        self::assertSame('Apache-2.0', $bom->getPackages()['npm-asset/scope--package']->getLicenseUsed());
+        self::assertSame('v2.0.0', $bom->getPackages()['npm-asset/scope--package']->getVersion());
+        $packages = json_decode((new JsonBOM($bom))->setFormat('minimal')->buildJson(), true)['packages'];
+        self::assertSame(['name' => '@scope/package', 'version' => 'v2.0.0', 'ecosystem' => 'npm'], $packages[1]);
+        self::assertSame(['name' => 'Newtonsoft.Json', 'ecosystem' => 'nuget', 'version' => '12.0.1'], $packages[2]);
+        self::assertSame(['npm', 'bower', 'nuget', 'composer'], array_column(array_slice($packages, 3), 'ecosystem'));
     }
 
     /**

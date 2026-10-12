@@ -64,9 +64,11 @@ Regenerate the list whenever dependencies, bundled libraries, or license informa
 ### JSON Export Format
 
 `JsonBOM` accepts `format: full` (the default) or `format: minimal`. Full exports preserve all
-combined package metadata. Minimal exports keep the same `packages` array but retain only each
-package's `name` and its `version` when present. License declarations, selected licenses, license
-texts, descriptions, source references, dependency requirements and other metadata are omitted.
+combined package metadata. Minimal exports keep the same `packages` array and retain each
+package's `name`, `ecosystem` and its `version` when present. Git sources with a nonempty
+reference also retain `source.type` and `source.reference` for commit-based auditing.
+License declarations, selected licenses, license texts, descriptions, repository URLs,
+non-Git source metadata, dependency requirements and other metadata are omitted.
 Exporting does not change the combined inventory or other exporters' output.
 
 Use this configuration in `save_to_files`, or use its file map as the `SBOM.files` option:
@@ -82,17 +84,21 @@ Use this configuration in `save_to_files`, or use its file map as the `SBOM.file
 }
 ```
 
-Minimal exports retain original names and versions, including Composer's `npm-asset` aliases.
+Both formats always emit lowercase `ecosystem` values and native package names.
+For example, `npm-asset/openui5--sap.ui.core` becomes `@openui5/sap.ui.core` with
+`ecosystem: npm`; `bower-asset/jquery` becomes `jquery` with `ecosystem: bower`.
+Other packages default to `ecosystem: composer` unless explicitly configured.
+Versions are retained unchanged, and metadata normalization does not mutate the source packages.
 PHP consumers can call `JsonBOM::buildJson()` on a configured exporter to obtain
 the same JSON without writing a file, for example to archive a minimal build inventory.
-The npm Audit adapter uses these two fields, translating `npm-asset/scope--package` to
-`@scope/package` and removing a leading `v` from the version when constructing its bulk request.
+The npm Audit adapter accepts both native npm names with `ecosystem: npm` and legacy
+`npm-asset/scope--package` aliases. It removes a leading `v` from versions in its bulk request.
 
 [OSV version queries](https://google.github.io/osv.dev/post-v1-query/) require a package name,
 ecosystem and version (or a package URL). An adapter can build these queries from minimal package
-identities when it knows their ecosystem, for example `Packagist` for Composer packages or `npm`
-for npm assets. The inventory is not a native OSV request and does not invent ecosystems for
-untyped bundled packages. Such packages require ecosystem information from the calling context.
+identities using their ecosystem. The scanner maps `composer` to OSV's `Packagist`,
+`nuget` to `NuGet`, and preserves the native npm identity. The inventory is not a
+native OSV request. Bower packages require usable Git metadata for OSV coverage.
 Unversioned packages remain listed, but cannot be used for version-based queries until their
 versions are supplied. Minimal JSON is not a substitute for a license document or CycloneDX SBOM.
 
@@ -104,10 +110,18 @@ available version, description, repository and homepage references. The document
 generation timestamp. Packages with missing metadata remain in the inventory; missing fields
 are omitted.
 
-Package URLs identify `npm-asset` and `bower-asset` packages using their original ecosystems,
-including scoped npm names. Other `vendor/package` names with Composer's `type` metadata receive
-Composer package URLs. Untyped bundled entries do not receive an ecosystem identifier. Do not
-add Composer `type` metadata to an includes entry unless it represents a Composer package.
+Package URLs identify Composer, npm, Bower and NuGet packages using their ecosystems,
+including native names and legacy asset aliases. Untyped `vendor/package` entries default
+to Composer package URLs. Native NuGet entries receive `pkg:nuget` URLs, so standards-based
+audit tools can resolve them too. Invalid Composer names without a vendor/package pair
+do not receive a package URL. Other enum ecosystems currently use the combined JSON for OSV;
+this exporter does not create PURLs for those registries.
+
+For Bower auditing, OSV uses locked Git commit metadata rather than a Bower registry
+query or an assumed npm alias. Minimal JSON inventories preserve the Git source type
+and reference, so they can support commit queries without a Composer lock. OSV requires
+a 40-character commit hash; retaining a branch name or short reference does not make it
+queryable. Existing archived inventories are not automatically backfilled.
 
 The effective license selection follows the rules below and is exported as a named license,
 preserving custom labels and expressions without asserting an unverified SPDX ID. Available
@@ -120,7 +134,16 @@ completeness limitations of license generation apply equally to the SBOM.
 
 ## Register Bundled Software
 
-An app's `includes.json` lists third-party packages bundled with that app. Each entry needs a package name. Supply the version, description, source, and license information wherever possible so reviewers can identify the component and its terms.
+An app's `includes.json` lists third-party packages bundled with that app. Each entry needs a
+package name. Use lowercase `ecosystem` values: `composer`, `npm`, `bower` or `nuget`.
+Omission defaults to `composer`; legacy `npm-asset/` and `bower-asset/` names still identify
+their respective registries. Native names require their ecosystem, such as `@scope/package`
+with `npm` or `Example.Library` with `nuget`. Mixed-case ecosystem input is normalized;
+unsupported values fail rather than silently defaulting to Composer.
+
+Supply the version, description, source, and license information wherever possible so
+reviewers can identify the component and its terms. Regenerate the BOM after changing
+includes entries: audits read the generated inventory, not includes files directly.
 
 For example, a library copied into an app's resources directory can be registered as follows:
 
@@ -139,11 +162,26 @@ For example, a library copied into an app's resources directory can be registere
 
 The `license_file` path is relative to the installation's `vendor` directory, not to the app directory. Include the library's own license file and copyright notices when available.
 
+Packages from other registries use native names, for example:
+
+```json
+[
+  {"name": "@scope/package", "ecosystem": "npm", "version": "1.0.0"},
+  {"name": "Example.Library", "ecosystem": "nuget", "version": "2.0.0"}
+]
+```
+
+OSV scans versioned NuGet entries from the generated JSON inventory. The shared
+`PackageEcosystemDataType` enum also accepts lowercase `maven`, `pypi`, `go`, `crates.io`,
+`rubygems`, `hex`, `pub`, `swifturl`, `hackage`, `conancenter`, `cran` and `opam` identities
+for OSV queries. An ecosystem being queryable does not guarantee complete advisory coverage.
+
 ### Package Information
 
 | Field | Purpose |
 | --- | --- |
-| `name` | Identifies the package, normally as `vendor/package`. Use exactly the same spelling when supplementing an existing package. |
+| `name` | Native registry name, or a legacy Composer asset alias. |
+| `ecosystem` | Lowercase package registry; defaults to `composer`. |
 | `version` | Identifies the included release. |
 | `description` | Explains what the component is. |
 | `source.url` | Points to the component's source repository. |
@@ -155,7 +193,10 @@ The `license_file` path is relative to the installation's `vendor` directory, no
 
 ## Supplement Existing Packages
 
-An includes entry can also supplement a package already installed through Composer. Use the same package name and supply only the information that needs to be added or changed.
+An includes entry can also supplement a package already installed through Composer.
+Use the same package identity and supply only the information that needs to be added or changed.
+Native npm/Bower names with their ecosystems match the corresponding Composer asset aliases.
+The same name in different ecosystems remains a separate package.
 
 For example, suppose Composer supplies a package's version and these licenses:
 

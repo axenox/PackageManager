@@ -3,6 +3,7 @@ namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use axenox\PackageManager\Actions\Audit;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Exceptions\RuntimeException;
 use GuzzleHttp\Client;
@@ -23,21 +24,33 @@ use axenox\PackageManager\Common\Audit\Finding;
 class ComposerNpmAuditScanner extends AbstractAuditScanner
 {
     /**
-     * Returns decoded Composer locks for folder or archived-build audits.
+    * Returns Composer locks and combined inventories for folder or archived-build audits.
      * 
      * @param TaskInterface $task
      * @return array<int, array<array-key, mixed>>
      */
     protected function locks(TaskInterface $task) : array
     {
+        $inventories = [];
         if ($task->hasParameter(Audit::TASK_PARAM_COMPOSER_LOCK)) {
-            return [$this->decode($task->getParameter(Audit::TASK_PARAM_COMPOSER_LOCK))];
+            $inventories[] = $this->decode($task->getParameter(Audit::TASK_PARAM_COMPOSER_LOCK));
+        }
+        if ($task->hasParameter(Audit::TASK_PARAM_SBOM)) {
+            $bom = $this->decode($task->getParameter(Audit::TASK_PARAM_SBOM));
+            if (! isset($bom['spdxVersion']) && ! isset($bom['bomFormat'])) {
+                $inventories[] = $bom;
+            }
         }
         $folder = $this->getTargetFolder($task);
         if ($folder !== null) {
-            return is_file($folder . '/composer.lock') ? [$this->readJson($folder . '/composer.lock')] : [];
+            if (is_file($folder . '/composer.lock')) {
+                $inventories[] = $this->readJson($folder . '/composer.lock');
+            }
+            if (is_file($folder . '/vendor/licenses.json')) {
+                $inventories[] = $this->readJson($folder . '/vendor/licenses.json');
+            }
         }
-        return [];
+        return $inventories;
     }
 
     /**
@@ -57,18 +70,18 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
         $dependencies = [];
         foreach (array_merge($lock['packages'], $lock['packages-dev'] ?? []) as $package) {
             $name = $package['name'] ?? '';
-            if (strpos($name, 'npm-asset/') !== 0) {
+            $ecosystem = PackageEcosystemDataType::findEcosystem($name, $package['ecosystem'] ?? null);
+            if ($ecosystem !== PackageEcosystemDataType::NPM) {
                 continue;
             }
-            $name = substr($name, strlen('npm-asset/'));
-            if (strpos($name, '--') !== false) {
-                $name = '@' . str_replace('--', '/', $name);
-            }
+            $name = PackageEcosystemDataType::convertNameFromAssetPackagist($name, $ecosystem);
             $version = ltrim((string) ($package['version'] ?? ''), 'v');
             if ($version === '' || strpos($version, 'dev-') === 0) {
                 throw new RuntimeException('Cannot audit npm package without a released version: ' . $name);
             }
-            $dependencies[$name][] = $version;
+            if (! in_array($version, $dependencies[$name] ?? [], true)) {
+                $dependencies[$name][] = $version;
+            }
         }
         return $dependencies;
     }
@@ -101,13 +114,15 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
     {
         $findings = [];
         $client = $this->createHttpClient();
+        $dependencies = [];
         foreach ($this->locks($task) as $lock) {
-            $dependencies = $this->dependencies($lock);
-            if ($dependencies === []) {
-                continue;
+            foreach ($this->dependencies($lock) as $name => $versions) {
+                $dependencies[$name] = array_values(array_unique(array_merge($dependencies[$name] ?? [], $versions)));
             }
+        }
+        if ($dependencies !== []) {
             $response = $client->post('https://registry.npmjs.org/-/npm/v1/security/advisories/bulk', ['json' => $dependencies]);
-            $findings = array_merge($findings, $this->normalize($this->decode((string) $response->getBody())));
+            $findings = $this->normalize($this->decode((string) $response->getBody()));
         }
         return $findings;
     }
@@ -137,11 +152,11 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
     {
         $findings = [];
         foreach ($data as $package => $advisories) {
-            $name = strpos($package, '@') === 0 ? str_replace('/', '--', substr($package, 1)) : $package;
+            $name = PackageEcosystemDataType::convertNameToAssetPackagist($package, PackageEcosystemDataType::NPM);
             foreach ($advisories as $advisory) {
                 $cves = $advisory['cves'] ?? [];
                 foreach ($cves !== [] ? $cves : [''] as $cve) {
-                    $findings[] = $this->createFinding('npm-asset/' . $name, $advisory, $cve);
+                    $findings[] = $this->createFinding($name, $advisory, $cve);
                 }
             }
         }

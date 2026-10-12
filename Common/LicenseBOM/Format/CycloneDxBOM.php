@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\LicenseBOM\Format;
 
 use axenox\PackageManager\Common\LicenseBOM\AbstractBOMDecorator;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMExporterInterface;
@@ -87,7 +88,9 @@ class CycloneDxBOM extends AbstractBOMDecorator implements LicenseBOMExporterInt
         $data = $package->toComposerArray();
         $component = [
             'type' => 'library',
-            'bom-ref' => 'package-' . hash('sha256', json_encode([$package->getName(), $package->getVersion()])),
+            'bom-ref' => 'package-' . hash('sha256', json_encode([
+                PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null), $package->getVersion()
+            ])),
             'name' => $package->getName()
         ];
         if ($package->getVersion() !== null && $package->getVersion() !== '') {
@@ -131,9 +134,9 @@ class CycloneDxBOM extends AbstractBOMDecorator implements LicenseBOMExporterInt
     }
 
     /**
-     * Builds ecosystem identifiers for asset aliases and typed Composer packages.
+    * Builds package URLs for Composer, npm, Bower and NuGet inventory identities.
      * 
-     * Untyped includes entries have no known ecosystem and do not receive a package URL.
+    * Includes entries default to Composer. Asset aliases resolve to their native registries.
      * 
      * @param BOMPackageInterface $package
      * @param array<string,mixed> $data
@@ -141,26 +144,24 @@ class CycloneDxBOM extends AbstractBOMDecorator implements LicenseBOMExporterInt
      */
     protected function buildPackageUrl(BOMPackageInterface $package, array $data) : ?string
     {
-        $parts = explode('/', $package->getName());
-        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
-            return null;
-        }
-        switch ($parts[0]) {
-            case 'npm-asset':
-                $npmParts = explode('--', $parts[1], 2);
-                $purl = 'pkg:npm/' . (count($npmParts) === 2
-                    ? rawurlencode('@' . $npmParts[0]) . '/' . rawurlencode($npmParts[1])
-                    : rawurlencode($parts[1]));
-                break;
-            case 'bower-asset':
-                $purl = 'pkg:bower/' . rawurlencode($parts[1]);
-                break;
-            default:
-                if (empty($data['type'])) {
+        $ecosystem = PackageEcosystemDataType::findEcosystem($package->getName(), $data['ecosystem'] ?? null);
+        $name = PackageEcosystemDataType::convertNameFromAssetPackagist($package->getName(), $ecosystem);
+        switch ($ecosystem) {
+            case PackageEcosystemDataType::COMPOSER:
+                $parts = explode('/', $name);
+                if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
                     return null;
                 }
-                $purl = 'pkg:composer/' . rawurlencode(strtolower($parts[0])) . '/' . rawurlencode(strtolower($parts[1]));
+                $name = strtolower($name);
+                break;
+            case PackageEcosystemDataType::NPM:
+            case PackageEcosystemDataType::BOWER:
+            case PackageEcosystemDataType::NUGET:
+                break;
+            default:
+                return null;
         }
+        $purl = 'pkg:' . $ecosystem . '/' . implode('/', array_map('rawurlencode', explode('/', $name)));
         $version = $package->getVersion();
         return $purl . ($version !== null && $version !== '' ? '@' . rawurlencode($version) : '');
     }

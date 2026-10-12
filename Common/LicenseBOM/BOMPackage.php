@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\LicenseBOM;
 
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use exface\Core\Exceptions\RuntimeException;
 
 /**
@@ -47,10 +48,13 @@ class BOMPackage implements BOMPackageInterface
      */
     public function merge(BOMPackageInterface $otherPackage): BOMPackageInterface
     {
-        if (strcasecmp($this->getName(), $otherPackage->getName()) !== 0) {
-            throw new RuntimeException('Cannot merge license BOM packages with different names: ' . $this->getName() . ' and ' . $otherPackage->getName());
-        }
         $otherPackageArray = $otherPackage->toComposerArray();
+        $key = PackageEcosystemDataType::buildPackageKey($this->getName(), $this->packageArray['ecosystem'] ?? null);
+        $otherKey = PackageEcosystemDataType::buildPackageKey($otherPackage->getName(), $otherPackageArray['ecosystem'] ?? null);
+        if (strcasecmp($key, $otherKey) !== 0) {
+            throw new RuntimeException('Cannot merge license BOM packages with different identities: ' . $key . ' and ' . $otherKey);
+        }
+        $otherPackageArray['ecosystem'] = PackageEcosystemDataType::findEcosystem($otherPackage->getName(), $otherPackageArray['ecosystem'] ?? null);
         if (($otherPackageArray['license'] ?? null) === []) {
             unset($otherPackageArray['license']);
         }

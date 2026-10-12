@@ -85,9 +85,9 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Package license [axenox.PackageManager.PACKAGE_LICENSE_BOM]",
+            "_EXPORT_SUMMARY": "Package BOM [axenox.PackageManager.PACKAGE_LICENSE_BOM]",
             "CREATED_ON": "2023-06-14 11:59:29",
-            "MODIFIED_ON": "2023-06-14 12:03:18",
+            "MODIFIED_ON": "2026-10-12 11:27:19",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11eeb87427ffca2eb874025041000001",
@@ -95,7 +95,7 @@
             "WRITABLE_FLAG": 1,
             "COMMENTS": "",
             "DOCS": "",
-            "NAME": "Package license",
+            "NAME": "Package BOM",
             "INHERIT_DATA_SOURCE_BASE_OBJECT": 1,
             "DATA_SOURCE": "0x11e64d20a1fcb3079409c0f8dae36b4f",
             "APP": "0x31380000000000000000000000000000",

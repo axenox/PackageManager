@@ -4,6 +4,7 @@ namespace axenox\PackageManager\Common\LicenseBOM;
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 
 /**
  * Base class for license bills of materials
@@ -29,8 +30,10 @@ class LicenseBOM implements LicenseBOMInterface
     public function merge(LicenseBOMInterface $mergingBOM) : LicenseBOMInterface
     {
         foreach ($mergingBOM->getPackages() as $package) {
-            if ($this->hasPackage($package->getName())) {
-                $package = $this->packageArray[$package->getName()]->merge($package);
+            $data = $package->toComposerArray();
+            $key = PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null);
+            if (isset($this->packageArray[$key])) {
+                $package = $this->packageArray[$key]->merge($package);
             }
             // run enrichers on package and add package to packageArray
             $this->addPackage($package);
@@ -65,7 +68,15 @@ class LicenseBOM implements LicenseBOMInterface
      */
     public function hasPackage(string $name) : bool
     {
-        return array_key_exists($name, $this->packageArray);
+        if (array_key_exists($name, $this->packageArray)) {
+            return true;
+        }
+        foreach ($this->packageArray as $package) {
+            if ($package->getName() === $name) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -78,7 +89,9 @@ class LicenseBOM implements LicenseBOMInterface
         foreach($this->getEnricher() as $enricher) {
             $package = $enricher->enrich($package);
         }
-        $this->packageArray[$package->getName()] = $package;
+        $data = $package->toComposerArray();
+        $key = PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null);
+        $this->packageArray[$key] = $package;
         return $this;
     }
 

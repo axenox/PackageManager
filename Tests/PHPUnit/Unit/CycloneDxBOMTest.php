@@ -82,12 +82,33 @@ class CycloneDxBOMTest extends TestCase
             $bom->addPackage(new BOMPackage($data));
         }
         $components = json_decode((new CycloneDxBOM($bom))->toJSON(), true)['components'];
-        self::assertSame(['type', 'bom-ref', 'name'], array_keys($components[0]));
+        self::assertSame(['type', 'bom-ref', 'name', 'purl'], array_keys($components[0]));
+        self::assertSame('pkg:composer/example/bundled', $components[0]['purl']);
         self::assertSame('pkg:npm/%40scope/package@1.0%2Bbuild', $components[1]['purl']);
         self::assertSame('pkg:npm/jquery@3.7.1', $components[2]['purl']);
         self::assertSame('pkg:bower/library', $components[3]['purl']);
         self::assertSame('MIT OR Apache-2.0', $components[3]['licenses'][0]['license']['name']);
         self::assertCount(4, array_unique(array_column($components, 'bom-ref')));
+    }
+
+    /**
+     * Native includes names carry registry identity into standards-based scanners.
+     * 
+     * @return void
+     */
+    public function testNativeEcosystemPackageUrls() : void
+    {
+        $bom = new LicenseBOM();
+        foreach ([
+            ['name' => '@scope/my--package', 'ecosystem' => 'npm', 'version' => '1.0.0'],
+            ['name' => 'jquery', 'ecosystem' => 'bower', 'version' => '3.0.0'],
+            ['name' => 'Newtonsoft.Json', 'ecosystem' => 'nuget', 'version' => '12.0.1']
+        ] as $data) {
+            $bom->addPackage(new BOMPackage($data));
+        }
+        $components = json_decode((new CycloneDxBOM($bom))->toJSON(), true)['components'];
+        self::assertSame(['pkg:npm/%40scope/my--package@1.0.0', 'pkg:bower/jquery@3.0.0', 'pkg:nuget/Newtonsoft.Json@12.0.1'],
+            array_column($components, 'purl'));
     }
 
     /**

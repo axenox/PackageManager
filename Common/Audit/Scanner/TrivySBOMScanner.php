@@ -3,6 +3,7 @@ namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use axenox\PackageManager\Actions\Audit;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\DataTypes\ServerSoftwareDataType;
 use exface\Core\Exceptions\RuntimeException;
@@ -222,7 +223,7 @@ class TrivySBOMScanner extends AbstractAuditScanner
         $package = $vulnerability['PkgName'];
         if (in_array($resultType, ['npm', 'node-pkg', 'yarn', 'pnpm'], true)
             || strpos($vulnerability['PkgIdentifier']['PURL'] ?? '', 'pkg:npm/') === 0) {
-            $package = 'npm-asset/' . (strpos($package, '@') === 0 ? str_replace('/', '--', substr($package, 1)) : $package);
+            $package = PackageEcosystemDataType::convertNameToAssetPackagist($package, PackageEcosystemDataType::NPM);
         }
         $fixedVersion = (string) ($vulnerability['FixedVersion'] ?? '');
         return new Finding(

@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "Package installed [axenox.PackageManager.PACKAGE_INSTALLED]",
             "CREATED_ON": "2016-07-18 21:49:49",
-            "MODIFIED_ON": "2026-10-08 02:40:40",
+            "MODIFIED_ON": "2026-10-12 11:26:01",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11e64d20c9789d1a9409c0f8dae36b4f",
@@ -106,7 +106,7 @@
             },
             "DEFAULT_EDITOR_UXON": null,
             "ALIAS": "PACKAGE_INSTALLED",
-            "DATA_ADDRESS": "vendor/licenses.json"
+            "DATA_ADDRESS": "composer.lock"
         }
     ],
     "totals_rows": [],

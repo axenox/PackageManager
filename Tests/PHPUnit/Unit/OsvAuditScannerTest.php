@@ -2,6 +2,9 @@
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
 use axenox\PackageManager\Common\Audit\Scanner\OsvAuditScanner;
+use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
+use axenox\PackageManager\Common\LicenseBOM\Format\JsonBOM;
+use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use Composer\Semver\Semver;
 use exface\Core\CommonLogic\Tasks\GenericTask;
@@ -77,6 +80,112 @@ class OsvAuditScannerTest extends AuditTestCase
     private function setArtifact(string $name, array $value) : void
     {
         $this->task->importUxonObject(new UxonObject(['parameters' => [$name => $value]]));
+    }
+
+    /**
+     * Archived minimal BOMs must retain enough Git identity to audit Bower without a Composer lock.
+     * 
+     * @return void
+     */
+    public function testMinimalBowerBomIsScannableWithoutComposerLock() : void
+    {
+        $commit = str_repeat('c', 40);
+        $bom = new LicenseBOM();
+        $bom->addPackage(new BOMPackage([
+            'name' => 'bower-asset/library', 'version' => '1.0.0',
+            'source' => ['type' => 'git', 'reference' => $commit, 'url' => 'https://example.org/library.git']
+        ]));
+        $this->task->setParameter('sbom', (new JsonBOM($bom))->setFormat('minimal')->buildJson());
+        $this->responses->append(
+            new Response(200, [], '{"results":[{"vulns":[{"id":"OSV-minimal-bower"}]}]}'),
+            new Response(200, [], '{"id":"OSV-minimal-bower","summary":"Bower vulnerability"}')
+        );
+        self::assertTrue($this->scanner->supports($this->task));
+        $findings = $this->scanner->audit($this->task);
+        self::assertCount(1, $findings);
+        self::assertSame('bower-asset/library', $findings[0]->getPackage());
+        self::assertSame('vulnerability', $findings[0]->getType());
+        self::assertSame('1.0.0', $findings[0]->getVersionInstalled());
+        self::assertSame(['queries' => [['commit' => $commit]]],
+            json_decode((string) $this->requests[0]['request']->getBody(), true));
+        self::assertSame([], $this->scanner->getHints());
+    }
+
+    /**
+     * Bower releases must be scanned by their locked Git identity rather than a guessed npm package.
+     * 
+     * Legacy aliases, native inventories and standard SBOM PURLs identify the same release.
+     * 
+     * @return void
+     */
+    public function testBowerPackagesAreScannedByGitCommit() : void
+    {
+        $commit = str_repeat('b', 40);
+        $source = ['type' => 'git', 'url' => 'https://example.org/library.git', 'reference' => $commit];
+        $this->setArtifact('composer_lock', ['packages' => [
+            ['name' => 'bower-asset/library', 'version' => '1.0.0', 'source' => $source]
+        ]]);
+        $this->setArtifact('sbom', ['packages' => [
+            ['name' => 'library', 'ecosystem' => 'bower', 'version' => '1.0.0', 'source' => $source]
+        ]]);
+        $this->responses->append(
+            new Response(200, [], '{"results":[{"vulns":[{"id":"OSV-bower"}]}]}'),
+            new Response(200, [], '{"id":"OSV-bower","summary":"Bower library vulnerability"}')
+        );
+        self::assertTrue($this->scanner->supports($this->task));
+        $findings = $this->scanner->audit($this->task);
+        self::assertCount(1, $findings);
+        self::assertSame('bower-asset/library', $findings[0]->getPackage());
+        self::assertSame('1.0.0', $findings[0]->getVersionInstalled());
+        self::assertSame('OSV-bower', $findings[0]->getSourceId());
+        self::assertSame(['queries' => [['commit' => $commit]]],
+            json_decode((string) $this->requests[0]['request']->getBody(), true));
+        self::assertSame([], $this->scanner->getHints());
+
+        $this->task = new GenericTask($this->workbench);
+        $this->setArtifact('sbom', ['bomFormat' => 'CycloneDX', 'components' => [
+            ['name' => 'library', 'purl' => 'pkg:bower/library@1.0.0', 'source' => $source]
+        ]]);
+        $this->responses->append(new Response(200, [], '{"results":[{}]}'));
+        self::assertSame([], $this->scanner->audit($this->task));
+        self::assertSame(['queries' => [['commit' => $commit]]],
+            json_decode((string) $this->requests[2]['request']->getBody(), true));
+        self::assertSame([], $this->scanner->getHints());
+    }
+
+    /**
+     * Native ecosystem inventories must match legacy aliases without duplicate queries.
+     * 
+     * @return void
+     */
+    public function testNativeEcosystemsAndLegacyAliases() : void
+    {
+        $this->setArtifact('composer_lock', ['packages' => [
+            ['name' => 'npm-asset/openui5--sap.ui.core', 'version' => '1.0.0']
+        ]]);
+        $this->setArtifact('sbom', ['packages' => [
+            ['name' => '@openui5/sap.ui.core', 'ecosystem' => 'npm', 'version' => '1.0.0'],
+            ['name' => 'npm-asset/openui5--sap.ui.core', 'ecosystem' => 'composer', 'version' => '1.0.0'],
+            ['name' => 'vendor/library', 'version' => '1.0.0'],
+            ['name' => 'vendor/explicit', 'ecosystem' => 'composer', 'version' => '1.0.0'],
+            ['name' => 'Newtonsoft.Json', 'ecosystem' => 'nuget', 'version' => '12.0.1'],
+            ['name' => 'Newtonsoft.Json', 'purl' => 'pkg:nuget/Newtonsoft.Json@12.0.1']
+        ]]);
+        $this->responses->append(
+            new Response(200, [], '{"results":[{},{},{},{"vulns":[{"id":"GHSA-nuget"}]}]}'),
+            new Response(200, [], '{"id":"GHSA-nuget","summary":"NuGet advisory"}')
+        );
+        $findings = $this->scanner->audit($this->task);
+        self::assertCount(1, $findings);
+        self::assertSame('Newtonsoft.Json', $findings[0]->getPackage());
+        self::assertSame('12.0.1', $findings[0]->getVersionInstalled());
+        self::assertSame(['queries' => [
+            ['package' => ['ecosystem' => 'npm', 'name' => '@openui5/sap.ui.core'], 'version' => '1.0.0'],
+            ['package' => ['ecosystem' => 'Packagist', 'name' => 'vendor/library'], 'version' => '1.0.0'],
+            ['package' => ['ecosystem' => 'Packagist', 'name' => 'vendor/explicit'], 'version' => '1.0.0'],
+            ['package' => ['ecosystem' => 'NuGet', 'name' => 'Newtonsoft.Json'], 'version' => '12.0.1']
+        ]], json_decode((string) $this->requests[0]['request']->getBody(), true));
+        self::assertSame([], $this->scanner->getHints());
     }
 
     /**
@@ -223,7 +332,7 @@ class OsvAuditScannerTest extends AuditTestCase
     {
         $this->setArtifact('sbom', ['packages' => [
             ['name' => 'npm-asset/mermaid', 'version' => '11.0.0'],
-            ['name' => 'unknown/library', 'version' => '1.0.0'],
+            ['name' => 'unknown/library', 'version' => '1.0.0', 'ecosystem' => 'bower'],
             ['name' => 'vendor/dev', 'version' => 'dev-main', 'type' => 'library',
                 'source' => ['type' => 'git', 'reference' => str_repeat('a', 40)]]
         ]]);
@@ -232,7 +341,7 @@ class OsvAuditScannerTest extends AuditTestCase
         self::assertCount(1, $findings);
         self::assertSame('unscannable', $findings[0]->getType());
         self::assertSame(100, $findings[0]->getLevel());
-        self::assertSame('unknown/library', $findings[0]->getPackage());
+        self::assertSame('bower-asset/unknown/library', $findings[0]->getPackage());
         self::assertSame('1.0.0', $findings[0]->getVersionInstalled());
         self::assertSame('', $findings[0]->getPublicId());
         $queries = json_decode((string) $this->requests[0]['request']->getBody(), true)['queries'];

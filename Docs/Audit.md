@@ -162,7 +162,11 @@ Abandoned Composer packages are reported as `EOL`, which here means unmaintained
 not a verified vendor support-expiration date.
 
 The npm scanner reads npm-asset package names and exact versions from composer.lock
-or the supplied `composer_lock` parameter, including development dependencies. Both paths
+or the supplied `composer_lock` parameter, including development dependencies. It also reads
+native npm packages from `vendor/licenses.json` or combined JSON supplied through `sbom`.
+Native names require `ecosystem: npm`; asset aliases work with `ecosystem: composer`
+or no ecosystem. Overlapping package/version pairs query once, while different versions
+remain in the request. These paths
 POST to `https://registry.npmjs.org/-/npm/v1/security/advisories/bulk` and use the same
 result normalization. No Composer executable, Composer plugin, Node.js, installed
 vendor directory or target composer.json is required. Empty npm dependency lists
@@ -184,9 +188,14 @@ first available BOM in this order: `vendor/licenses.json`, `vendor/SBOM.cdx.json
 `sbom.cdx.json`, `data/sbom.cdx.json`. Regenerate BOM files for each build; OSV does
 not generate inventories or verify that a saved inventory matches installed files.
 
-OSV maps Composer dependencies to `Packagist` and `npm-asset` aliases to `npm`,
-including scoped names. PURLs take precedence. Untyped bundled package names are
-not assumed to exist on Packagist: supply a PURL or an explicit `ecosystem` field.
+OSV maps `composer` to `Packagist`, `npm` to `npm`, and `nuget` to `NuGet`.
+Combined JSON and includes entries without an ecosystem default to Composer.
+Asset-packagist aliases are resolved to their native npm/Bower identities even with
+`ecosystem: composer` or no ecosystem. Native npm names require `ecosystem: npm`.
+JSON ecosystem values are lowercase; mixed-case legacy input is normalized.
+`PackageEcosystemDataType` centralizes the enum, asset-name conversion and OSV registry labels.
+PURLs take precedence, including NuGet PURLs. Untyped CycloneDX/SPDX components still
+require a usable PURL or Git identity. Bower has no OSV registry coverage.
 Git source metadata with a 40-character commit reference can identify development
 revisions. Missing versions, unknown bundled identities, and generic/Bower PURLs
 without usable Git metadata produce coverage hints and findings with type
@@ -218,6 +227,27 @@ findings. API, malformed-response and pagination errors fail the scan.
 Only package identities, versions or Git commits are sent to OSV; license texts
 and the complete BOM are not uploaded. No executable installation is required;
 `install()` is a no-op. HTTPS uses the normal trusted CA configuration.
+
+#### Bower Packages
+
+Composer dependencies named `bower-asset/package` are scanned by OSV using their
+locked `source.reference` when `source.type` is `git` and the reference is a
+40-character commit hash. Native names with `ecosystem: bower` use the same path.
+The absence of a Bower registry mapping does not disable these commit queries.
+Findings retain the `bower-asset/package` identity and installed version.
+
+Bower names are not automatically treated as npm names: matching names and version
+strings do not establish that two registries contain the same release. Commit queries
+check OSV's available Git evidence, not all npm advisories by version. An empty result
+does not establish complete coverage. The npm scanner only queries npm identities.
+
+Minimal JSON BOMs retain Git `source.type` and `source.reference`, so Bower entries
+with a 40-character commit hash can be scanned without a Composer lock. Older minimal
+snapshots that omitted these fields still need the archived `composer_lock`; existing
+build artifacts are not backfilled from the current installation. Without usable Git
+metadata, Bower entries remain visible as `unscannable` findings. If a bundled
+release is independently verified to be an npm package, declare its actual npm
+name, version and `ecosystem: npm` instead.
 
 ### Trivy
 
@@ -344,7 +374,9 @@ other identities. The most severe level wins, and sources and other evidence are
 combined. Source labels are separated by a comma and space, for example `npm, osv`.
 The shared `VulnerabilityLevelDataType::isCVE()` and `isGHSA()` helpers classify
 complete identifiers without case sensitivity. npm scoped packages use Composer's
-`npm-asset/scope--package` notation. Trivy's OS package names remain native names.
+`npm-asset/scope--package` notation in findings to keep cross-scanner grouping and
+existing output IDs compatible; JSON BOM inventories instead use `@scope/package`
+with `ecosystem: npm`. NuGet and Trivy OS package names remain native names.
 
 By default findings use the modeled object `axenox.PackageManager.AUDIT_ADVISORY`,
 including its configured column data types. To select another findings object for

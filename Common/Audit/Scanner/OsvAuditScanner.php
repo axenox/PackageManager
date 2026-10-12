@@ -4,6 +4,7 @@ namespace axenox\PackageManager\Common\Audit\Scanner;
 use axenox\PackageManager\Actions\Audit;
 use axenox\PackageManager\Common\Audit\Finding;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use Composer\Semver\VersionParser;
@@ -81,7 +82,7 @@ class OsvAuditScanner extends AbstractAuditScanner
                     throw new RuntimeException('OSV package inventory must contain a packages array.');
                 }
                 foreach (array_merge($data['packages'], $data['packages-dev'] ?? []) as $package) {
-                    $this->addDependency($dependencies, $package, $artifact['composer']);
+                    $this->addDependency($dependencies, $package, true);
                 }
             } elseif (($data['bomFormat'] ?? '') === 'CycloneDX') {
                 if (isset($data['components']) && ! is_array($data['components'])) {
@@ -135,8 +136,8 @@ class OsvAuditScanner extends AbstractAuditScanner
     /**
      * Resolves registry identity and version, or records a coverage gap.
      * 
-     * PURLs take precedence over inferred names. Untyped bundled PHP names are
-     * not assumed to be Packagist packages. Development revisions use Git commits.
+    * PURLs take precedence over inferred names. Combined inventories default to
+    * Composer; untyped standard SBOM components do not. Development revisions use Git commits.
      * 
      * @param array<string, array> $dependencies
      * @param mixed $package
@@ -167,20 +168,24 @@ class OsvAuditScanner extends AbstractAuditScanner
             if (isset($parts[1])) {
                 $version = rawurldecode($parts[1]);
             }
-            if ($matches[1] === 'npm' || $matches[1] === 'composer') {
-                $identity = ['ecosystem' => $matches[1] === 'npm' ? 'npm' : 'Packagist', 'name' => $purlName];
-                $name = $matches[1] === 'npm' ? 'npm-asset/' . str_replace('/', '--', ltrim($purlName, '@')) : $purlName;
+            if (in_array($matches[1], ['npm', 'composer', 'nuget'], true)) {
+                $ecosystem = PackageEcosystemDataType::findEcosystem($purlName, $matches[1]);
+                $nativeName = PackageEcosystemDataType::convertNameFromAssetPackagist($purlName, $ecosystem);
+                $identity = ['ecosystem' => PackageEcosystemDataType::convertToOsvEcosystem($ecosystem), 'name' => $nativeName];
+                $name = PackageEcosystemDataType::convertNameToAssetPackagist($nativeName, $ecosystem);
             } elseif (! in_array($matches[1], ['generic', 'bower'], true)) {
                 $identity = ['purl' => 'pkg:' . $matches[1] . '/' . $parts[0]
                     . substr($matches[0], strcspn($matches[0], '?#'))];
             }
-        } elseif (strpos($name, 'npm-asset/') === 0) {
-            $npmName = substr($name, 10);
-            $identity = ['ecosystem' => 'npm', 'name' => strpos($npmName, '--') !== false ? '@' . str_replace('--', '/', $npmName) : $npmName];
-        } elseif (isset($package['ecosystem'])) {
-            $identity = ['ecosystem' => (string) $package['ecosystem'], 'name' => $name];
-        } elseif (strpos($name, 'bower-asset/') !== 0 && ($composer || ! empty($package['type']))) {
-            $identity = ['ecosystem' => 'Packagist', 'name' => $name];
+        } elseif (isset($package['ecosystem']) || $composer || strpos($name, 'npm-asset/') === 0
+            || strpos($name, 'bower-asset/') === 0 || ! empty($package['type'])) {
+            $ecosystem = PackageEcosystemDataType::findEcosystem($name, $package['ecosystem'] ?? null);
+            $nativeName = PackageEcosystemDataType::convertNameFromAssetPackagist($name, $ecosystem);
+            $osvEcosystem = PackageEcosystemDataType::convertToOsvEcosystem($ecosystem);
+            $name = PackageEcosystemDataType::convertNameToAssetPackagist($nativeName, $ecosystem);
+            if ($osvEcosystem !== null) {
+                $identity = ['ecosystem' => $osvEcosystem, 'name' => $nativeName];
+            }
         }
         if ($identity !== null && $version !== '' && ! preg_match('/(^dev-|[-.]dev$)/i', $version)) {
             $version = preg_replace('/^v(?=\d)/', '', $version);

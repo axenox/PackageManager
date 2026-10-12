@@ -111,4 +111,63 @@ class ComposerNpmAuditScannerTest extends AuditTestCase
         self::assertSame([], $this->scanner->audit($this->task));
         self::assertCount(0, $this->requests);
     }
+
+    /**
+     * Native BOM packages and legacy lock aliases share one deduplicated npm request.
+     * 
+     * @return void
+     */
+    public function testNativeBomAndLockNamesQueryOnce() : void
+    {
+        $bom = ['packages' => [
+            ['name' => '@scope/package', 'ecosystem' => 'npm', 'version' => '1.0.0'],
+            ['name' => 'npm-asset/dev-package', 'ecosystem' => 'composer', 'version' => '2.0.0'],
+            ['name' => 'native-only', 'ecosystem' => 'npm', 'version' => '3.0.0'],
+            ['name' => 'Newtonsoft.Json', 'ecosystem' => 'nuget', 'version' => '12.0.1'],
+            ['name' => 'vendor/php', 'version' => '1.0.0']
+        ]];
+        $this->task->setParameter('sbom', json_encode($bom, JSON_THROW_ON_ERROR));
+        $this->responses->append(new Response(200, [], json_encode($this->linkedNpmResponse(), JSON_THROW_ON_ERROR)));
+        self::assertTrue($this->scanner->supports($this->task));
+        $findings = $this->scanner->audit($this->task);
+        self::assertCount(1, $this->requests);
+        self::assertSame('npm-asset/scope--package', $findings[0]->getPackage());
+        self::assertSame(['@scope/package' => ['1.0.0'], 'dev-package' => ['2.0.0'], 'native-only' => ['3.0.0']],
+            json_decode((string) $this->requests[0]['request']->getBody(), true));
+
+        $bomTask = new GenericTask($this->workbench);
+        $bomTask->setParameter('sbom', json_encode($bom, JSON_THROW_ON_ERROR));
+        self::assertTrue($this->scanner->supports($bomTask));
+        $this->responses->append(new Response(200, [], '{}'));
+        self::assertSame([], $this->scanner->audit($bomTask));
+        self::assertCount(2, $this->requests);
+    }
+
+    /**
+     * Folder audits must find bundled native npm packages even without a Composer lock.
+     * 
+     * @return void
+     */
+    public function testFolderInventoryWithoutComposerLock() : void
+    {
+        $folder = $this->temporaryFolder();
+        self::assertTrue(mkdir($folder . '/vendor'));
+        $bom = '{"packages":[{"name":"@scope/package","ecosystem":"NPM","version":"1.0.0"}]}';
+        $this->writeFixture($folder . '/vendor', 'licenses.json', $bom);
+        try {
+            $task = new GenericTask($this->workbench);
+            $task->setParameter('folder', $folder);
+            self::assertTrue($this->scanner->supports($task));
+            $this->responses->append(new Response(200, [], '{}'));
+            self::assertSame([], $this->scanner->audit($task));
+            self::assertCount(1, $this->requests);
+            self::assertSame(['@scope/package' => ['1.0.0']],
+                json_decode((string) $this->requests[0]['request']->getBody(), true));
+            self::assertSame($bom, file_get_contents($folder . '/vendor/licenses.json'));
+            self::assertFileDoesNotExist($folder . '/composer.lock');
+        } finally {
+            unlink($folder . '/vendor/licenses.json');
+            rmdir($folder . '/vendor');
+        }
+    }
 }
