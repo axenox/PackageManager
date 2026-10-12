@@ -1,8 +1,12 @@
 # Copilot Instructions for PackageManager
 
-### Coding guidelines
+This package contains the `axenox.PackageManager` app, which is responsible for managing package installations, updates, and self-updates within the ExFace no-code platform for business web apps.
 
-Always follow our [PHP](../../../exface/Core/Docs/developer_docs/code_conventions/PHP/Conventions.md) and [JavaScript](../../../exface/Core/Docs/developer_docs/code_conventions/JavaScript/Conventions.md) coding guidelines when writing code. 
+## The platform
+
+The platform core is available in `vendor/exface/core`. All [core instructions](../../../exface/core/.github/copilot-instructions.md) apply to this package as well!
+
+Always follow our [PHP](../../../exface/Core/Docs/developer_docs/code_conventions/PHP/Conventions.md) guidelines when writing code. 
 
 ## Testing
 
