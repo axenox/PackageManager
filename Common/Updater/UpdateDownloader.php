@@ -9,11 +9,14 @@ use exface\Core\Interfaces\Log\LoggerInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Response;
 use exface\Core\DataTypes\StringDataType;
+use exface\Core\DataTypes\FilePathDataType;
 use GuzzleHttp\Psr7\Utils;
 use Psr\Http\Message\ResponseInterface;
 
 class UpdateDownloader
-{    
+{
+    private const HEADER_DEPLOYMENT_UID = 'X-Exface-Deployment-Uid';
+
     private $timeStamp = null;
     private $url = null;
     private $username = null;
@@ -157,10 +160,55 @@ class UpdateDownloader
             if (! $this->isValidPackageSize($fileBytes)) {
                 throw new RuntimeException('Cannot save self-update package: reading downloaded file failed - read ' . ByteSizeDataType::formatWithScale($fileBytes) . '. User "' . $token->getUsername() . '".');
             }
+            yield from $this->cleanupOldDownloadedPackages($filePath);
         }
         return $response;
     }
     
+    /**
+     * Removes downloaded self-update packages except for the latest successfully downloaded file.
+     *
+     * Cleanup failures are logged and reported without invalidating the successful download.
+     *
+     * @param string $currentFilePath
+     * @return \Generator
+     */
+    protected function cleanupOldDownloadedPackages(string $currentFilePath) : \Generator
+    {
+        $pattern = rtrim($this->downloadPath, '/\\') . DIRECTORY_SEPARATOR . '*.phx';
+        $downloadedPackages = glob($pattern, GLOB_NOSORT);
+        if ($downloadedPackages === false) {
+            $message = 'Cannot list old self-update packages in "' . $this->downloadPath . '"';
+            if ($this->logger !== null) {
+                $this->logger->logException(new RuntimeException($message));
+            }
+            yield PHP_EOL . 'WARNING: ' . $message;
+            return;
+        }
+
+        $currentFilePath = FilePathDataType::normalize($currentFilePath, DIRECTORY_SEPARATOR);
+        foreach ($downloadedPackages as $downloadedPackage) {
+            $downloadedPackage = FilePathDataType::normalize($downloadedPackage, DIRECTORY_SEPARATOR);
+            $isCurrentPackage = DIRECTORY_SEPARATOR === '\\'
+                ? strcasecmp($downloadedPackage, $currentFilePath) === 0
+                : $downloadedPackage === $currentFilePath;
+            if ($isCurrentPackage) {
+                continue;
+            }
+
+            if (@unlink($downloadedPackage) === false) {
+                $message = 'Old self-update package "' . $downloadedPackage . '" could not be deleted';
+                if ($this->logger !== null) {
+                    $this->logger->logException(new RuntimeException($message));
+                }
+                yield PHP_EOL . 'WARNING: ' . $message;
+                continue;
+            }
+
+            yield PHP_EOL . 'Removed old self-update package "' . $downloadedPackage . '"';
+        }
+    }
+
     protected function isValidPackageSize($size) : bool
     {
         return $size !== false && is_numeric($size) && $size > 100;
@@ -294,6 +342,12 @@ class UpdateDownloader
             }
             if ($final === true) {
                 $urlParams['final'] = 'true';
+            }
+            if ($this->response !== null) {
+                $deploymentUid = $this->response->getHeaderLine(self::HEADER_DEPLOYMENT_UID);
+                if ($deploymentUid !== '') {
+                    $urlParams['deployment_uid'] = $deploymentUid;
+                }
             }
             $this->sendHttpRequest('POST', $log, $urlParams);
         } catch (\Throwable $e) {
