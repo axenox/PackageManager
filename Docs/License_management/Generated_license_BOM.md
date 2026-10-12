@@ -83,6 +83,8 @@ Use this configuration in `save_to_files`, or use its file map as the `SBOM.file
 ```
 
 Minimal exports retain original names and versions, including Composer's `npm-asset` aliases.
+PHP consumers can call `JsonBOM::buildJson()` on a configured exporter to obtain
+the same JSON without writing a file, for example to archive a minimal build inventory.
 The npm Audit adapter uses these two fields, translating `npm-asset/scope--package` to
 `@scope/package` and removing a leading `v` from the version when constructing its bulk request.
 

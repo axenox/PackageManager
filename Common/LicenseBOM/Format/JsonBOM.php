@@ -70,6 +70,20 @@ class JsonBOM extends AbstractBOMDecorator implements LicenseBOMExporterInterfac
      */
     public function saveJSON(string $filePath) : LicenseBOMInterface
     {
+        file_put_contents($filePath, $this->buildJson());
+        return $this;
+    }
+
+    /**
+     * Serializes the configured inventory for file exports or archived database values.
+     * 
+     * Both consumers use the same format selection, so minimal snapshots retain
+     * exactly the package identities emitted by the file exporter.
+     * 
+     * @return string
+     */
+    public function buildJson() : string
+    {
         $arr = ['packages' => []];
         foreach ($this->getPackages() as $package) {
             $data = $package->toComposerArray();
@@ -77,7 +91,6 @@ class JsonBOM extends AbstractBOMDecorator implements LicenseBOMExporterInterfac
                 ? array_intersect_key($data, ['name' => true, 'version' => true])
                 : $data;
         }
-        file_put_contents($filePath, json_encode($arr, JSON_PRETTY_PRINT));
-        return $this;
+        return json_encode($arr, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
     }
 }

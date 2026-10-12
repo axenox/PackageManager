@@ -90,6 +90,7 @@ class GenerateLicenseBOMTest extends AuditTestCase
         self::assertTrue($uxon->hasProperty('class'));
         $path = $this->temporaryFolder() . '/minimal.json';
         $exporter->saveToFile($path);
+        self::assertSame(file_get_contents($path), $exporter->buildJson());
         $document = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame(['packages' => [
             ['name' => 'example/library', 'version' => 'v1.2.3'],
@@ -116,6 +117,7 @@ class GenerateLicenseBOMTest extends AuditTestCase
             $exporter = new JsonBOM($bom);
             $exporter->importUxonObject(new UxonObject($configuration));
             $exporter->saveToFile($path);
+            self::assertSame(file_get_contents($path), $exporter->buildJson());
             self::assertSame($expected, json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR));
         }
     }
@@ -131,9 +133,11 @@ class GenerateLicenseBOMTest extends AuditTestCase
         $exporter = (new JsonBOM($bom))->setFormat('minimal');
         $path = $this->temporaryFolder() . '/minimal.json';
         $exporter->saveToFile($path);
+        self::assertSame(file_get_contents($path), $exporter->buildJson());
         self::assertSame(['packages' => []], json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR));
         $bom->addPackage(new BOMPackage(['name' => 'example/unversioned', 'license' => ['MIT']]));
         $exporter->saveToFile($path);
+        self::assertSame(file_get_contents($path), $exporter->buildJson());
         self::assertSame(['packages' => [['name' => 'example/unversioned']]], json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR));
     }
 
