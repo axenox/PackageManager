@@ -26,7 +26,15 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
  * feature is known to cause problems on dev-installations, where apps can be installed and uninstalled for
  * testing purposes. In these cases, related data from other apps does not need to be removed. To keep
  * related data, simply set `keep_data_in_other_apps` to TRUE in the action config or in the respective CLI
- * option: `vendor/bin/action axenox.PackageManager:UninstallApp my.APP keep_data_in_other_apps=true`.
+ * option: 
+ * 
+ * ```
+ * vendor/bin/action axenox.PackageManager:UninstallApp my.APP --keep_data_in_other_apps=true
+ * ```
+ *
+ * To continue removing data after cleanup errors (for example, missing tables after failed migrations),
+ * use `vendor/bin/action axenox.PackageManager:UninstallApp my.APP --ignore-errors=true`.
+ * Errors are still logged and printed. By default, data cleanup errors stop the installer.
  *
  * @triggers \exface\Core\Events\Installer\OnBeforeAppUninstallEvent
  * @triggers \exface\Core\Events\Installer\OnAppUninstallEvent
@@ -37,6 +45,7 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 class UninstallApp extends InstallApp
 {
     const TASK_PARAM_KEEP_DATA_IN_OTHER_APPS = 'keep_data_in_other_apps';
+    const TASK_PARAM_IGNORE_ERRORS = 'ignore-errors';
 
     private $keepDataInOtherApps = false;
 
@@ -53,7 +62,7 @@ class UninstallApp extends InstallApp
      */
     protected function performImmediately(TaskInterface $task, DataTransactionInterface $transaction, ResultMessageStreamInterface $result) : array
     {
-        return [$this->getTargetAppAliases($task), $this->willKeepDataInOtherAppas($task)];
+        return [$this->getTargetAppAliases($task), $this->willKeepDataInOtherAppas($task), $this->willIgnoreErrors($task)];
     }
 
     /**
@@ -61,7 +70,7 @@ class UninstallApp extends InstallApp
      * {@inheritDoc}
      * @see \exface\Core\CommonLogic\AbstractActionDeferred::performDeferred()
      */
-    protected function performDeferred(array $aliases = [], bool $keepDataInOtherApps = false) : \Generator
+    protected function performDeferred(array $aliases = [], bool $keepDataInOtherApps = false, bool $ignoreErrors = false) : \Generator
     {
         $installed_counter = 0;
         foreach ($aliases as $app_alias) {
@@ -88,7 +97,7 @@ class UninstallApp extends InstallApp
                     yield from $proc;
                 }
 
-                yield from $this->uninstallApp($app_selector);
+                yield from $this->uninstallApp($app_selector, true, $ignoreErrors);
 
                 if (! empty($keptDataOfObjects)) {
                     yield 'Skipped deleting data from the following objects due to `keep_data_in_other_apps`:'
@@ -147,25 +156,25 @@ class UninstallApp extends InstallApp
     }
 
     /**
+     * Uninstalls an app, optionally disabling cascading deletes or continuing after data cleanup errors.
      *
      * @param AppSelectorInterface $app_selector
-     * @return string
+     * @param bool $cascading
+     * @param bool $ignoreErrors
+     * @return \Traversable
      */
-    public function uninstallApp(AppSelectorInterface $app_selector, bool $cascading = true) : \Traversable
+    public function uninstallApp(AppSelectorInterface $app_selector, bool $cascading = true, bool $ignoreErrors = false) : \Traversable
     {
         $app = AppFactory::create($app_selector);
-        if ($cascading === false) {
-            // For non-cascading uninstalls get a copy of the installer container with non-cascading
-            // installers
-            $installer = $app->getInstaller()->extract(function(AppInstallerInterface $inst){
-                if ($inst instanceof DataInstaller) {
+        $installer = $app->getInstaller()->extract(function(AppInstallerInterface $inst) use ($cascading, $ignoreErrors) {
+            if ($inst instanceof DataInstaller) {
+                $inst->setIgnoreErrors($ignoreErrors);
+                if ($cascading === false) {
                     $inst->setUninstallCascading(false);
                 }
-                return true;
-            });
-        } else {
-            $installer = $app->getInstaller();
-        }
+            }
+            return true;
+        });
         $installer_result = $installer->uninstall();
         if ($installer_result instanceof \Traversable) {
             yield from $installer_result;
@@ -184,8 +193,26 @@ class UninstallApp extends InstallApp
         return [
             (new ServiceParameter($this))
                 ->setName(self::TASK_PARAM_KEEP_DATA_IN_OTHER_APPS)
-                ->setDescription('Do not use cascading delete on related data outside the app')
+                ->setDescription('Do not use cascading delete on related data outside the app'),
+            (new ServiceParameter($this))
+                ->setName(self::TASK_PARAM_IGNORE_ERRORS)
+                ->setDescription('Continue after data cleanup errors, logging and printing them (true/false; default: false)')
         ];
+    }
+
+    /**
+     * Returns whether the task requests continuing uninstall after data cleanup errors.
+     *
+     * @param TaskInterface $task
+     * @return bool
+     */
+    protected function willIgnoreErrors(TaskInterface $task) : bool
+    {
+        if ($task->hasParameter(self::TASK_PARAM_IGNORE_ERRORS)) {
+            return BooleanDataType::cast($task->getParameter(self::TASK_PARAM_IGNORE_ERRORS));
+        }
+
+        return false;
     }
 
     protected function willKeepDataInOtherAppas(TaskInterface $task) : bool
