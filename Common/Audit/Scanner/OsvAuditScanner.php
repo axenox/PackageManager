@@ -74,7 +74,10 @@ class OsvAuditScanner extends AbstractAuditScanner
         $this->hints = [];
         $this->unscannableFindings = [];
         $dependencies = [];
-        foreach ($this->artifacts($task) as $artifact) {
+        $artifacts = $this->artifacts($task);
+        // Read exclusions across all artifacts before building queries, regardless of artifact order.
+        $privatePackages = $this->getPrivatePackageNames(array_column($artifacts, 'data'));
+        foreach ($artifacts as $artifact) {
             $data = $artifact['data'];
             if ($artifact['composer'] || isset($data['packages']) && ! isset($data['spdxVersion'])) {
                 if (! isset($data['packages']) || ! is_array($data['packages'])
@@ -82,6 +85,11 @@ class OsvAuditScanner extends AbstractAuditScanner
                     throw new RuntimeException('OSV package inventory must contain a packages array.');
                 }
                 foreach (array_merge($data['packages'], $data['packages-dev'] ?? []) as $package) {
+                    // A BOM's private designation also excludes matching Composer lock entries and asset aliases.
+                    if (is_array($package) && is_string($package['name'] ?? null)
+                        && isset($privatePackages[PackageEcosystemDataType::convertNameFromAssetPackagist($package['name'])])) {
+                        continue;
+                    }
                     $this->addDependency($dependencies, $package, true);
                 }
             } elseif (($data['bomFormat'] ?? '') === 'CycloneDX') {
@@ -150,6 +158,17 @@ class OsvAuditScanner extends AbstractAuditScanner
             throw new RuntimeException('OSV inventory packages must contain a nonempty name.');
         }
         $name = $package['name'];
+        // Private is an intentional exclusion, not a coverage gap. Return before PURL or Git-commit queries.
+        if (isset($package['ecosystem'])
+            && PackageEcosystemDataType::findEcosystem($name, $package['ecosystem']) === PackageEcosystemDataType::PRIVATE) {
+            return;
+        }
+        // Generated CycloneDX components carry the same exclusion in a custom property instead of ecosystem.
+        foreach ($package['properties'] ?? [] as $property) {
+            if (($property['name'] ?? '') === 'axenox:packagemanager:ecosystem' && ($property['value'] ?? '') === PackageEcosystemDataType::PRIVATE) {
+                return;
+            }
+        }
         if (isset($package['version']) && ! is_string($package['version'])) {
             throw new RuntimeException('OSV inventory versions must be strings: ' . $name . '.');
         }

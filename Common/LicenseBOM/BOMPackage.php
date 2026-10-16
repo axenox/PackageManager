@@ -94,12 +94,13 @@ class BOMPackage implements BOMPackageInterface
     }
     
     /**
-     *
-     * @return string|NULL
+     * Returns an optional repository URL for packages supplied without source metadata.
+     * 
+     * @return string|null
      */
     public function getSource(): ?string
     {
-        return $this->packageArray['source']['url'];
+        return $this->packageArray['source']['url'] ?? null;
     }
     
     /**
@@ -147,13 +148,21 @@ class BOMPackage implements BOMPackageInterface
     }
     
     /**
-     *
+     * Returns declared licenses, or the explicit selection when no nonempty list is available.
+     * 
+     * The fallback is not persisted in merge metadata, so selection-only overrides cannot erase
+     * alternatives declared by another source.
+     * 
      * {@inheritDoc}
+     * 
      * @see \axenox\PackageManager\Interfaces\BOMPackageInterface::getLicenseNames()
+     * @return string[]
      */
     public function getLicenseNames(): array
     {
-        return $this->packageArray['license'] ?? [];
+        $licenses = $this->packageArray['license'] ?? [];
+        $licenseUsed = $this->packageArray['license_used'] ?? null;
+        return $licenses !== [] ? $licenses : ($licenseUsed !== null && $licenseUsed !== '' ? [$licenseUsed] : []);
     }
     
     /**
@@ -206,14 +215,14 @@ class BOMPackage implements BOMPackageInterface
     }
     
     /**
+     * Accepts either a license reference or inline text without requiring both metadata maps.
      * 
      * @return bool
      */
     public function hasLicenseText() : bool
     {
-        if(null !== $this->packageArray['license_link'][$this->getLicenseUsed()] || null !== $this->packageArray['license_text'][$this->getLicenseUsed()] && $this->packageArray['license_text'][$this->getLicenseUsed()] !== ""){
-            return true;
-        } else return false;
+        $license = $this->getLicenseUsed();
+        return $this->getLicenseLink($license) !== null || ($this->getLicenseText($license) ?? '') !== '';
     }
     
     /**

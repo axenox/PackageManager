@@ -75,4 +75,24 @@ abstract class AbstractBOMDecorator implements LicenseBOMInterface
     {
         return $this->innerBOM->getPackages();
     }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see LicenseBOMInterface::getLicenses()
+     */
+    public function getLicenses() : array
+    {
+        return $this->innerBOM->getLicenses();
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see LicenseBOMInterface::setLicenses()
+     */
+    public function setLicenses(array $licenses) : LicenseBOMInterface
+    {
+        return $this->innerBOM->setLicenses($licenses);
+    }
 }

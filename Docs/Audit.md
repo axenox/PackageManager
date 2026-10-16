@@ -194,6 +194,14 @@ Asset-packagist aliases are resolved to their native npm/Bower identities even w
 `ecosystem: composer` or no ecosystem. Native npm names require `ecosystem: npm`.
 JSON ecosystem values are lowercase; mixed-case legacy input is normalized.
 `PackageEcosystemDataType` centralizes the enum, asset-name conversion and OSV registry labels.
+The `private` ecosystem deliberately opts packages out of OSV and npm registry queries,
+including OSV's Git-commit fallback, without producing unscannable findings. Private names
+in a combined inventory also exclude matching entries from a supplied Composer lock.
+Generated CycloneDX components retain this classification in the property
+`axenox:packagemanager:ecosystem`. A lockfile alone cannot express these exclusions;
+regenerate and supply the BOM after changing
+[`config/Licenses.config.json`](License_management/Generated_license_BOM.md#installation-specific-licenses).
+This classification does not change Composer's own audit or external scanners that ignore it.
 PURLs take precedence, including NuGet PURLs. Untyped CycloneDX/SPDX components still
 require a usable PURL or Git identity. Bower has no OSV registry coverage.
 Git source metadata with a 40-character commit reference can identify development

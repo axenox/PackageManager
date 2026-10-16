@@ -50,6 +50,22 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
                 $inventories[] = $this->readJson($folder . '/vendor/licenses.json');
             }
         }
+        // Collect private names first: a BOM exclusion must also apply to the same package in composer.lock.
+        $privatePackages = $this->getPrivatePackageNames($inventories);
+        foreach ($inventories as &$inventory) {
+            foreach (['packages', 'packages-dev'] as $field) {
+                if (is_array($inventory[$field] ?? null)) {
+                    // Keep entries not marked private; normalize asset aliases so both inventories match.
+                    // Leave malformed entries untouched: this filter handles exclusions, not input validation.
+                    $inventory[$field] = array_values(array_filter($inventory[$field], static function ($package) use ($privatePackages) {
+                        return ! is_array($package) || ! is_string($package['name'] ?? null)
+                            || ! isset($privatePackages[PackageEcosystemDataType::convertNameFromAssetPackagist($package['name'])]);
+                    }));
+                }
+            }
+        }
+        // Release the reference to the last inventory after modifying the collection in place.
+        unset($inventory);
         return $inventories;
     }
 

@@ -72,13 +72,6 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         
         // Create empty BigBom
         $bigBOM = new LicenseBOM();
-        // find license_text if licensefile is found in packagepath
-        $bigBOM->addEnricher(new FindLicenseTextEnricher($vendorPath));
-        // find license_text if Github-link is set
-        $bigBOM->addEnricher(new FindLicenseGithubEnricher($vendorPath));
-        // find license_text from SPDX-Github-Repository if licenseName is set
-        $bigBOM->addEnricher(new FindLicenseSPDXEnricher($vendorPath));
-        $bigBOM->addEnricher(new FindLicenseFileEnricher($vendorPath));
         
         // Create BOM from Composer.lock
         $composerLockPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'composer.lock';
@@ -98,6 +91,20 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
             $includesBOM = new IncludesBOM($include, $vendorPath);
             $bigBOM->merge($includesBOM);
             yield "  - " . StringDataType::substringAfter($include, $vendorPath . '/') .  PHP_EOL;
+        }
+
+        $licensesPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'Licenses.config.json';
+        if (is_file($licensesPath)) {
+            $bigBOM->merge(new IncludesBOM($licensesPath, $vendorPath));
+            yield '  - config/Licenses.config.json' . PHP_EOL;
+        }
+
+        $bigBOM->addEnricher(new FindLicenseTextEnricher($vendorPath));
+        $bigBOM->addEnricher(new FindLicenseGithubEnricher($vendorPath));
+        $bigBOM->addEnricher(new FindLicenseSPDXEnricher($vendorPath));
+        $bigBOM->addEnricher(new FindLicenseFileEnricher($vendorPath));
+        foreach ($bigBOM->getPackages() as $package) {
+            $bigBOM->addPackage($package);
         }
 
         foreach ($this->getSaveTo() as $path => $configuration) {

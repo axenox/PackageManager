@@ -103,6 +103,9 @@ class CycloneDxBOM extends AbstractBOMDecorator implements LicenseBOMExporterInt
         if ($purl !== null) {
             $component['purl'] = $purl;
         }
+        if (PackageEcosystemDataType::findEcosystem($package->getName(), $data['ecosystem'] ?? null) === PackageEcosystemDataType::PRIVATE) {
+            $component['properties'] = [['name' => 'axenox:packagemanager:ecosystem', 'value' => PackageEcosystemDataType::PRIVATE]];
+        }
         $references = [];
         foreach (['vcs' => $data['source']['url'] ?? null, 'website' => $data['homepage'] ?? null] as $type => $url) {
             if ($url !== null && $url !== '') {

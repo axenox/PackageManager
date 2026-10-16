@@ -33,6 +33,7 @@ class PackageEcosystemDataType extends StringDataType implements EnumDataTypeInt
     const CONAN_CENTER = 'conancenter';
     const CRAN = 'cran';
     const OPAM = 'opam';
+    const PRIVATE = 'private';
     const UNKNOWN = 'unknown';
 
     /**
@@ -62,6 +63,7 @@ class PackageEcosystemDataType extends StringDataType implements EnumDataTypeInt
             static::CONAN_CENTER => 'C/C++ ConanCenter',
             static::CRAN => 'R CRAN',
             static::OPAM => 'OCaml opam',
+            static::PRIVATE => 'Private (closed source)',
             static::UNKNOWN => 'Unknown'
         ];
     }
@@ -150,7 +152,7 @@ class PackageEcosystemDataType extends StringDataType implements EnumDataTypeInt
     {
         $ecosystem = static::findEcosystem($name, $ecosystem);
         $name = static::convertNameToAssetPackagist($name, $ecosystem);
-        return in_array($ecosystem, [static::COMPOSER, static::NPM, static::BOWER], true)
+        return in_array($ecosystem, [static::COMPOSER, static::NPM, static::BOWER, static::PRIVATE], true)
             ? $name : $ecosystem . ':' . $name;
     }
 
@@ -212,6 +214,7 @@ class PackageEcosystemDataType extends StringDataType implements EnumDataTypeInt
             static::CONAN_CENTER => 'ConanCenter',
             static::CRAN => 'CRAN',
             static::OPAM => 'opam',
+            static::PRIVATE => null,
             static::UNKNOWN => null
         ][static::findEcosystem('', $ecosystem)];
     }

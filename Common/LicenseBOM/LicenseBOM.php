@@ -22,6 +22,32 @@ class LicenseBOM implements LicenseBOMInterface
     
     private $enricher = [];
 
+    private $licenses = [];
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see LicenseBOMInterface::getLicenses()
+     */
+    public function getLicenses() : array
+    {
+        return $this->licenses;
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see LicenseBOMInterface::setLicenses()
+     */
+    public function setLicenses(array $licenses) : LicenseBOMInterface
+    {
+        $this->licenses = array_replace_recursive($this->licenses, $licenses);
+        foreach ($this->packageArray as $package) {
+            $this->addPackage($package);
+        }
+        return $this;
+    }
+
     /**
      * Merge LicenseBOM with otherBOM in method-argument
      * {@inheritDoc}
@@ -29,6 +55,7 @@ class LicenseBOM implements LicenseBOMInterface
      */
     public function merge(LicenseBOMInterface $mergingBOM) : LicenseBOMInterface
     {
+        $this->setLicenses($mergingBOM->getLicenses());
         foreach ($mergingBOM->getPackages() as $package) {
             $data = $package->toComposerArray();
             $key = PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null);
@@ -86,6 +113,18 @@ class LicenseBOM implements LicenseBOMInterface
      */
     public function addPackage(BOMPackageInterface $package) : LicenseBOMInterface
     {
+        $data = $package->toComposerArray();
+        $names = array_unique(array_merge($package->getLicenseNames(), [$package->getLicenseUsed()]));
+        foreach ($names as $name) {
+            foreach ($this->licenses[$name] ?? [] as $property => $value) {
+                if (in_array($property, ['license_link', 'license_text'], true)) {
+                    $data[$property][$name] = $value;
+                }
+            }
+        }
+        if ($data !== $package->toComposerArray()) {
+            $package = new BOMPackage($data);
+        }
         foreach($this->getEnricher() as $enricher) {
             $package = $enricher->enrich($package);
         }

@@ -8,6 +8,7 @@ Information about included software comes from different sources:
 
 - **Composer-managed packages:** `composer.json` declares PHP dependencies and can also declare JavaScript packages from NPM and Bower through Composer's asset repositories. Composer records the resolved package information in `composer.lock`, which is used for license generation.
 - **Bundled packages:** Developers may copy third-party files directly into an app instead of installing them through Composer. They must register these packages in an `includes.json` file in the app's root directory.
+- **Installation-specific terms:** `config/Licenses.config.json` selects licenses and supplies private license definitions for one installation. It is optional and is merged after Composer and all app inventories.
 
 License generation combines these sources into one global list. App designers use this list to review the software delivered with their apps and prepare license information for distribution. The generated document supports that review; it is not a guarantee of completeness or legal compliance.
 
@@ -60,6 +61,71 @@ PHP class namespaces start with `axenox`, not the filesystem directory `vendor`.
 
 The old string format values (`markdown`, `json`, `cdx`) must be replaced with class configurations.
 Regenerate the list whenever dependencies, bundled libraries, or license information change.
+
+### Installation-Specific Licenses
+
+Create `config/Licenses.config.json` in the installation, outside the app packages. It uses
+the internal BOM structure: a `packages` array and an optional `licenses` object keyed by
+license name. List each private package with the same name used in `composer.lock`.
+For example:
+
+```json
+{
+  "packages": [
+    {
+      "name": "example/client-app",
+      "ecosystem": "private",
+      "license_used": "Client-License"
+    },
+    {
+      "name": "example/dual-licensed-library",
+      "license_used": "Apache-2.0"
+    }
+  ],
+  "licenses": {
+    "Client-License": {
+      "license_link": "https://example.org/client-license",
+      "license_text": "The complete license terms agreed for this installation."
+    }
+  }
+}
+```
+
+Version, source and other omitted package fields remain available from Composer or includes.
+An installation's explicit license selection takes precedence over app declarations. Declared
+license alternatives remain unchanged unless the configuration supplies a nonempty `license` list.
+You only need `license_used` when selecting a license. If no nonempty `license` list is available
+after merging, its effective value is generated as `[license_used]`, including in full JSON exports.
+This fallback does not replace alternatives already declared by Composer or an app.
+Setting `ecosystem: private` on a Composer package updates that package rather than adding a duplicate.
+
+Both `config/Licenses.config.json` and app `includes.json` files accept this object structure.
+Existing flat includes arrays remain supported. A file may contain only `licenses`, allowing
+several apps to reference a shared license without repeating its terms. Packages reference a
+definition using its exact name in `license` or `license_used`. The definition's `license_link`
+and `license_text` are strings, unlike the per-package maps keyed by license name. These fields
+can be supplied independently. Later definitions override matching fields of earlier definitions;
+shared definitions override the corresponding per-package metadata for that named license.
+Definitions are applied before missing license text is searched for locally or downloaded.
+
+Full JSON exports retain the top-level `licenses` object and resolve its metadata onto packages
+for existing consumers. Minimal exports omit definitions and license metadata. Markdown and
+CycloneDX exports use the same resolved license terms. Do not publish generated license documents
+without checking whether installation-specific terms may be disclosed.
+
+### Private Packages And Audits
+
+Use `ecosystem: private` for packages that must not be queried against public advisory registries.
+They remain in the license inventory, including minimal JSON, but OSV and the npm adapter ignore
+them without reporting missing-coverage findings. Private names in the combined inventory also
+exclude matching entries from a parallel Composer lock. Regenerate the inventory after changing
+the configuration. A lockfile alone does not carry these installation-specific exclusions.
+
+Private packages receive no public package URL in CycloneDX. Instead, the generated component
+carries the property `axenox:packagemanager:ecosystem` with value `private`, which the OSV adapter
+also honors. This property is not a universal exclusion mechanism for third-party tools.
+Composer's own audit and external scanners that do not consume the ecosystem classification
+retain their own coverage and exclusion rules.
 
 ### JSON Export Format
 
@@ -199,7 +265,9 @@ for OSV queries. An ecosystem being queryable does not guarantee complete adviso
 An includes entry can also supplement a package already installed through Composer.
 Use the same package identity and supply only the information that needs to be added or changed.
 Native npm/Bower names with their ecosystems match the corresponding Composer asset aliases.
-The same name in different ecosystems remains a separate package.
+The same name in different public ecosystems remains a separate package. The `private`
+classification shares the Composer package identity so installation overrides can mark existing
+Composer packages private.
 
 For example, suppose Composer supplies a package's version and these licenses:
 

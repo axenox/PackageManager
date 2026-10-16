@@ -86,6 +86,9 @@ class JsonBOM extends AbstractBOMDecorator implements LicenseBOMExporterInterfac
     public function buildJson() : string
     {
         $arr = ['packages' => []];
+        if ($this->format === 'full' && $this->getLicenses() !== []) {
+            $arr['licenses'] = (object) $this->getLicenses();
+        }
         foreach ($this->getPackages() as $package) {
             $data = $package->toComposerArray();
             $data['ecosystem'] = PackageEcosystemDataType::findEcosystem($data['name'], $data['ecosystem'] ?? null);
@@ -98,6 +101,9 @@ class JsonBOM extends AbstractBOMDecorator implements LicenseBOMExporterInterfac
                 }
             } else {
                 $data['license_used'] = $package->getLicenseUsed();
+                if (empty($data['license']) && $package->getLicenseNames() !== []) {
+                    $data['license'] = $package->getLicenseNames();
+                }
             }
             $arr['packages'][] = $data;
         }

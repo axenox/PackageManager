@@ -43,6 +43,10 @@ class IncludesBOM extends LicenseBOM implements LicenseBOMInterface
         //if json-file at filePath exists, add json-data to packages
         if($this->json !== false){
             $packageArray = JsonDataType::decodeJson($this->json);
+            if (isset($packageArray['packages']) || isset($packageArray['licenses'])) {
+                $this->setLicenses($packageArray['licenses'] ?? []);
+                $packageArray = $packageArray['packages'] ?? [];
+            }
             foreach ($packageArray as $packageData) {
                 $this->addPackage(new BOMPackage($packageData));
             }

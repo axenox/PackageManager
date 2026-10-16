@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use axenox\PackageManager\Actions\Audit;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
@@ -56,6 +57,49 @@ abstract class AbstractAuditScanner implements AuditScannerInterface
     public function getHints() : array
     {
         return array_values(array_unique($this->hints));
+    }
+
+    /**
+     * Collects private identities before parallel lockfiles can reintroduce them into public queries.
+     * 
+     * Combined JSON and generated CycloneDX markers are supported, including nested components.
+     * Native asset names allow a saved BOM to exclude the corresponding Composer alias too.
+     * 
+     * @param array<int, array<string, mixed>> $inventories
+     * @return array<string, bool>
+     */
+    protected function getPrivatePackageNames(array $inventories) : array
+    {
+        $names = [];
+        foreach ($inventories as $inventory) {
+            $packages = array_merge(
+                is_array($inventory['packages'] ?? null) ? $inventory['packages'] : [],
+                is_array($inventory['packages-dev'] ?? null) ? $inventory['packages-dev'] : [],
+                is_array($inventory['components'] ?? null) ? $inventory['components'] : [],
+                isset($inventory['metadata']['component']) ? [$inventory['metadata']['component']] : []
+            );
+            foreach ($packages as $package) {
+                if (! is_array($package) || ! is_string($package['name'] ?? null)) {
+                    continue;
+                }
+                // Combined JSON uses ecosystem; generated CycloneDX uses a namespaced property.
+                $private = strcasecmp(trim($package['ecosystem'] ?? ''), PackageEcosystemDataType::PRIVATE) === 0;
+                foreach ($package['properties'] ?? [] as $property) {
+                    $private = $private || ($property['name'] ?? '') === 'axenox:packagemanager:ecosystem'
+                        && ($property['value'] ?? '') === PackageEcosystemDataType::PRIVATE;
+                }
+                if ($private) {
+                    // Index both spellings so npm-asset/scope--package matches the native @scope/package name.
+                    $names[$package['name']] = true;
+                    $names[PackageEcosystemDataType::convertNameFromAssetPackagist($package['name'])] = true;
+                }
+                if (is_array($package['components'] ?? null)) {
+                    // Nested components have their own classification; a parent's private marker does not cascade.
+                    $names += $this->getPrivatePackageNames([['components' => $package['components']]]);
+                }
+            }
+        }
+        return $names;
     }
 
     /**

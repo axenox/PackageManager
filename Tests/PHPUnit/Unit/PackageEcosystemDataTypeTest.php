@@ -56,6 +56,7 @@ class PackageEcosystemDataTypeTest extends AuditTestCase
             'conancenter' => 'C/C++ ConanCenter',
             'cran' => 'R CRAN',
             'opam' => 'OCaml opam',
+            'private' => 'Private',
             'unknown' => 'Unknown'
         ], $labels);
     }
