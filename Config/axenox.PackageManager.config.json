@@ -12,6 +12,9 @@
 		}
 	},
 	"AUDIT.SCANNERS": {
+		"license": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\LicenseScanner"
+		},
 		"composer": {
 			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerAuditScanner"
 		},

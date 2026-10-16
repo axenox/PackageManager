@@ -33,16 +33,13 @@ class FindingTest extends TestCase
         self::assertSame('unknown', (new Finding('id', 'Advisory', 'EOL', 'linux:1', 'trivy', 'high', ecosystem: ''))->getEcosystem());
     }
     /**
-     * Advisory enum casting preserves canonical values and legacy constant aliases.
+    * Advisory enum casting preserves canonical stored values.
      * 
      * @return void
      */
     public function testAdvisoryTypesPreserveStoredValues() : void
     {
-        self::assertSame(['vulnerability', 'EOL', 'unscannable'], AdvisoryTypeDataType::getValuesStatic());
-        self::assertSame(AdvisoryTypeDataType::VULNERABILITY, FindingInterface::TYPE_VULNERABILITY);
-        self::assertSame(AdvisoryTypeDataType::EOL, FindingInterface::TYPE_EOL);
-        self::assertSame(AdvisoryTypeDataType::UNSCANNABLE, FindingInterface::TYPE_UNSCANNABLE);
+        self::assertSame(['vulnerability', 'EOL', 'unscannable', 'license'], AdvisoryTypeDataType::getValuesStatic());
         foreach (AdvisoryTypeDataType::getValuesStatic() as $type) {
             self::assertSame($type, AdvisoryTypeDataType::cast(' ' . strtoupper($type) . ' '));
             $finding = new Finding('', 'Advisory', $type, 'package', 'scanner', 'low');

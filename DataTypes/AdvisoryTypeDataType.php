@@ -20,6 +20,7 @@ class AdvisoryTypeDataType extends StringDataType implements EnumDataTypeInterfa
     const VULNERABILITY = 'vulnerability';
     const EOL = 'EOL';
     const UNSCANNABLE = 'unscannable';
+    const LICENSE = 'license';
 
     /**
      * {@inheritDoc}

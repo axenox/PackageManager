@@ -232,8 +232,8 @@ class AuditTest extends AuditTestCase
         $rows = $sheet->getRows();
         self::assertEqualsCanonicalizing(AdvisoryTypeDataType::getValuesStatic(), array_column($rows, 'TYPE'));
         foreach ([
-            'en' => ['vulnerability' => 'Vulnerability', 'EOL' => 'End of life', 'unscannable' => 'Unscannable'],
-            'de' => ['vulnerability' => 'Sicherheitsluecke', 'EOL' => 'Supportende', 'unscannable' => 'Nicht pruefbar']
+            'en' => ['vulnerability' => 'Vulnerability', 'EOL' => 'End of life', 'unscannable' => 'Unscannable', 'license' => 'License'],
+            'de' => ['vulnerability' => 'Sicherheitsluecke', 'EOL' => 'Supportende', 'unscannable' => 'Nicht pruefbar', 'license' => 'Lizenz']
         ] as $locale => $labels) {
             $this->setReportLocale($locale);
             self::assertSame($labels, AdvisoryTypeDataType::getLabelsStatic($this->workbench));
@@ -572,7 +572,7 @@ class AuditTest extends AuditTestCase
         $sheet = $this->resultSheet([
             new Finding('Z', 'First', 'vulnerability', 'z-package', 'npm', 'high'),
             new Finding('A', 'Second', 'vulnerability', 'a-package', 'osv', 'high'),
-            new Finding('', 'Package cannot be scanned', FindingInterface::TYPE_UNSCANNABLE, 'unknown/package', 'osv', 'low')
+            new Finding('', 'Package cannot be scanned', AdvisoryTypeDataType::UNSCANNABLE, 'unknown/package', 'osv', 'low')
         ]);
         $folder = $this->temporaryFolder();
         $path = $folder . '/audit.json';

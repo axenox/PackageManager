@@ -12,14 +12,6 @@ use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
  */
 interface FindingInterface
 {
-    const TYPE_VULNERABILITY = AdvisoryTypeDataType::VULNERABILITY;
-    const TYPE_EOL = AdvisoryTypeDataType::EOL;
-
-    /**
-     * Identifies a package that could not be checked for vulnerabilities.
-     */
-    const TYPE_UNSCANNABLE = AdvisoryTypeDataType::UNSCANNABLE;
-
     /**
      * Returns scanner-native identifiers.
      * 
@@ -51,7 +43,7 @@ interface FindingInterface
     /**
      * Returns the finding type.
      * 
-     * Vulnerability, end-of-life and unscannable findings use separate identities.
+    * Vulnerability, end-of-life, license and unscannable findings use separate identities.
      * 
     * @return string One of the AdvisoryTypeDataType values.
      */

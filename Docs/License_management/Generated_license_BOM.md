@@ -9,6 +9,7 @@ Information about included software comes from different sources:
 - **Composer-managed packages:** `composer.json` declares PHP dependencies and can also declare JavaScript packages from NPM and Bower through Composer's asset repositories. Composer records the resolved package information in `composer.lock`, which is used for license generation.
 - **Bundled packages:** Developers may copy third-party files directly into an app instead of installing them through Composer. They must register these packages in an `includes.json` file in the app's root directory.
 - **Installation-specific terms:** `config/Licenses.config.json` selects licenses and supplies private license definitions for one installation. It is optional and is merged after Composer and all app inventories.
+- **Local npm manifests:** When a package has no known license declaration, its installed `package.json` supplies a fallback before license-text discovery. Modern `license` strings, legacy license objects and legacy `licenses` arrays are supported. License URLs in legacy entries are retained. Existing declarations and explicit selections are not replaced.
 
 License generation combines these sources into one global list. App designers use this list to review the software delivered with their apps and prepare license information for distribution. The generated document supports that review; it is not a guarantee of completeness or legal compliance.
 
@@ -29,6 +30,12 @@ By default, generation writes three files:
 | `vendor/SBOM.cdx.json` | A CycloneDX 1.6 JSON software bill of materials for standards-based inventory and audit tools. |
 
 Generation replaces existing output files and reports missing license information or texts. Review both the messages and the generated files before publishing them.
+
+The default [dependency audit](../Audit.md#licenses) also includes `LicenseScanner`.
+It checks this full JSON inventory for missing license declarations (high severity)
+and missing text for the effective license (low severity), including private packages.
+A license URL alone does not satisfy the scanner's text check. Regenerate the inventory
+before auditing; minimal exports deliberately omit the evidence needed for these checks.
 
 To change the installation-wide defaults, configure PackageManager's `SBOM.files` option.
 To override those defaults for one action, configure its `save_to_files` property using the
@@ -61,6 +68,26 @@ PHP class namespaces start with `axenox`, not the filesystem directory `vendor`.
 
 The old string format values (`markdown`, `json`, `cdx`) must be replaced with class configurations.
 Regenerate the list whenever dependencies, bundled libraries, or license information change.
+
+Manifest recovery reads the package's directory below `vendor`, also resolving native npm
+names to Composer asset paths when necessary. It does not download packages or query npm.
+SPDX expressions remain intact rather than being split into separate alternatives. Missing
+manifests, absent declarations and `SEE LICENSE IN ...` references do not establish a license
+name; malformed JSON fails generation. Shared named definitions apply to recovered license
+names before license-text enrichment, so installation-specific metadata retains precedence.
+
+### Markdown License Variants
+
+Markdown groups texts under their effective license name. Texts that differ only in letter
+case or whitespace layout share one variant and one reference in the package table. Line
+endings, line wrapping, repeated spaces, tabs and nonbreaking spaces are ignored during
+comparison. Word boundaries remain significant: separate words are not joined together.
+
+The first original text encountered for a variant is printed unchanged. Copyright holders,
+years, punctuation and license clauses are not removed or rewritten; changes to those values
+still produce separate variants. This avoids discarding attribution or altered terms merely
+because two packages use the same license name. Different effective license names remain
+separate even when their texts match. JSON and CycloneDX retain their original package texts.
 
 ### Installation-Specific Licenses
 

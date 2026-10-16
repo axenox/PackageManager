@@ -5,6 +5,7 @@ use axenox\PackageManager\Actions\Audit;
 use axenox\PackageManager\Common\Audit\Scanner\AbstractAuditScanner;
 use axenox\PackageManager\Common\Audit\Scanner\ComposerAuditScanner;
 use axenox\PackageManager\Common\Audit\Scanner\ComposerNpmAuditScanner;
+use axenox\PackageManager\Common\Audit\Scanner\LicenseScanner;
 use axenox\PackageManager\Common\Audit\Scanner\OsvAuditScanner;
 use axenox\PackageManager\Common\Audit\Scanner\TrivySBOMScanner;
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
@@ -39,7 +40,7 @@ class AuditConfigurationTest extends AuditTestCase
     public function testBuiltInScannersImportConfiguration() : void
     {
         $configuration = [];
-        foreach ([ComposerAuditScanner::class, ComposerNpmAuditScanner::class, OsvAuditScanner::class, TrivySBOMScanner::class] as $class) {
+        foreach ([ComposerAuditScanner::class, ComposerNpmAuditScanner::class, OsvAuditScanner::class, TrivySBOMScanner::class, LicenseScanner::class] as $class) {
             $configuration[(new \ReflectionClass($class))->getShortName()] = ['class' => '\\' . $class];
         }
         $this->action->importUxonObject(new UxonObject(['scanners' => $configuration]));

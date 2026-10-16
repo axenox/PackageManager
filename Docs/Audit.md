@@ -1,6 +1,6 @@
-# Vulnerability Audits
+# Dependency Audits
 
-The `axenox.PackageManager.Audit` action combines Composer, npm-asset, OSV and Trivy
+The `axenox.PackageManager.Audit` action combines license, Composer, npm-asset, OSV and Trivy
 findings. It returns scanner status and a compact findings table together with
 a DataSheet result for buttons, scheduled tasks and action chains.
 Action authorization applies to every invocation.
@@ -98,6 +98,9 @@ are configuration errors. The defaults are:
 ```json
 {
 	"AUDIT.SCANNERS": {
+		"license": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\LicenseScanner"
+		},
 		"composer": {
 			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerAuditScanner"
 		},
@@ -135,6 +138,36 @@ same class create independent instances with their own options. Use a map key fo
 currently have no additional options; custom prototypes expose options through UXON
 setters. Existing class-name lists and references to the old `axenox\PackageManager\Audit`
 namespace must be migrated to the named map and `Common\Audit\Scanner` namespace.
+
+### Licenses
+
+`LicenseScanner` checks the full combined JSON supplied through `sbom`, or
+`vendor/licenses.json` in the target folder. It runs locally without installation,
+downloads or inventory generation. Regenerate the full inventory with
+`axenox.PackageManager:GenerateLicenseBOM` before auditing changed dependencies or terms.
+Composer-lock-only, CycloneDX and SPDX tasks are not applicable to this scanner.
+
+Findings have type and source `license`:
+
+| Missing Evidence | Severity |
+| --- | --- |
+| Effective license declaration | High |
+| Nonempty text for the effective license | Low |
+
+Both findings are returned if both are absent. `Other`, `NONE` and `NOASSERTION`
+are treated as missing declarations. The effective license is `license_used`, or
+the first declared license when no selection exists. Shared named license definitions
+are applied before checking. Only text for that effective license counts; a link
+alone or text for a different alternative does not satisfy the text check.
+Private packages are checked just like public packages.
+
+Use full JSON exports, not minimal build snapshots: minimal exports deliberately
+omit all licensing metadata and will therefore produce missing-evidence findings.
+These advisories describe the supplied inventory, not a legal determination that
+the package has no license. The scanner cannot detect omitted dependencies or
+stale inventories.
+
+### Composer And npm
 
 Composer requires version 2.7 or newer. A `composer.phar` in the scanned directory
 is preferred and run with a PHP CLI executable resolved by

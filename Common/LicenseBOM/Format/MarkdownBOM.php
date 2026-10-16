@@ -7,6 +7,7 @@ use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMExporterInterface;
 use exface\Core\CommonLogic\Traits\iCanBeConvertedToUxonTrait;
+use exface\Core\Exceptions\RuntimeException;
 
 /**
  * This bill-of-material can create a well-readable markdown file listing its packages and their licenses
@@ -17,8 +18,6 @@ use exface\Core\CommonLogic\Traits\iCanBeConvertedToUxonTrait;
 class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInterface
 {
     use iCanBeConvertedToUxonTrait;
-
-    private $licenseArray = [];
 
     /**
      * {@inheritDoc}
@@ -83,6 +82,7 @@ class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInte
       */
      public function writeUniqueLicenseNames(array $packageArray) : string
      {
+         $md = '';
          // Array for foreach-sorting
          $processedLics = [];
 
@@ -116,12 +116,17 @@ class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInte
      }
     
     /**
-     * Lists variants for license-text underneath unique package-licenses for method 'toMarkdown'
+    * Prints one original text per effective license and normalized variant.
+    *
+    * Case and whitespace differences share a variant without modifying the displayed terms.
+    * Copyright notices, dates, punctuation and changes to license clauses remain significant.
+    *
      * @param BOMPackageInterface[] $packageArray
      * @return string
      */
     public function writeLicenseTextVariants(array $packageArray) : string
     {
+        $md = '';
         // array-counter for already processed licenses
         $processedLicsHeader = [];
         $processedLicsVariants = [];
@@ -136,15 +141,24 @@ class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInte
                 array_push($processedLicsHeader, $package->getLicenseUsed());
             }
             // Writes version-number beneath License-text variant if license-text does not exist yet
-            if(! in_array($package->getLicenseText($licenseUsed), $processedLicsVariants)) {
+            $text = $package->getLicenseText($licenseUsed) ?? '';
+            $normalized = $this->normalizeLicenseText($text);
+            if (! isset($processedLicsVariants[$licenseUsed][$normalized])) {
                 $md .= PHP_EOL . "### {$this->getLicenseVariantName($packageArray, $package)}" . PHP_EOL . PHP_EOL;
-                array_push($processedLicsVariants, $package->getLicenseText($licenseUsed));
-                $md .= PHP_EOL . ($package->getLicenseText($licenseUsed) ?? ''). PHP_EOL;
+                $processedLicsVariants[$licenseUsed][$normalized] = true;
+                $md .= PHP_EOL . $text . PHP_EOL;
             }
         }
         return $md;
     }
     
+    /**
+     * Keeps package table references aligned with the printed normalized variants.
+     *
+     * @param BOMPackageInterface[] $packageArray
+     * @param BOMPackageInterface $package
+     * @return string
+     */
     protected function getLicenseVariantName(array $packageArray, BOMPackageInterface $package) : string
     {
         $count = $this->countVariant($packageArray, $package);
@@ -152,9 +166,10 @@ class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInte
     }
 
     /**
-     * Counts unique license-text variants for method 'toMarkdown'
+    * Finds the variant number using the same comparison as the printed license sections.
+    *
      * @param BOMPackageInterface[] $packageArray
-     * @param BOMPackageInterface $item
+    * @param BOMPackage $package
      * @return string
      */
     protected function countVariant(array $packageArray, BOMPackage $package) : string 
@@ -162,44 +177,55 @@ class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInte
         $count = 0;
         $licenseUsed = $package->getLicenseUsed();
         $licenseTextArray = $this->readLicenseArray($packageArray);
-        $searchArray = $licenseTextArray[$package->getLicenseUsed()];
+        $searchArray = $licenseTextArray[$package->getLicenseUsed()] ?? [];
         if(empty($searchArray)) {
-            $searchArray[0] = $package->getLicenseUsed();
+            $searchArray[0] = '';
         }
-        $count = array_search($package->getLicenseText($licenseUsed), $searchArray);
+        $normalizedTexts = array_map([$this, 'normalizeLicenseText'], $searchArray);
+        $count = array_search($this->normalizeLicenseText($package->getLicenseText($licenseUsed) ?? ''), $normalizedTexts, true);
         $count = $count + 1;
         return $count;
     }
     
     /**
-     * Fills array with license-text ordered by license [ 'MIT' => [0 => '...', 1 => '...'] ] for countVariant-method
-     * @param array $packageArray
-     * @return array|NULL
+    * Collects representative original texts per effective license for the current export.
+    *
+    * Rebuilding the collection prevents previous exports from influencing variant numbering.
+    *
+    * @param BOMPackageInterface[] $packageArray
+    * @return array<string, string[]>|null
      */
     protected function readLicenseArray(array $packageArray) : ?array
     {
+        $licenseArray = [];
         $knownTexts = [];
         foreach ($packageArray as $package) {
-            $licName = $package->getLicenseNames() ?? null;
             $licenseUsed = $package->getLicenseUsed();
-            // lic-variable for filling with license-text
-            $lic = null;
-            switch (true) {
-                // find license-text if array-attribute license_text ist set
-                case null !== $lic = $package->getLicenseText($licenseUsed);
-                break;
-                // find license-text if array-attribute license_file is set
-                case null !== $package->getLicenseFile($licenseUsed);
-                break;
-            }
-            // fill array with license-text ordered by license [ 'MIT' => [0 => '...', 1 => '...'] ]
-            if ($lic !== null) {
-                $knownTexts = $this->licenseArray[$licName[0]] ?? [];
-                if (!in_array($lic, $knownTexts)) {
-                    $this->licenseArray[$licName[0]][] = $lic;
-                }
+            $text = $package->getLicenseText($licenseUsed) ?? '';
+            $normalized = $this->normalizeLicenseText($text);
+            if (! isset($knownTexts[$licenseUsed][$normalized])) {
+                $knownTexts[$licenseUsed][$normalized] = true;
+                $licenseArray[$licenseUsed][] = $text;
             }
         }
-        return $this->licenseArray;
+        return $licenseArray;
     }  
+
+    /**
+     * Ignores letter case and whitespace layout without discarding legally meaningful wording.
+     *
+     * Whitespace is collapsed rather than removed so distinct words cannot be joined together.
+     * The original text remains untouched for display and other BOM exporters.
+     *
+     * @param string $text
+     * @return string
+     */
+    protected function normalizeLicenseText(string $text) : string
+    {
+        $normalized = preg_replace('/\s+/u', ' ', $text);
+        if ($normalized === null) {
+            throw new RuntimeException('Cannot compare license text: expected valid UTF-8.');
+        }
+        return mb_strtolower(trim($normalized), 'UTF-8');
+    }
 }

@@ -10,6 +10,7 @@ use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
 use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseTextEnricher;
+use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicensePackageJsonEnricher;
 use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseGithubEnricher;
 use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseSPDXEnricher;
 use axenox\PackageManager\Common\LicenseBOM\ComposerBOM;
@@ -25,7 +26,8 @@ use exface\Core\DataTypes\StringDataType;
  * Generates a global bill of materials (BOM) for the software included in an installation.
  * 
  * Combines resolved Composer dependencies with bundled software registered in installed apps'
- * `includes.json` files, collects available license texts, and exports Markdown, JSON and CycloneDX SBOM documents.
+ * `includes.json` files, recovers missing declarations from local `package.json` files, collects available
+ * license texts, and exports Markdown, JSON and CycloneDX SBOM documents.
  * Use save_to_files to configure output destinations and formats. Generation reports missing license
  * information and texts so the documents can be reviewed before distribution.
  * 
@@ -60,6 +62,10 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
     }
     
     /**
+     * Resolves declarations before text discovery so terms use the correct license name.
+     *
+     * Manifest recovery precedes a separate text-enrichment pass so shared license definitions
+     * apply to newly discovered names before local files or remote sources are consulted.
      *
      * {@inheritDoc}
      * @see \exface\Core\CommonLogic\AbstractActionDeferred::performDeferred()
@@ -97,6 +103,11 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         if (is_file($licensesPath)) {
             $bigBOM->merge(new IncludesBOM($licensesPath, $vendorPath));
             yield '  - config/Licenses.config.json' . PHP_EOL;
+        }
+
+        $manifestEnricher = new FindLicensePackageJsonEnricher($vendorPath);
+        foreach ($bigBOM->getPackages() as $package) {
+            $bigBOM->addPackage($manifestEnricher->enrich($package));
         }
 
         $bigBOM->addEnricher(new FindLicenseTextEnricher($vendorPath));
