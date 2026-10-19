@@ -245,13 +245,13 @@ class ScannerNormalizationTest extends AuditTestCase
      */
     public function testNumericSeverityNormalizationAndComparison() : void
     {
-        foreach (['low' => 100, 'info' => 100, 'informational' => 100, 'negligible' => 100,
+        foreach (['optional' => 50, 'low' => 100, 'info' => 100, 'informational' => 100, 'negligible' => 100,
             'medium' => 200, 'moderate' => 200, 'high' => 300, 'critical' => 400] as $label => $level) {
             self::assertSame($level, VulnerabilityLevelDataType::normalize(' ' . strtoupper($label) . ' '));
             self::assertSame($level, VulnerabilityLevelDataType::cast((string) $level));
         }
-        foreach ([100, 200, 300, 400] as $left) {
-            foreach ([100, 200, 300, 400] as $right) {
+        foreach ([50, 100, 200, 300, 400] as $left) {
+            foreach ([50, 100, 200, 300, 400] as $right) {
                 self::assertSame($left <=> $right, VulnerabilityLevelDataType::compare($left, $right));
                 self::assertSame($left > $right, VulnerabilityLevelDataType::isHigher($left, $right));
                 self::assertSame($left < $right, VulnerabilityLevelDataType::isLower($left, $right));
@@ -266,8 +266,8 @@ class ScannerNormalizationTest extends AuditTestCase
      */
     public function testNumericSeverityConstantsRetainLabelNames() : void
     {
-        self::assertSame([400, 300, 200, 100], VulnerabilityLevelDataType::getValuesStatic());
-        foreach ([400 => 'CRITICAL', 300 => 'HIGH', 200 => 'MEDIUM', 100 => 'LOW'] as $level => $name) {
+        self::assertSame([400, 300, 200, 100, 50], VulnerabilityLevelDataType::getValuesStatic());
+        foreach ([400 => 'CRITICAL', 300 => 'HIGH', 200 => 'MEDIUM', 100 => 'LOW', 50 => 'OPTIONAL'] as $level => $name) {
             self::assertSame($name, VulnerabilityLevelDataType::findConstant($level));
         }
     }

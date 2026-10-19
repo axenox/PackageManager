@@ -180,8 +180,8 @@ class AuditTest extends AuditTestCase
         $type = DataTypeFactory::createFromPrototype($this->workbench, VulnerabilityLevelDataType::class);
         self::assertInstanceOf(VulnerabilityLevelDataType::class, $type);
         foreach ([
-            'en' => [400 => 'Critical', 300 => 'High', 200 => 'Medium', 100 => 'Low'],
-            'de' => [400 => 'Kritisch', 300 => 'Hoch', 200 => 'Mittel', 100 => 'Niedrig']
+            'en' => [400 => 'Critical', 300 => 'High', 200 => 'Medium', 100 => 'Low', 50 => 'Optional'],
+            'de' => [400 => 'Kritisch', 300 => 'Hoch', 200 => 'Mittel', 100 => 'Niedrig', 50 => 'Optional']
         ] as $locale => $labels) {
             $this->setReportLocale($locale);
             self::assertSame($labels, VulnerabilityLevelDataType::getLabelsStatic($this->workbench));
@@ -202,17 +202,17 @@ class AuditTest extends AuditTestCase
     {
         $this->setReportLocale('de');
         $findings = [];
-        foreach (['low', 'medium', 'high', 'critical'] as $level) {
+        foreach (['optional', 'low', 'medium', 'high', 'critical'] as $level) {
             $findings[] = new Finding($level, $level . ' advisory', 'vulnerability', 'package', 'npm', $level);
         }
         $sheet = $this->resultSheet($findings);
         $rows = $sheet->getRows();
         $table = $this->invokeProtected($this->action, 'table', [$sheet]);
-        foreach (['Niedrig', 'Mittel', 'Hoch', 'Kritisch'] as $label) {
+        foreach (['Optional', 'Niedrig', 'Mittel', 'Hoch', 'Kritisch'] as $label) {
             self::assertMatchesRegularExpression('/\|\s*' . $label . '\s*\|/', $table);
         }
         self::assertSame($rows, $sheet->getRows());
-        self::assertSame([400, 300, 200, 100], array_column($sheet->getRows(), 'LEVEL'));
+        self::assertSame([400, 300, 200, 100, 50], array_column($sheet->getRows(), 'LEVEL'));
     }
 
     /**

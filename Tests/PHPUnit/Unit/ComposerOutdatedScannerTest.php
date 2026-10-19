@@ -74,7 +74,7 @@ class ComposerOutdatedScannerTest extends AuditTestCase
     }
 
     /**
-     * Both root and transitive constraints must survive in the low-severity finding.
+    * Both root and transitive constraints must survive in the optional finding.
      * 
      * @return void
      */
@@ -85,7 +85,7 @@ class ComposerOutdatedScannerTest extends AuditTestCase
         self::assertCount(1, $findings);
         $finding = $findings[0];
         self::assertSame('outdated', $finding->getType());
-        self::assertSame(100, $finding->getLevel());
+        self::assertSame(50, $finding->getLevel());
         self::assertSame('composer', $finding->getSource());
         self::assertSame('example/library', $finding->getPackage());
         self::assertSame('outdated:example/library', $finding->getSourceId());

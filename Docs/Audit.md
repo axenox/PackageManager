@@ -107,6 +107,12 @@ are configuration errors. The defaults are:
 		"npm": {
 			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerNpmAuditScanner"
 		},
+		"npm_outdated": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\NpmOutdatedScanner"
+		},
+		"packagist_outdated": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\PackagistOutdatedScanner"
+		},
 		"osv": {
 			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\OsvAuditScanner"
 		},
@@ -191,9 +197,79 @@ without requiring JSON output from Composer's no-packages shortcut.
 Abandoned Composer packages are reported as `EOL`, which here means unmaintained,
 not a verified vendor support-expiration date.
 
+### Newer Upstream Releases
+
+The separate default scanners `npm_outdated` (`NpmOutdatedScanner`) and
+`packagist_outdated` (`PackagistOutdatedScanner`) compare saved versions against
+public release metadata. Neither runs Composer, Node.js, package scripts or Git.
+NuGet is not covered by these outdated scanners.
+
+| Scanner | Public Metadata | Candidate Policy |
+| --- | --- | --- |
+| npm | `https://registry.npmjs.org/<encoded-name>/latest` | npm's `latest` tag, not the greatest version or another tag |
+| Packagist | `https://repo.packagist.org/p2/<vendor>/<package>.json` | Highest stable release, excluding development and prerelease versions |
+
+Both accept full or minimal combined JSON through `sbom`, CycloneDX components
+(including nested components and the metadata root), SPDX packages with PURL
+references, and `composer_lock` including development packages. Native npm names
+require `ecosystem: npm` in combined JSON; Composer `npm-asset/` aliases also work.
+Standard BOMs need a registry PURL or an explicit ecosystem. Packages marked
+`private` are excluded across all supplied artifacts before any public request.
+CycloneDX also accepts the `axenox:packagemanager:ecosystem` property.
+
+Explicit artifacts never fall back to the installation. Otherwise the scanners
+read `composer.lock` and the first available BOM from `vendor/licenses.json`,
+`vendor/SBOM.cdx.json`, `sbom.cdx.json`, or `data/sbom.cdx.json` in the target folder.
+Overlapping artifacts share one metadata lookup per native package identity,
+while each distinct installed version is compared separately.
+
+Findings are optional-severity (`50`) `outdated` advisories with source `npm` or
+`packagist`. Titles distinguish an increased numeric major version from other updates:
+
+- `New major version <new> available - currently on <old>`
+- `New version <new> available - currently on <old>`
+
+The distinction follows version numbers, not a compatibility assessment. Minor
+and patch updates, especially before version 1.0, can still introduce breaking changes.
+`VERSION_INSTALLED` retains
+the original supplied version and `VERSION_FIXED` records the upstream candidate.
+The latter is not necessarily a vulnerability fix. Compatibility, root/transitive
+constraints, platform requirements, fork differences and available coordinated
+upgrades are **not evaluated**. A matching public name does not prove that a
+private fork uses the public upstream code.
+
+Numeric releases, optional `v` prefixes and Composer-supported alpha/beta/RC
+prereleases are comparable. Development versions such as `dev-master`,
+`dev-1.x-dev` and `1.x-dev` are excluded without registry requests or coverage hints.
+This does not exclude released versions merely because they occur in `packages-dev`.
+Missing versions, commit references, unsupported prerelease labels, HTTP 404 and absent suitable releases
+produce coverage hints, not outdated findings or an assertion that the package
+is current. Network errors, other HTTP failures and malformed response structures
+fail the scanner. TLS verification stays enabled and redirects are not followed.
+
+Each scanner independently accepts these options:
+
+```json
+{
+	"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\PackagistOutdatedScanner",
+	"timeout_seconds": 30,
+	"concurrency": 6,
+	"cache_ttl_seconds": 86400
+}
+```
+
+`timeout_seconds` is a positive per-request timeout. `concurrency` is between 1 and
+32. `cache_ttl_seconds` is the maximum age of release metadata reused through the
+Workbench cache; zero bypasses it. Metadata (including missing-release results),
+not findings, is cached by registry endpoint so builds reuse lookups but retain
+their own installed versions. The default cache lifetime is 24 hours; reduce it
+or use zero when checking newly published releases. Existing custom scanner maps
+replace defaults and must explicitly add these entries to enable them.
+
 ### Constraint-Blocked Composer Updates
 
-`ComposerOutdatedScanner` is enabled separately as `composer_outdated`. It reuses
+`ComposerOutdatedScanner` is an opt-in backup and is not enabled by default.
+Add a separate `composer_outdated` entry to enable it. It reuses
 the Composer runner and prerequisite checks, but does not mix maintenance findings
 with security advisories. It requires a folder containing both `composer.json`
 and `composer.lock`; archived locks and lock-only folders produce a coverage hint
@@ -245,7 +321,7 @@ a web-console request; use CLI for long-running scans. Replacing direct Git sour
 with a suitable Composer metadata repository is a separate project configuration
 decision, not something this scanner changes automatically.
 
-Findings have type `outdated`, source `composer`, and low severity (`100`).
+Findings have type `outdated`, source `composer`, and optional severity (`50`).
 `VERSION_INSTALLED` contains the locked version and `VERSION_FIXED` the newer
 candidate, not a promise that upgrading is compatible or fixes a vulnerability.
 `DESCRIPTION` retains Composer's native blocker table: package names, their locked
@@ -258,9 +334,9 @@ Composer's configured repositories and stability rules determine the candidate.
 The scanner requires its version to compare greater than the locked version;
 it does not detect newer commits on an unchanged development branch.
 
-To disable this check, supply an `AUDIT.SCANNERS` or action `scanners` map without
-`composer_outdated`. Like other action overrides, an existing custom scanner map
-does not automatically inherit new defaults.
+To disable this check after enabling it, remove `composer_outdated` from the
+configured scanner map. Like other action overrides, an existing custom scanner
+map does not automatically inherit new defaults.
 
 The npm scanner reads npm-asset package names and exact versions from composer.lock
 or the supplied `composer_lock` parameter, including development dependencies. It also reads
@@ -433,14 +509,16 @@ keys stay stable; explicit ecosystems differing from name-based inference extend
 Original scanner IDs remain accessible through `getMergedFindings()` and each
 original's `getSourceId()` getter, independently of the group's output ID.
 Internal levels
-are integers: `100` (low), `200` (medium), `300` (high), `400` (critical).
+are integers: `50` (optional), `100` (low), `200` (medium), `300` (high), `400` (critical).
+All outdated scanners use `optional` by default, including major-version updates.
+No distinction is currently made between bundled and managed dependencies.
 Moderate becomes `200`, informational becomes `100`, and unknown severity
 conservatively becomes `300`. The original scanner label is retained in `SOURCE_LEVEL`.
 `VulnerabilityLevelDataType` is an integer-based static enum with translated labels.
 Its static `compare()` method returns -1, 0 or 1 in ascending severity order;
 `isHigher()` and `isLower()` provide strict comparisons of normalized levels.
 DataSheet and JSON outputs retain numeric `LEVEL` values; the CLI table displays
-translated datatype labels (`Low`, `Medium`, `High` and `Critical` in English).
+translated datatype labels (`Optional`, `Low`, `Medium`, `High` and `Critical` in English).
 `VulnerabilityLevelDataType::getLabelsStatic($workbench)` returns labels indexed
 by numeric level; `getLabelOfValueStatic($workbench, $value)` returns one label
 or `null` for an unknown value. Both use the same translations as the enum's

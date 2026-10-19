@@ -143,7 +143,7 @@ class ComposerOutdatedScanner extends ComposerAuditScanner
                 AdvisoryTypeDataType::OUTDATED,
                 $package['name'],
                 'composer',
-                'low',
+                'optional',
                 '',
                 '',
                 'Locked version: ' . $package['version'] . '. Latest release: ' . $package['latest']
