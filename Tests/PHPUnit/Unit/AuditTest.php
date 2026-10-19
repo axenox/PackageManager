@@ -231,11 +231,13 @@ class AuditTest extends AuditTestCase
         $sheet = $this->resultSheet($findings);
         $rows = $sheet->getRows();
         self::assertEqualsCanonicalizing(AdvisoryTypeDataType::getValuesStatic(), array_column($rows, 'TYPE'));
-        foreach ([
-            'en' => ['vulnerability' => 'Vulnerability', 'EOL' => 'End of life', 'unscannable' => 'Unscannable', 'license' => 'License'],
-            'de' => ['vulnerability' => 'Sicherheitsluecke', 'EOL' => 'Supportende', 'unscannable' => 'Nicht pruefbar', 'license' => 'Lizenz']
-        ] as $locale => $labels) {
+        foreach (['en', 'de'] as $locale) {
             $this->setReportLocale($locale);
+            $translator = $this->workbench->getApp('axenox.PackageManager')->getTranslator();
+            $labels = [];
+            foreach (AdvisoryTypeDataType::getValuesStatic() as $value) {
+                $labels[$value] = $translator->translate('DATATYPE.ADVISORY_TYPE.' . strtoupper($value));
+            }
             self::assertSame($labels, AdvisoryTypeDataType::getLabelsStatic($this->workbench));
             self::assertSame($labels, $type->getLabels());
             $table = $this->invokeProtected($this->action, 'table', [$sheet]);

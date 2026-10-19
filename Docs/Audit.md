@@ -134,10 +134,7 @@ installation's `AUDIT.SCANNERS`. For example, to use only npm auditing:
 
 Names identify scanner instances in status output. Two named entries selecting the
 same class create independent instances with their own options. Use a map key for
-`--install` when a class name would select more than one instance. Built-in scanners
-currently have no additional options; custom prototypes expose options through UXON
-setters. Existing class-name lists and references to the old `axenox\PackageManager\Audit`
-namespace must be migrated to the named map and `Common\Audit\Scanner` namespace.
+`--install` when a class name would select more than one instance.
 
 ### Licenses
 
@@ -193,6 +190,77 @@ disappearing from build-monitoring results. Valid empty locks return zero findin
 without requiring JSON output from Composer's no-packages shortcut.
 Abandoned Composer packages are reported as `EOL`, which here means unmaintained,
 not a verified vendor support-expiration date.
+
+### Constraint-Blocked Composer Updates
+
+`ComposerOutdatedScanner` is enabled separately as `composer_outdated`. It reuses
+the Composer runner and prerequisite checks, but does not mix maintenance findings
+with security advisories. It requires a folder containing both `composer.json`
+and `composer.lock`; archived locks and lock-only folders produce a coverage hint
+instead of inventing missing root constraints or repository configuration.
+
+It runs `outdated --locked --format=json --ignore-platform-reqs` to discover newer
+releases, including development dependencies, then `prohibits --locked` for each
+greater version. Only updates with reported blockers become findings. Unblocked
+pending updates are excluded. Platform requirements are ignored for discovery only,
+so an unsupported PHP version can appear as an actual blocker in the explanation.
+Both commands disable plugins and scripts and do not change project files or install
+packages. Composer may contact the project's repositories and update its own cache.
+
+The default process timeout is **1800 seconds per Composer command**, separate
+from the advisory scanner's unchanged 300 seconds. Repositories declared with
+`"type": "git"` can require Composer to fetch mirrors and import every historical
+tag before returning any JSON. Cold caches can therefore exceed five minutes even
+while Composer is making progress. Subsequent scans can benefit from Composer's
+metadata cache, but still refresh configured repositories.
+
+The runner also sets `COMPOSER_PROCESS_TIMEOUT` for the Composer child to the same
+configured limit. Composer otherwise defaults its own Git clone/fetch processes to
+300 seconds, independently of the scanner's outer process timeout. An internal Git
+timeout exits Composer with code 1; raising only the outer timeout does not prevent
+it. Failed Composer command messages include the retained diagnostic output, rather
+than just the command and exit code. Command failures remain audit errors.
+
+Web-server service accounts may use a different Composer home and cache from an
+interactive CLI user. A cache warmed from the terminal therefore may not help the
+web console's first clone. The runner does not switch accounts or share caches and
+credentials between them.
+
+Configure a positive `timeout_seconds` on the `composer_outdated` scanner entry
+when a project needs a different limit, for example:
+
+```json
+{
+	"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerOutdatedScanner",
+	"timeout_seconds": 3600
+}
+```
+
+This is one scanner entry, not a replacement for the entire scanner map. The limit
+also applies to each `prohibits` call, so total audit runtime may be longer. Raising
+it permits more repository work; it does not make discovery faster or guarantee
+completion. Timeouts remain errors rather than silently reporting a clean audit.
+Web-server and reverse-proxy request limits are separate and may still interrupt
+a web-console request; use CLI for long-running scans. Replacing direct Git sources
+with a suitable Composer metadata repository is a separate project configuration
+decision, not something this scanner changes automatically.
+
+Findings have type `outdated`, source `composer`, and low severity (`100`).
+`VERSION_INSTALLED` contains the locked version and `VERSION_FIXED` the newer
+candidate, not a promise that upgrading is compatible or fixes a vulnerability.
+`DESCRIPTION` retains Composer's native blocker table: package names, their locked
+versions, and the constraints preventing the candidate version, including root
+requirements. For example, `example/consumer 1.2.0 requires example/library (^1)`
+explains why `example/library` cannot move to `2.0.0` with the current dependency
+graph. Dependent packages may need upgrading first. This is Composer's explanation
+against the locked graph, not proof that no coordinated update can succeed.
+Composer's configured repositories and stability rules determine the candidate.
+The scanner requires its version to compare greater than the locked version;
+it does not detect newer commits on an unchanged development branch.
+
+To disable this check, supply an `AUDIT.SCANNERS` or action `scanners` map without
+`composer_outdated`. Like other action overrides, an existing custom scanner map
+does not automatically inherit new defaults.
 
 The npm scanner reads npm-asset package names and exact versions from composer.lock
 or the supplied `composer_lock` parameter, including development dependencies. It also reads
@@ -384,10 +452,10 @@ DataSheet rather than findings or row arrays. They extract rows only for renderi
 and serialization, so all three outputs share one grouping and sorting pass.
 
 `AdvisoryTypeDataType` is a string-based static enum shared by findings and all
-scanners. Its constants are `VULNERABILITY` (`vulnerability`), `EOL` (`EOL`) and
-`UNSCANNABLE` (`unscannable`). DataSheet and JSON output retain these stored `TYPE`
-values; CLI tables display translated labels (`Vulnerability`, `End of life` and
-`Unscannable` in English). Like vulnerability levels, the enum provides
+scanners. Its constants are `VULNERABILITY` (`vulnerability`), `EOL` (`EOL`),
+`UNSCANNABLE` (`unscannable`), `LICENSE` (`license`), and `OUTDATED` (`outdated`).
+DataSheet and JSON output retain these stored `TYPE` values; CLI tables display
+translated labels, including `Outdated` in English. Like vulnerability levels, the enum provides
 `getLabelsStatic($workbench)` and `getLabelOfValueStatic($workbench, $value)`;
 unknown values have no label. Enum casting normalizes case and surrounding
 whitespace and rejects unsupported values. Findings require canonical values.
@@ -443,8 +511,8 @@ Expose scanner options with annotated UXON setters, which are called after const
 Implement `supports`,
 `audit`, `install`, and `getHints`. `audit` must return `FindingInterface[]`, not row
 arrays. Read artifact content from `composer_lock` and `sbom` task parameters and
-leave DataSheet enrichment and context mapping to the action. Composer execution and version checks belong to `ComposerAuditScanner`,
-their only consumer, rather than the generic base. npm and Trivy scanners do not
+leave DataSheet enrichment and context mapping to the action. Composer execution and version checks belong to `ComposerAuditScanner`
+and are reused by its `ComposerOutdatedScanner` subclass rather than moved into the generic base. npm and Trivy scanners do not
 inherit these methods. Construct `Finding` with the native ID, name, type, package, source and
 source-native severity; optional string arguments hold URLs, CVE, description,
 remediation and version evidence, plus an explicit public identifier when needed.

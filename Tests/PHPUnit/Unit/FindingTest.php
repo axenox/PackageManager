@@ -39,7 +39,7 @@ class FindingTest extends TestCase
      */
     public function testAdvisoryTypesPreserveStoredValues() : void
     {
-        self::assertSame(['vulnerability', 'EOL', 'unscannable', 'license'], AdvisoryTypeDataType::getValuesStatic());
+        self::assertSame(['vulnerability', 'EOL', 'unscannable', 'license', 'outdated'], AdvisoryTypeDataType::getValuesStatic());
         foreach (AdvisoryTypeDataType::getValuesStatic() as $type) {
             self::assertSame($type, AdvisoryTypeDataType::cast(' ' . strtoupper($type) . ' '));
             $finding = new Finding('', 'Advisory', $type, 'package', 'scanner', 'low');

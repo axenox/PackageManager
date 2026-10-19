@@ -196,6 +196,8 @@ class ComposerAuditScanner extends AbstractAuditScanner
      * Resolves a CLI executable because PHP_BINARY can point to Apache in web consoles.
      * Supplies a Composer home when service accounts lack the usual profile environment.
      * Forwards profile variables explicitly because Apache's getenv() values may not reach child processes.
+     * Applies the scanner budget to Composer's nested Git processes as well as the outer command.
+     * Retains failed command output in the visible exception message for action error reports.
      * 
      * @param string[] $arguments
      * @param string $folder
@@ -211,6 +213,7 @@ class ComposerAuditScanner extends AbstractAuditScanner
         $exec = $script === null ? 'composer' : CliCommandRunner::findPhpExecutable();
         $arguments = array_merge($script === null ? [] : [$script], ['--no-interaction', '--no-ansi'], $arguments);
         $envVars = array_filter([
+            'COMPOSER_PROCESS_TIMEOUT' => (string) $this->getComposerTimeout(),
             'COMPOSER_HOME' => getenv('COMPOSER_HOME'),
             'APPDATA' => getenv('APPDATA'),
             'HOME' => getenv('HOME')
@@ -218,7 +221,32 @@ class ComposerAuditScanner extends AbstractAuditScanner
         if (! isset($envVars['COMPOSER_HOME']) && ! isset($envVars[PHP_OS_FAMILY === 'Windows' ? 'APPDATA' : 'HOME'])) {
             $envVars['COMPOSER_HOME'] = $this->workbench->filemanager()->getPathToDataFolder() . '/.composer';
         }
-        return CliCommandRunner::runCliCommandIntoArray($exec, $arguments, $folder, $acceptedExitCodes, 300, $envVars);
+        try {
+            return CliCommandRunner::runCliCommandIntoArray($exec, $arguments, $folder, $acceptedExitCodes, $this->getComposerTimeout(), $envVars);
+        } catch (CliRuntimeException $error) {
+            $diagnostic = trim(implode(PHP_EOL, $error->getCliOutput()));
+            if ($diagnostic === '') {
+                throw $error;
+            }
+            throw new CliRuntimeException(
+                $error->getCommand(),
+                $error->getCliOutput(),
+                $error->getExitCode(),
+                $error->getMessage() . PHP_EOL . $diagnostic,
+                null,
+                $error
+            );
+        }
+    }
+
+    /**
+     * Keeps advisory requests bounded while allowing repository scans a separate budget.
+     * 
+     * @return float Maximum runtime of each Composer process in seconds.
+     */
+    protected function getComposerTimeout() : float
+    {
+        return 300;
     }
 
     /**
