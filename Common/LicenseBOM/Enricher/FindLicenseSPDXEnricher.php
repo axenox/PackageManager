@@ -1,6 +1,7 @@
 <?php
-namespace axenox\PackageManager\Common\LicenseBOM;
+namespace axenox\PackageManager\Common\LicenseBOM\Enricher;
 
+use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 
 /**

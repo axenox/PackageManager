@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\LicenseBOM;
 
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use exface\Core\Exceptions\RuntimeException;
 
 /**
@@ -47,10 +48,20 @@ class BOMPackage implements BOMPackageInterface
      */
     public function merge(BOMPackageInterface $otherPackage): BOMPackageInterface
     {
-        if (strcasecmp($this->getName(), $otherPackage->getName()) !== 0) {
-            throw new RuntimeException('Cannot merge license BOM packages with different names: ' . $this->getName() . ' and ' . $otherPackage->getName());
+        $otherPackageArray = $otherPackage->toComposerArray();
+        $key = PackageEcosystemDataType::buildPackageKey($this->getName(), $this->packageArray['ecosystem'] ?? null);
+        $otherKey = PackageEcosystemDataType::buildPackageKey($otherPackage->getName(), $otherPackageArray['ecosystem'] ?? null);
+        if (strcasecmp($key, $otherKey) !== 0) {
+            throw new RuntimeException('Cannot merge license BOM packages with different identities: ' . $key . ' and ' . $otherKey);
         }
-        $this->packageArray = array_replace($this->packageArray, $otherPackage->toComposerArray());
+        $otherPackageArray['ecosystem'] = PackageEcosystemDataType::findEcosystem($otherPackage->getName(), $otherPackageArray['ecosystem'] ?? null);
+        if (($otherPackageArray['license'] ?? null) === []) {
+            unset($otherPackageArray['license']);
+        }
+        if (($otherPackageArray['license_used'] ?? null) === null || $otherPackageArray['license_used'] === '') {
+            unset($otherPackageArray['license_used']);
+        }
+        $this->packageArray = array_replace($this->packageArray, $otherPackageArray);
         return $this;
     }
     
@@ -83,12 +94,13 @@ class BOMPackage implements BOMPackageInterface
     }
     
     /**
-     *
-     * @return string|NULL
+     * Returns an optional repository URL for packages supplied without source metadata.
+     * 
+     * @return string|null
      */
     public function getSource(): ?string
     {
-        return $this->packageArray['source']['url'];
+        return $this->packageArray['source']['url'] ?? null;
     }
     
     /**
@@ -136,22 +148,32 @@ class BOMPackage implements BOMPackageInterface
     }
     
     /**
-     *
+     * Returns declared licenses, or the explicit selection when no nonempty list is available.
+     * 
+     * The fallback is not persisted in merge metadata, so selection-only overrides cannot erase
+     * alternatives declared by another source.
+     * 
      * {@inheritDoc}
+     * 
      * @see \axenox\PackageManager\Interfaces\BOMPackageInterface::getLicenseNames()
+     * @return string[]
      */
     public function getLicenseNames(): array
     {
-        return $this->packageArray['license'] ?? [];
+        $licenses = $this->packageArray['license'] ?? [];
+        $licenseUsed = $this->packageArray['license_used'] ?? null;
+        return $licenses !== [] ? $licenses : ($licenseUsed !== null && $licenseUsed !== '' ? [$licenseUsed] : []);
     }
     
     /**
+     * Resolve the effective license without persisting a default selection in package metadata.
      *
      * @return string|NULL
      */
     public function getLicenseUsed() : ?string
     {
-        return $this->packageArray['license_used'] ?? null;
+        $licenseUsed = $this->packageArray['license_used'] ?? null;
+        return $licenseUsed !== null && $licenseUsed !== '' ? $licenseUsed : ($this->getLicenseNames()[0] ?? 'Other');
     }
     
     /**
@@ -163,7 +185,9 @@ class BOMPackage implements BOMPackageInterface
     {
         if($name !== null && $name !== ""){
             $this->packageArray['license_used'] = $name;
-        } else $this->packageArray['license_used'] = "Other";
+        } else {
+            unset($this->packageArray['license_used']);
+        }
         return $this;
     }
     
@@ -185,20 +209,20 @@ class BOMPackage implements BOMPackageInterface
      */
     public function hasLicense() : bool
     {
-        if(array_key_exists('license', $this->packageArray) && $this->packageArray['license_used'] !== 'Other'){
+        if($this->getLicenseNames() !== [] && $this->getLicenseUsed() !== 'Other'){
             return true;
         } else return false;
     }
     
     /**
+     * Accepts either a license reference or inline text without requiring both metadata maps.
      * 
      * @return bool
      */
     public function hasLicenseText() : bool
     {
-        if(null !== $this->packageArray['license_link'][$this->getLicenseUsed()] || null !== $this->packageArray['license_text'][$this->getLicenseUsed()] && $this->packageArray['license_text'][$this->getLicenseUsed()] !== ""){
-            return true;
-        } else return false;
+        $license = $this->getLicenseUsed();
+        return $this->getLicenseLink($license) !== null || ($this->getLicenseText($license) ?? '') !== '';
     }
     
     /**

@@ -1,0 +1,198 @@
+<?php
+namespace axenox\PackageManager\Tests\PHPUnit\Unit;
+
+use axenox\PackageManager\Common\Audit\Finding;
+use axenox\PackageManager\Common\Audit\MergedFinding;
+use axenox\PackageManager\Interfaces\FindingInterface;
+use exface\Core\Exceptions\InvalidArgumentException;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Covers aggregation strategies and access to immutable scanner evidence.
+ * 
+ * These scenarios do not require Workbench, scanners or database access.
+ */
+class MergedFindingTest extends TestCase
+{
+    /**
+     * Aggregation must not erase ecosystem identity for packages with matching names.
+     * 
+     * @return void
+     */
+    public function testRejectsDifferentEcosystems() : void
+    {
+        $npm = new Finding('id', 'Advisory', 'vulnerability', 'library', 'osv', 'high', ecosystem: 'npm');
+        $nuget = new Finding('id', 'Advisory', 'vulnerability', 'library', 'osv', 'high', ecosystem: 'nuget');
+        self::assertSame('npm', (new MergedFinding([$npm]))->getEcosystem());
+        $this->expectException(InvalidArgumentException::class);
+        new MergedFinding([$npm, $nuget]);
+    }
+    /**
+     * Aggregates must satisfy the finding contract without losing the originals.
+     * 
+     * @return void
+     */
+    public function testAggregatesEvidenceWithoutChangingOriginals() : void
+    {
+        $first = new Finding('npm:1', 'First title', 'vulnerability', 'package', 'npm', 'moderate',
+            'https://example.org/first', 'CVE-2026-0001', 'Description', 'Upgrade', '<2', '1', '2');
+        $second = new Finding('trivy:2', 'Second title', 'vulnerability', 'package', 'trivy', 'critical',
+            'https://example.org/second', 'CVE-2026-0001', '', 'Rebuild', '<3', '1', '3');
+        $merged = new MergedFinding([$first, $second, clone $first]);
+        self::assertInstanceOf(FindingInterface::class, $merged);
+        self::assertSame([$first, $second], $merged->getMergedFindings());
+        self::assertFalse(method_exists(MergedFinding::class, 'getId'));
+        self::assertSame('npm:1; trivy:2', $merged->getSourceId());
+        self::assertSame('First title', $merged->getName());
+        self::assertSame('vulnerability', $merged->getType());
+        self::assertSame('package', $merged->getPackage());
+        self::assertSame(400, $merged->getLevel());
+        self::assertSame('moderate; critical', $merged->getSourceLevel());
+        self::assertSame('npm, trivy', $merged->getSource());
+        self::assertSame('https://example.org/first', $merged->getDetailsUrl());
+        self::assertSame('https://example.org/second', $second->getDetailsUrl());
+        self::assertSame('CVE-2026-0001', $merged->getCve());
+        self::assertSame('CVE-2026-0001', $merged->getPublicId());
+        self::assertSame('Description', $merged->getDescription());
+        self::assertSame('Upgrade; Rebuild', $merged->getRemediation());
+        self::assertSame('<2; <3', $merged->getVersionsAffected());
+        self::assertSame('1', $merged->getVersionInstalled());
+        self::assertSame('2; 3', $merged->getVersionFixed());
+        self::assertSame(200, $first->getLevel());
+        self::assertSame('2', $first->getVersionFixed());
+        $originals = $merged->getMergedFindings();
+        array_pop($originals);
+        self::assertCount(2, $merged->getMergedFindings());
+    }
+
+    /**
+     * Missing scanner links must not hide a later directly openable URL.
+     * 
+     * @return void
+     */
+    public function testDetailsUrlUsesFirstNonemptyUrl() : void
+    {
+        $missing = new Finding('1', 'Advisory', 'vulnerability', 'package', 'npm', 'low');
+        $first = new Finding('2', 'Advisory', 'vulnerability', 'package', 'osv', 'high',
+            'https://example.org/first');
+        $second = new Finding('3', 'Advisory', 'vulnerability', 'package', 'trivy', 'high',
+            'https://example.org/second');
+        self::assertSame('https://example.org/first', (new MergedFinding([$missing, $first, $second]))->getDetailsUrl());
+    }
+
+    /**
+     * Findings without advisory links must retain an empty URL field.
+     * 
+     * @return void
+     */
+    public function testDetailsUrlIsEmptyWhenAllUrlsAreMissing() : void
+    {
+        $first = new Finding('1', 'Advisory', 'vulnerability', 'package', 'npm', 'low');
+        $second = new Finding('2', 'Advisory', 'vulnerability', 'package', 'trivy', 'high');
+        self::assertSame('', (new MergedFinding([$first, $second]))->getDetailsUrl());
+    }
+
+    /**
+    * Nested groups expose only original findings without requiring an identity.
+     * 
+     * @return void
+     */
+    public function testFlattensNestedGroupsWithoutIdentity() : void
+    {
+        $first = new Finding('1', 'Advisory', 'vulnerability', 'package', 'npm', 'low');
+        $second = new Finding('2', 'Advisory', 'vulnerability', 'package', 'trivy', 'high');
+        $nested = new MergedFinding([$first]);
+        $merged = new MergedFinding([$nested, $second, $nested]);
+        $reverse = new MergedFinding([$second, $first]);
+        self::assertSame([$first, $second], $merged->getMergedFindings());
+        self::assertSame([$second, $first], $reverse->getMergedFindings());
+        self::assertSame(300, $merged->getLevel());
+        self::assertSame(300, $reverse->getLevel());
+        self::assertSame('', $merged->getVersionFixed());
+    }
+
+    /**
+     * CVE public IDs win over GHSA labels regardless of scanner encounter order.
+     * 
+     * @return void
+     */
+    public function testPublicIdPrefersCveThenGhsaThenNativeIdentity() : void
+    {
+        $native = new Finding('OSV-1', 'Advisory', 'vulnerability', 'package', 'osv', 'high');
+        $ghsa = new Finding('npm:1', 'Advisory', 'vulnerability', 'package', 'npm', 'high',
+            'https://github.com/advisories/GHSA-abcd-1234-efgh');
+        $cve = new Finding('OSV-2', 'Advisory', 'vulnerability', 'package', 'osv', 'critical', '', 'CVE-2026-1234');
+        self::assertSame('CVE-2026-1234', (new MergedFinding([$native, $ghsa, $cve]))->getPublicId());
+        self::assertSame('CVE-2026-1234', (new MergedFinding([$cve, $ghsa, $native]))->getPublicId());
+        self::assertSame('GHSA-abcd-1234-efgh', (new MergedFinding([$native, $ghsa]))->getPublicId());
+        self::assertSame('OSV-1', (new MergedFinding([$native]))->getPublicId());
+        self::assertSame('osv, npm', (new MergedFinding([$native, $ghsa, $cve]))->getSource());
+        self::assertSame('GHSA-abcd-1234-efgh', $ghsa->getPublicId());
+    }
+
+    /**
+     * Evidence equality must remain symmetric for single-member aggregates.
+     * 
+     * @return void
+     */
+    public function testComparesScalarEvidence() : void
+    {
+        $first = new Finding('1', 'Advisory', 'vulnerability', 'package', 'npm', 'low');
+        $different = new Finding('1', 'Advisory', 'vulnerability', 'package', 'npm', 'high');
+        $merged = new MergedFinding([$first]);
+        self::assertTrue($merged->is($first));
+        self::assertTrue($first->is($merged));
+        self::assertTrue($merged->is(new MergedFinding([$first])));
+        self::assertFalse($merged->is($different));
+    }
+
+    /**
+     * An empty group cannot provide the finding getters.
+     * 
+     * @return void
+     */
+    public function testRejectsEmptyGroups() : void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        new MergedFinding([]);
+    }
+
+    /**
+     * Group members must implement the finding interface.
+     * 
+     * @return void
+     */
+    public function testRejectsInvalidMembers() : void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        new MergedFinding([new \stdClass()]);
+    }
+
+    /**
+     * Aggregation must not turn the package getter into a combined package list.
+     * 
+     * @return void
+     */
+    public function testRejectsDifferentPackages() : void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        new MergedFinding([
+            new Finding('1', 'Advisory', 'vulnerability', 'first', 'npm', 'low'),
+            new Finding('1', 'Advisory', 'vulnerability', 'second', 'npm', 'low')
+        ]);
+    }
+
+    /**
+     * Vulnerabilities and lifecycle advisories must remain separate finding types.
+     * 
+     * @return void
+     */
+    public function testRejectsDifferentTypes() : void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        new MergedFinding([
+            new Finding('1', 'Advisory', 'vulnerability', 'package', 'npm', 'low'),
+            new Finding('1', 'Advisory', 'EOL', 'package', 'npm', 'low')
+        ]);
+    }
+}

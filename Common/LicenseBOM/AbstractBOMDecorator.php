@@ -5,6 +5,10 @@ use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
 
 /**
+ * Wraps a license BOM so exporters can provide different representations of the same package collection.
+ * 
+ * Package lookup, merging, and addition are delegated to the wrapped BOM rather than maintaining a
+ * separate collection for each output format.
  * 
  * @author Andrej Kabachnik
  *
@@ -70,5 +74,25 @@ abstract class AbstractBOMDecorator implements LicenseBOMInterface
     public function getPackages(): array
     {
         return $this->innerBOM->getPackages();
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see LicenseBOMInterface::getLicenses()
+     */
+    public function getLicenses() : array
+    {
+        return $this->innerBOM->getLicenses();
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see LicenseBOMInterface::setLicenses()
+     */
+    public function setLicenses(array $licenses) : LicenseBOMInterface
+    {
+        return $this->innerBOM->setLicenses($licenses);
     }
 }

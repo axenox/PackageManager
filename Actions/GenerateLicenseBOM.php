@@ -9,35 +9,36 @@ use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
-use axenox\PackageManager\Common\LicenseBOM\FindLicenseTextEnricher;
-use axenox\PackageManager\Common\LicenseBOM\FindLicenseGithubEnricher;
-use axenox\PackageManager\Common\LicenseBOM\FindLicenseSPDXEnricher;
+use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseTextEnricher;
+use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicensePackageJsonEnricher;
+use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseGithubEnricher;
+use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseSPDXEnricher;
 use axenox\PackageManager\Common\LicenseBOM\ComposerBOM;
-use axenox\PackageManager\Common\LicenseBOM\FindLicenseFileEnricher;
+use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseFileEnricher;
 use axenox\PackageManager\Common\LicenseBOM\IncludesBOM;
-use axenox\PackageManager\Common\LicenseBOM\MarkdownBOM;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
-use axenox\PackageManager\Common\LicenseBOM\JsonBOM;
-use exface\Core\DataTypes\FilePathDataType;
+use axenox\PackageManager\Interfaces\LicenseBOMInterface;
+use axenox\PackageManager\Interfaces\LicenseBOMExporterInterface;
 use exface\Core\DataTypes\StringDataType;
 
 /**
+ * Generates a global bill of materials (BOM) for the software included in an installation.
  * 
- *
+ * Combines resolved Composer dependencies with bundled software registered in installed apps'
+ * `includes.json` files, recovers missing declarations from local `package.json` files, collects available
+ * license texts, and exports Markdown, JSON and CycloneDX SBOM documents.
+ * Use save_to_files to configure output destinations and formats. Generation reports missing license
+ * information and texts so the documents can be reviewed before distribution.
+ * 
+ * CLI: `vendor/bin/action axenox.PackageManager:GenerateLicenseBOM`
+ * 
  * @author Andrej Kabachnik
  *        
  */
 class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledFromCLI
 {
-    const FORMAT_MARKDOWN = 'markdown';
-    
-    const FORMAT_JSON = 'json';
-    
-    private $saveTo = [
-        "vendor/Licenses.md" => "markdown", 
-        "vendor/licenses.json" => "json"
-    ];
+    private $saveToFiles = null;
 
     /**
      * 
@@ -61,6 +62,10 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
     }
     
     /**
+     * Resolves declarations before text discovery so terms use the correct license name.
+     *
+     * Manifest recovery precedes a separate text-enrichment pass so shared license definitions
+     * apply to newly discovered names before local files or remote sources are consulted.
      *
      * {@inheritDoc}
      * @see \exface\Core\CommonLogic\AbstractActionDeferred::performDeferred()
@@ -73,13 +78,6 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         
         // Create empty BigBom
         $bigBOM = new LicenseBOM();
-        // find license_text if licensefile is found in packagepath
-        $bigBOM->addEnricher(new FindLicenseTextEnricher($vendorPath));
-        // find license_text if Github-link is set
-        $bigBOM->addEnricher(new FindLicenseGithubEnricher($vendorPath));
-        // find license_text from SPDX-Github-Repository if licenseName is set
-        $bigBOM->addEnricher(new FindLicenseSPDXEnricher($vendorPath));
-        $bigBOM->addEnricher(new FindLicenseFileEnricher($vendorPath));
         
         // Create BOM from Composer.lock
         $composerLockPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'composer.lock';
@@ -101,21 +99,30 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
             yield "  - " . StringDataType::substringAfter($include, $vendorPath . '/') .  PHP_EOL;
         }
 
-        // save complete markdown as file
-        foreach ($this->getSaveTo() as $path => $format) {
-            yield '  Saving ' . $format . ' to ' . $path . PHP_EOL;
-            switch (strtolower($format)) {
-                case self::FORMAT_MARKDOWN:
-                    $markdownBOM = new MarkdownBOM($bigBOM);
-                    $markdownBOM->saveMarkdown($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
-                    break;
-                case self::FORMAT_JSON:
-                    $markdownBOM = new JsonBOM($bigBOM);
-                    $markdownBOM->saveJSON($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
-                    break;
-                default:
-                    throw new ActionConfigurationError($this, 'Invalid license BOM export format "' . $format . '"!');
-            }
+        $licensesPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'Licenses.config.json';
+        if (is_file($licensesPath)) {
+            $bigBOM->merge(new IncludesBOM($licensesPath, $vendorPath));
+            yield '  - config/Licenses.config.json' . PHP_EOL;
+        }
+
+        $manifestEnricher = new FindLicensePackageJsonEnricher($vendorPath);
+        foreach ($bigBOM->getPackages() as $package) {
+            $bigBOM->addPackage($manifestEnricher->enrich($package));
+        }
+
+        $bigBOM->addEnricher(new FindLicenseTextEnricher($vendorPath));
+        $bigBOM->addEnricher(new FindLicenseGithubEnricher($vendorPath));
+        $bigBOM->addEnricher(new FindLicenseSPDXEnricher($vendorPath));
+        $bigBOM->addEnricher(new FindLicenseFileEnricher($vendorPath));
+        foreach ($bigBOM->getPackages() as $package) {
+            $bigBOM->addPackage($package);
+        }
+
+        foreach ($this->getSaveTo() as $path => $configuration) {
+            $uxon = $configuration instanceof UxonObject ? $configuration->copy() : new UxonObject($configuration);
+            $exporter = $this->createExporter($bigBOM, $uxon);
+            yield '  Saving ' . get_class($exporter) . ' to ' . $path . PHP_EOL;
+            $exporter->saveToFile($this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . $path);
         }
         
         // Show packages without license as a list
@@ -193,28 +200,58 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
     }
     
     /**
+     * Returns action-specific destinations or the installation's SBOM.files defaults.
      * 
-     * @return string[]
+     * @return array<string,array<string,mixed>>
      */
     protected function getSaveTo() : array
     {
-        return $this->saveTo;
+        if ($this->saveToFiles !== null) {
+            return $this->saveToFiles;
+        }
+        $files = $this->getApp()->getConfig()->getOption('SBOM.files');
+        return $files instanceof UxonObject ? $files->toArray() : $files;
     }
-    
+
     /**
-     * List of file paths relative to the installation folder and corresponding formats
+     * Creates an exporter and imports its configuration without the class selector.
+     * 
+     * @param LicenseBOMInterface $bom
+     * @param UxonObject $uxon
+     * @return LicenseBOMExporterInterface
+     */
+    protected function createExporter(LicenseBOMInterface $bom, UxonObject $uxon) : LicenseBOMExporterInterface
+    {
+        $class = $uxon->getProperty('class');
+        if (!is_string($class) || !is_subclass_of($class, LicenseBOMExporterInterface::class)) {
+            throw new ActionConfigurationError($this, 'License BOM exporter class must implement ' . LicenseBOMExporterInterface::class . '.');
+        }
+        $exporter = new $class($bom);
+        $uxon = $uxon->copy();
+        $uxon->unsetProperty('class');
+        $exporter->importUxonObject($uxon);
+        return $exporter;
+    }
+
+    /**
+     * Define output paths and the exporter configuration for each file.
+     * 
+     * Paths are relative to the installation folder. Each configuration requires a `class`
+     * selecting the exporter; remaining properties configure that exporter.
+     * Defaults come from the PackageManager `SBOM.files` configuration option.
+     * An explicit map replaces these defaults; an empty map disables file output.
+     * Destination directories must already exist. Existing files are replaced.
      * 
      * @uxon-property save_to_files
-     * @uxon-type object
-     * @uxon-template {"vendor/Licenses.md": "markdown", "vendor/licenses.json": "json"}
-     * @uxon-default {"vendor/Licenses.md": "markdown", "vendor/licenses.json": "json"}
+     * @uxon-type {string => object}
+    * @uxon-template {"vendor/Licenses.md": {"class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\MarkdownBOM"}}
      * 
-     * @param UxonObject|string[] $value
+     * @param UxonObject|array<string,array<string,mixed>> $uxonOrArray
      * @return GenerateLicenseBOM
      */
     public function setSaveToFiles($uxonOrArray) : GenerateLicenseBOM
     {
-        $this->saveTo = $uxonOrArray instanceof UxonObject ? $uxonOrArray->toArray() : $uxonOrArray;
+        $this->saveToFiles = $uxonOrArray instanceof UxonObject ? $uxonOrArray->toArray() : $uxonOrArray;
         return $this;
     }
 }

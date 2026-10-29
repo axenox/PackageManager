@@ -1,5 +1,33 @@
 {
 	"FACADES.PACKAGIST.URL": "",
+	"SBOM.files": {
+		"vendor/Licenses.md": {
+			"class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\MarkdownBOM"
+		},
+		"vendor/licenses.json": {
+			"class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\JsonBOM"
+		},
+		"vendor/SBOM.cdx.json": {
+			"class": "\\axenox\\PackageManager\\Common\\LicenseBOM\\Format\\CycloneDxBOM"
+		}
+	},
+	"AUDIT.SCANNERS": {
+		"license": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\LicenseScanner"
+		},
+		"composer": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerAuditScanner"
+		},
+		"npm": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerNpmAuditScanner"
+		},
+		"osv": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\OsvAuditScanner"
+		},
+		"trivy": {
+			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\TrivySBOMScanner"
+		}
+	},
 	
 	"PAYLOAD.PUBLISHED_DATA_FOLDER_NAME" : ".publishedPackages",
 	"PAYLOAD.INSTALLED_DATA_FOLDER_NAME": ".payloadPackages",

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="Tests/PHPUnit/bootstrap.php" colors="true" cacheResult="false">
+    <testsuites>
+        <testsuite name="unit">
+            <directory>Tests/PHPUnit/Unit</directory>
+        </testsuite>
+        <testsuite name="integration">
+            <directory>Tests/PHPUnit/Integration</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>
