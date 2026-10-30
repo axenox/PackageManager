@@ -45,7 +45,7 @@ class InstallationLicensesTest extends AuditTestCase
         ]));
         $bom->merge(new IncludesBOM($folder . '/Licenses.config.json', $folder));
         self::assertCount(1, $bom->getPackages());
-        $package = $bom->getPackages()['example/library'];
+        $package = $bom->getPackages()['private:example/library:1.2.3'];
         self::assertSame('1.2.3', $package->getVersion());
         self::assertSame('Client-License', $package->getLicenseUsed());
         self::assertSame(['GPL-2.0-only', 'Client-License'], $package->getLicenseNames());
@@ -78,10 +78,10 @@ class InstallationLicensesTest extends AuditTestCase
             'licenses' => ['Client-License' => ['license_text' => 'Shared terms']]
         ]));
         $bom->merge(new IncludesBOM($folder . '/Licenses.config.json', $folder));
-        self::assertSame('Shared terms', $bom->getPackages()['example/library']->getLicenseText('Client-License'));
+        self::assertSame('Shared terms', $bom->getPackages()['composer:example/library:']->getLicenseText('Client-License'));
         self::assertSame('Shared terms', (new JsonBOM($bom))->getLicenses()['Client-License']['license_text']);
-        self::assertTrue($bom->getPackages()['example/library']->hasLicenseText());
-        self::assertNull($bom->getPackages()['example/library']->getSource());
+        self::assertTrue($bom->getPackages()['composer:example/library:']->hasLicenseText());
+        self::assertNull($bom->getPackages()['composer:example/library:']->getSource());
     }
 
     /**

@@ -9,6 +9,33 @@ namespace axenox\PackageManager\Interfaces;
  */
 interface BOMPackageInterface
 {
+    /**
+     * Returns the current version-specific identity using the native registry name.
+     * 
+     * @return string
+     */
+    public function getUrn() : string;
+
+    /**
+     * Returns whether this entry declares a nonempty version rather than versionless metadata.
+     * 
+     * This is the includes declaration convention, not proof of installation. Version-specific
+     * overrides also return true, and the result reflects the current merged metadata.
+     * 
+     * @return bool
+     */
+    public function isSeparatePackage() : bool;
+
+    /**
+     * Returns whether this entry has an omitted, null or empty version and can supplement packages.
+     * 
+     * This is the complement of isSeparatePackage(). Unmatched versionless entries still remain
+     * in the inventory; this classification does not exclude them or change their URNs.
+     * 
+     * @return bool
+     */
+    public function isSupplementalInfo() : bool;
+
     public function getName() : string;
     
     public function getDescription() : ?string;
@@ -40,7 +67,8 @@ interface BOMPackageInterface
     /**
      * Updates values of this package by corresponding data of another package.
      * 
-     * This is only allowed for packages with the same name
+    * Names and ecosystems must identify the same package. Two known versions must match;
+    * an omitted version supplies metadata without replacing the installed version.
      * 
      * @param BOMPackageInterface $otherPackage
      * @return BOMPackageInterface

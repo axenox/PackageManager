@@ -58,9 +58,31 @@ class LicenseBOM implements LicenseBOMInterface
         $this->setLicenses($mergingBOM->getLicenses());
         foreach ($mergingBOM->getPackages() as $package) {
             $data = $package->toComposerArray();
-            $key = PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null);
+            $key = $package->getUrn();
             if (isset($this->packageArray[$key])) {
                 $package = $this->packageArray[$key]->merge($package);
+            } else {
+                $identity = PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null);
+                $matched = false;
+                foreach ($this->packageArray as $existingKey => $existing) {
+                    $existingData = $existing->toComposerArray();
+                    if ($identity !== PackageEcosystemDataType::buildPackageKey($existing->getName(), $existingData['ecosystem'] ?? null)) {
+                        continue;
+                    }
+                    if (($package->getVersion() ?? '') !== '' && ($existing->getVersion() ?? '') !== ''
+                        && $package->getVersion() !== $existing->getVersion()) {
+                        continue;
+                    }
+                    $merged = $existing->merge($package);
+                    if ($existingKey !== $merged->getUrn()) {
+                        unset($this->packageArray[$existingKey]);
+                    }
+                    $this->addPackage($merged);
+                    $matched = true;
+                }
+                if ($matched) {
+                    continue;
+                }
             }
             // run enrichers on package and add package to packageArray
             $this->addPackage($package);
@@ -128,9 +150,7 @@ class LicenseBOM implements LicenseBOMInterface
         foreach($this->getEnricher() as $enricher) {
             $package = $enricher->enrich($package);
         }
-        $data = $package->toComposerArray();
-        $key = PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null);
-        $this->packageArray[$key] = $package;
+        $this->packageArray[$package->getUrn()] = $package;
         return $this;
     }
 

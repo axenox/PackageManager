@@ -84,7 +84,7 @@ class GenerateLicenseBOMTest extends AuditTestCase
     public function testExporterPropertiesAreImported() : void
     {
         $bom = $this->createLicenseBOM();
-        $before = $bom->getPackages()['example/library']->toComposerArray();
+        $before = $bom->getPackages()['composer:example/library:v1.2.3']->toComposerArray();
         $uxon = new UxonObject(['class' => JsonBOM::class, 'format' => 'minimal']);
         $exporter = $this->invokeProtected($this->action, 'createExporter', [$bom, $uxon]);
         self::assertSame(['format' => 'minimal'], $exporter->exportUxonObject()->toArray());
@@ -94,12 +94,12 @@ class GenerateLicenseBOMTest extends AuditTestCase
         self::assertSame(file_get_contents($path), $exporter->buildJson());
         $document = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame(['packages' => [
-            ['name' => 'example/library', 'version' => 'v1.2.3', 'ecosystem' => 'composer'],
-            ['name' => '@scope/package', 'version' => 'v2.0.0', 'ecosystem' => 'npm']
+            ['name' => 'example/library', 'version' => 'v1.2.3', 'urn' => 'composer:example/library:v1.2.3', 'ecosystem' => 'composer'],
+            ['name' => '@scope/package', 'version' => 'v2.0.0', 'urn' => 'npm:@scope/package:v2.0.0', 'ecosystem' => 'npm']
         ]], $document);
         $scanner = new ComposerNpmAuditScanner($this->workbench);
         self::assertSame(['@scope/package' => ['2.0.0']], $this->invokeProtected($scanner, 'dependencies', [$document]));
-        self::assertSame($before, $bom->getPackages()['example/library']->toComposerArray());
+        self::assertSame($before, $bom->getPackages()['composer:example/library:v1.2.3']->toComposerArray());
     }
 
     /**
@@ -185,7 +185,7 @@ class GenerateLicenseBOMTest extends AuditTestCase
         $bom->addPackage(new BOMPackage(['name' => 'example/unversioned', 'license' => ['MIT']]));
         $exporter->saveToFile($path);
         self::assertSame(file_get_contents($path), $exporter->buildJson());
-        self::assertSame(['packages' => [['name' => 'example/unversioned', 'ecosystem' => 'composer']]], json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR));
+        self::assertSame(['packages' => [['name' => 'example/unversioned', 'urn' => 'composer:example/unversioned:', 'ecosystem' => 'composer']]], json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -310,14 +310,14 @@ class GenerateLicenseBOMTest extends AuditTestCase
             ['name' => 'same-name', 'version' => '4.0.0']
         ], JSON_THROW_ON_ERROR));
         $bom = $this->createLicenseBOM();
-        $bom->merge(new IncludesBOM($folder . '/includes.json', $folder));
+        $bom->merge(new IncludesBOM($folder . '/includes.json', $folder, 'composer:example/host:1.0.0'));
         self::assertCount(7, $bom->getPackages());
         self::assertTrue($bom->hasPackage('Newtonsoft.Json'));
-        self::assertSame('Apache-2.0', $bom->getPackages()['npm-asset/scope--package']->getLicenseUsed());
-        self::assertSame('v2.0.0', $bom->getPackages()['npm-asset/scope--package']->getVersion());
+        self::assertSame('Apache-2.0', $bom->getPackages()['npm:@scope/package:v2.0.0']->getLicenseUsed());
+        self::assertSame('v2.0.0', $bom->getPackages()['npm:@scope/package:v2.0.0']->getVersion());
         $packages = json_decode((new JsonBOM($bom))->setFormat('minimal')->buildJson(), true)['packages'];
-        self::assertSame(['name' => '@scope/package', 'version' => 'v2.0.0', 'ecosystem' => 'npm'], $packages[1]);
-        self::assertSame(['name' => 'Newtonsoft.Json', 'ecosystem' => 'nuget', 'version' => '12.0.1'], $packages[2]);
+        self::assertSame(['name' => '@scope/package', 'version' => 'v2.0.0', 'ecosystem' => 'npm', 'urn' => 'npm:@scope/package:v2.0.0'], $packages[1]);
+        self::assertSame(['name' => 'Newtonsoft.Json', 'ecosystem' => 'nuget', 'version' => '12.0.1', 'bundled_in' => 'composer:example/host:1.0.0', 'urn' => 'nuget:Newtonsoft.Json:12.0.1'], $packages[2]);
         self::assertSame(['npm', 'bower', 'nuget', 'composer'], array_column(array_slice($packages, 3), 'ecosystem'));
     }
 

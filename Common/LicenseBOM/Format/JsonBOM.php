@@ -28,8 +28,8 @@ class JsonBOM extends AbstractBOMDecorator implements LicenseBOMExporterInterfac
      * Select complete package metadata or minimal package identities for scanners.
      * 
      * - `full` preserves all metadata, including licenses and license texts.
-        * - `minimal` retains `name`, `ecosystem`, an available `version` and Git source type/reference.
-        * Both formats translate Composer asset aliases to their native package names.
+      * - `minimal` retains `name`, `ecosystem`, `urn`, an available `version`, `bundled_in` and Git source type/reference.
+      * Both formats translate Composer asset aliases to their native package names.
      * 
      * @uxon-property format
      * @uxon-type [minimal,full]
@@ -95,7 +95,7 @@ class JsonBOM extends AbstractBOMDecorator implements LicenseBOMExporterInterfac
             $data['name'] = PackageEcosystemDataType::convertNameFromAssetPackagist($data['name'], $data['ecosystem']);
             if ($this->format === 'minimal') {
                 $source = $data['source'] ?? [];
-                $data = array_intersect_key($data, ['name' => true, 'ecosystem' => true, 'version' => true]);
+                $data = array_intersect_key($data, ['name' => true, 'ecosystem' => true, 'version' => true, 'urn' => true, 'bundled_in' => true]);
                 if (($source['type'] ?? '') === 'git' && is_string($source['reference'] ?? null) && $source['reference'] !== '') {
                     $data['source'] = ['type' => 'git', 'reference' => $source['reference']];
                 }

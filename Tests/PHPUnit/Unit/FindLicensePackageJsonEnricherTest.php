@@ -70,7 +70,7 @@ class FindLicensePackageJsonEnricherTest extends AuditTestCase
         foreach ([['license' => ['Apache-2.0']], ['license_used' => 'Client-License']] as $data) {
             $package = new BOMPackage(array_merge(['name' => basename($folder)], $data));
             self::assertSame($package, (new FindLicensePackageJsonEnricher(dirname($folder)))->enrich($package));
-            self::assertSame($data, array_diff_key($package->toComposerArray(), ['name' => true]));
+            self::assertSame($data, array_diff_key($package->toComposerArray(), ['name' => true, 'urn' => true]));
         }
     }
 
@@ -87,7 +87,7 @@ class FindLicensePackageJsonEnricherTest extends AuditTestCase
         $bom->setLicenses(['MIT' => ['license_text' => 'Shared terms', 'license_link' => 'https://example.org/override']]);
         $package = (new FindLicensePackageJsonEnricher(dirname($folder)))->enrich(new BOMPackage(['name' => basename($folder)]));
         $bom->addPackage($package);
-        $package = $bom->getPackages()[basename($folder)];
+        $package = $bom->getPackages()['composer:' . basename($folder) . ':'];
         self::assertSame('Shared terms', $package->getLicenseText('MIT'));
         self::assertSame('https://example.org/override', $package->getLicenseLink('MIT'));
     }

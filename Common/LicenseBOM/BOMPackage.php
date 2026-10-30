@@ -36,6 +36,24 @@ class BOMPackage implements BOMPackageInterface
      */
     private $packageArray = null;
     
+    /**
+     * Builds the same version-specific identity for inventories and audit findings.
+     * 
+     * Native registry names prevent Composer asset aliases from creating duplicate identities.
+     * Unknown versions retain an empty final segment rather than inventing a version.
+     * 
+     * @param string $name
+     * @param string|null $version
+     * @param string|null $ecosystem
+     * @return string
+     */
+    public static function buildUrn(string $name, ?string $version = null, ?string $ecosystem = null) : string
+    {
+        $ecosystem = PackageEcosystemDataType::findEcosystem($name, $ecosystem);
+        $name = PackageEcosystemDataType::convertNameFromAssetPackagist($name, $ecosystem);
+        return $ecosystem . ':' . $name . ':' . ($version ?? '');
+    }
+
     public function __construct(array $composerLockPackageArray)
     {
         $this->packageArray = $composerLockPackageArray;
@@ -53,6 +71,14 @@ class BOMPackage implements BOMPackageInterface
         $otherKey = PackageEcosystemDataType::buildPackageKey($otherPackage->getName(), $otherPackageArray['ecosystem'] ?? null);
         if (strcasecmp($key, $otherKey) !== 0) {
             throw new RuntimeException('Cannot merge license BOM packages with different identities: ' . $key . ' and ' . $otherKey);
+        }
+        if ($this->getVersion() !== null && $this->getVersion() !== ''
+            && $otherPackage->getVersion() !== null && $otherPackage->getVersion() !== ''
+            && $this->getVersion() !== $otherPackage->getVersion()) {
+            throw new RuntimeException('Cannot merge license BOM packages with different versions.');
+        }
+        if (($otherPackageArray['version'] ?? '') === '') {
+            unset($otherPackageArray['version']);
         }
         $otherPackageArray['ecosystem'] = PackageEcosystemDataType::findEcosystem($otherPackage->getName(), $otherPackageArray['ecosystem'] ?? null);
         if (($otherPackageArray['license'] ?? null) === []) {
@@ -73,6 +99,36 @@ class BOMPackage implements BOMPackageInterface
     public function getName(): string
     {
         return $this->packageArray['name'];
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see BOMPackageInterface::getUrn()
+     */
+    public function getUrn() : string
+    {
+        return self::buildUrn($this->getName(), $this->getVersion(), $this->packageArray['ecosystem'] ?? null);
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see BOMPackageInterface::isSeparatePackage()
+     */
+    public function isSeparatePackage() : bool
+    {
+        return ($this->getVersion() ?? '') !== '';
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see BOMPackageInterface::isSupplementalInfo()
+     */
+    public function isSupplementalInfo() : bool
+    {
+        return ! $this->isSeparatePackage();
     }
     
     /**
@@ -232,6 +288,8 @@ class BOMPackage implements BOMPackageInterface
      */
     public function toComposerArray(): array
     {
-        return $this->packageArray;
+        return array_replace($this->packageArray, [
+            'urn' => $this->getUrn()
+        ]);
     }
 }

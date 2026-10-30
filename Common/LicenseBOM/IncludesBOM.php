@@ -18,16 +18,27 @@ class IncludesBOM extends LicenseBOM implements LicenseBOMInterface
     private $vendorFolderPath = null;
     
     private $json = null;
+
+    private $bundledIn = null;
     
     /**
      * 
      * @param string $includesJsonPath
      * @param string $vendorPath
+     * @param string|null $bundledIn URN of the installed package owning this manifest.
      */
-    public function __construct(string $includesJsonPath, string $vendorPath)
+    public function __construct(string $includesJsonPath, string $vendorPath, ?string $bundledIn = null)
     {
         $this->filePath = $includesJsonPath;
         $this->vendorFolderPath = $vendorPath;
+        $this->bundledIn = $bundledIn;
+        if ($this->bundledIn === null && basename($includesJsonPath) === 'includes.json') {
+            $folder = dirname($includesJsonPath);
+            $manifestPath = $folder . '/composer.json';
+            $manifest = is_file($manifestPath) ? JsonDataType::decodeJson(file_get_contents($manifestPath)) : [];
+            $name = $manifest['name'] ?? basename(dirname($folder)) . '/' . basename($folder);
+            $this->bundledIn = BOMPackage::buildUrn($name, $manifest['version'] ?? null);
+        }
         // reads composerJson and fills BOM with packages
         $this->readIncludesJson($this->filePath);
     }
@@ -48,7 +59,12 @@ class IncludesBOM extends LicenseBOM implements LicenseBOMInterface
                 $packageArray = $packageArray['packages'] ?? [];
             }
             foreach ($packageArray as $packageData) {
-                $this->addPackage(new BOMPackage($packageData));
+                $package = new BOMPackage($packageData);
+                if ($this->bundledIn !== null && $package->isSeparatePackage()) {
+                    $packageData['bundled_in'] = $this->bundledIn;
+                    $package = new BOMPackage($packageData);
+                }
+                $this->addPackage($package);
             }
         }
         return $this;

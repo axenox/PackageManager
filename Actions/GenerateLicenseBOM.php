@@ -25,13 +25,24 @@ use exface\Core\DataTypes\StringDataType;
 /**
  * Generates a global bill of materials (BOM) for the software included in an installation.
  * 
- * Combines resolved Composer dependencies with bundled software registered in installed apps'
- * `includes.json` files, recovers missing declarations from local `package.json` files, collects available
- * license texts, and exports Markdown, JSON and CycloneDX SBOM documents.
- * Use save_to_files to configure output destinations and formats. Generation reports missing license
- * information and texts so the documents can be reviewed before distribution.
- * 
  * CLI: `vendor/bin/action axenox.PackageManager:GenerateLicenseBOM`
+ * 
+ * Gathers a global list of packages by scanning
+ * 
+ * - `composer.lock` file of the installation - resolving Composer dependencies
+ * - `includes.json` files of installed apps - discovering bundled software and supplement metadata from them
+ * 
+ * Then validates if all discovered packages have proper license declarations and tries to enrich missing information:
+ * 
+ * - Scans local `package.json` files for license declarations
+ * - Scans local license files for license texts
+ * - Queries remote sources for license information if local data has a license name, but no text
+ * 
+ * The resulting BOM can then be exported in various formats for review and compliance purposes:
+ * 
+ * - Markdown (by default to `vendor/Licenses.md`) - to publish via DocsFacade
+ * - JSON (by default to `vendor/Licenses.json`) - machine readable - e.g. for the `axenox.PackageManager.Audit` action
+ * - CycloneDX (by default to `vendor/SBOM.cdx.json`) - for integration with security and compliance tools
  * 
  * @author Andrej Kabachnik
  *        
@@ -92,9 +103,14 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         // merge all includes-jsons with bigBOM
         // Get the subfolders within the "vendor" directory
         $includes = glob($vendorPath . '/*/*/includes.json');
+        $bundleUrns = [];
+        foreach ($bigBOM->getPackages() as $package) {
+            $bundleUrns[$package->getName()] = $package->getUrn();
+        }
         foreach ($includes as $include) {
             // find license_text if license_file is set
-            $includesBOM = new IncludesBOM($include, $vendorPath);
+            $bundleName = basename(dirname($include, 2)) . '/' . basename(dirname($include));
+            $includesBOM = new IncludesBOM($include, $vendorPath, $bundleUrns[$bundleName] ?? null);
             $bigBOM->merge($includesBOM);
             yield "  - " . StringDataType::substringAfter($include, $vendorPath . '/') .  PHP_EOL;
         }

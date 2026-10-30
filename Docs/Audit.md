@@ -1,7 +1,7 @@
 # Dependency Audits
 
-The `axenox.PackageManager.Audit` action combines license, Composer, npm-asset, OSV and Trivy
-findings. It returns scanner status and a compact findings table together with
+The `axenox.PackageManager.Audit` action combines findings from the scanners selected
+in `AUDIT.SCANNERS` or the action's `scanners` property. It returns scanner status and a compact findings table together with
 a DataSheet result for buttons, scheduled tasks and action chains.
 Action authorization applies to every invocation.
 
@@ -31,8 +31,8 @@ vendor/bin/action axenox.PackageManager:Audit --install=TrivySBOMScanner
 Relative folders and output paths resolve against the workbench installation.
 The output directory must exist. `--output` requires a `.json` file and is CLI-only,
 as is `--install`. Installation names must identify exactly one configured scanner
-by map key, short class name or fully qualified class name. For example, the default
-Trivy configuration accepts `--install=trivy` or `--install=TrivySBOMScanner`.
+by map key, short class name or fully qualified class name. For example, a Trivy scanner
+configured under the key `trivy` accepts `--install=trivy` or `--install=TrivySBOMScanner`.
 After explicit installation, the action runs the audit normally.
 
 Each scanner summary prints its returned finding count, for example
@@ -93,38 +93,12 @@ Trivy scans the supplied SBOM and may refresh its local vulnerability database.
 `AUDIT.SCANNERS` is a named map of scanner UXON configurations, following the same
 structure as `SBOM.files`. Each entry requires a fully qualified `class`; any other
 properties are imported into that scanner after removing `class`. Unknown properties
-are configuration errors. The defaults are:
+are configuration errors. Consult the installation's effective `AUDIT.SCANNERS` option
+for its enabled scanners; the available scanner types described below do not imply
+that any particular scanner is enabled.
 
-```json
-{
-	"AUDIT.SCANNERS": {
-		"license": {
-			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\LicenseScanner"
-		},
-		"composer": {
-			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerAuditScanner"
-		},
-		"npm": {
-			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\ComposerNpmAuditScanner"
-		},
-		"npm_outdated": {
-			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\NpmOutdatedScanner"
-		},
-		"packagist_outdated": {
-			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\PackagistOutdatedScanner"
-		},
-		"osv": {
-			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\OsvAuditScanner"
-		},
-		"trivy": {
-			"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\TrivySBOMScanner"
-		}
-	}
-}
-```
-
-The action's `scanners` UXON property accepts the same named map and replaces global
-defaults when supplied. An empty map disables all scanners; omission uses the
+The action's `scanners` UXON property accepts the same named map and replaces the global
+configuration when supplied. An empty map disables all scanners; omission uses the
 installation's `AUDIT.SCANNERS`. For example, to use only npm auditing:
 
 ```json
@@ -199,9 +173,9 @@ not a verified vendor support-expiration date.
 
 ### Newer Upstream Releases
 
-The separate default scanners `npm_outdated` (`NpmOutdatedScanner`) and
-`packagist_outdated` (`PackagistOutdatedScanner`) compare saved versions against
+The scanners `NpmOutdatedScanner` and `PackagistOutdatedScanner` compare saved versions against
 public release metadata. Neither runs Composer, Node.js, package scripts or Git.
+Select them through `AUDIT.SCANNERS` or the action's `scanners` map.
 NuGet is not covered by these outdated scanners.
 
 | Scanner | Public Metadata | Candidate Policy |
@@ -263,13 +237,13 @@ Each scanner independently accepts these options:
 Workbench cache; zero bypasses it. Metadata (including missing-release results),
 not findings, is cached by registry endpoint so builds reuse lookups but retain
 their own installed versions. The default cache lifetime is 24 hours; reduce it
-or use zero when checking newly published releases. Existing custom scanner maps
-replace defaults and must explicitly add these entries to enable them.
+or use zero when checking newly published releases. An action-level scanner map replaces
+the global configuration rather than extending it.
 
 ### Constraint-Blocked Composer Updates
 
-`ComposerOutdatedScanner` is an opt-in backup and is not enabled by default.
-Add a separate `composer_outdated` entry to enable it. It reuses
+Select `ComposerOutdatedScanner` through `AUDIT.SCANNERS` or the action's `scanners` map,
+for example under the key `composer_outdated`. It reuses
 the Composer runner and prerequisite checks, but does not mix maintenance findings
 with security advisories. It requires a folder containing both `composer.json`
 and `composer.lock`; archived locks and lock-only folders produce a coverage hint
@@ -334,9 +308,8 @@ Composer's configured repositories and stability rules determine the candidate.
 The scanner requires its version to compare greater than the locked version;
 it does not detect newer commits on an unchanged development branch.
 
-To disable this check after enabling it, remove `composer_outdated` from the
-configured scanner map. Like other action overrides, an existing custom scanner
-map does not automatically inherit new defaults.
+To disable this check, remove its entry from the configured scanner map. An action-level
+map replaces the global configuration and does not inherit changes to it.
 
 The npm scanner reads npm-asset package names and exact versions from composer.lock
 or the supplied `composer_lock` parameter, including development dependencies. It also reads
@@ -475,8 +448,8 @@ Individual getters can be overridden to implement different aggregation strategi
 Arrays are used only at external boundaries: scanner API payloads and serialized
 output. The `Audit` action owns the result column schema, selects the result
 metaobject and creates the DataSheet. CLI, DataSheet and JSON output group findings
-by finding type, ecosystem and case-insensitive package name, matching either advisory identity
-or a nonempty case-insensitive title across scanners. Different ecosystems or packages always
+by finding type, ecosystem, installed version and case-insensitive package name, matching either advisory identity
+or a nonempty case-insensitive title across scanners. Different ecosystems, versions or packages always
 produce separate rows, so mitigation remains per-package.
 The action's `groupFindings()` helper creates a `MergedFinding` for every group;
 `toDataSheetRows()` serializes their getters when populating the result sheet. The serializer
@@ -484,7 +457,7 @@ also accepts raw findings, without implementing merging logic itself. The action
 generates package-specific output IDs; removing internal finding IDs does not
 change those output IDs.
 
-Every result finding has `LEVEL`, `ID`, `PUBLIC_ID`, `NAME`, `TYPE`, `PACKAGE`, `ECOSYSTEM`,
+Every result finding has `LEVEL`, `ID`, `PUBLIC_ID`, `NAME`, `TYPE`, `PACKAGE`, `ECOSYSTEM`, `BOM_URN`,
 `DETAILS_URL`, `SOURCE` and `SOURCE_LEVEL`. Scanner-provided CVEs are normalized
 to uppercase and used as public identifiers. Original CVEs remain accessible
 through each raw finding's `getCve()` getter.
@@ -504,8 +477,9 @@ IDs. Package names are lowercased in keys. For the same set of detections, IDs s
 unchanged regardless of severity or scanner order. Adding a different advisory
 identity to a title-matched group can change its output ID.
 Different packages have different output IDs even when they share an advisory.
-Different ecosystems also remain separate. Existing Composer and asset-package
-keys stay stable; explicit ecosystems differing from name-based inference extend the key.
+Different ecosystems and installed versions also remain separate. Known versions and explicit
+ecosystems differing from name-based inference extend the key. IDs for versioned findings
+therefore differ from older reports that did not distinguish installed versions.
 Original scanner IDs remain accessible through `getMergedFindings()` and each
 original's `getSourceId()` getter, independently of the group's output ID.
 Internal levels
@@ -548,13 +522,18 @@ Unknown ecosystems have no OSV registry mapping, but usable Git commits remain s
 
 Additional fields preserve useful scanner data: `DESCRIPTION`, `REMEDIATION`,
 `VERSIONS_AFFECTED`, `VERSION_INSTALLED`, and `VERSION_FIXED`. Unavailable values
-are empty strings. DataSheet and JSON output contain these 15 documented columns;
+are empty strings. `BOM_URN` links each row to the internal JSON BOM using
+`ecosystem:package:version`, with the native registry name (for example `npm:jquery:3.0.0`).
+Missing installed versions leave the final segment empty; versionless evidence is not merged
+with evidence for a known version. This can produce separate rows for scanners with different
+version coverage. The npm bulk scanner currently supplies no installed version.
+DataSheet and JSON output contain these 16 documented columns;
 the former `DETECTIONS` column and modeled attribute have been removed. Consumers
 that need original scanner evidence in PHP use `getMergedFindings()` instead.
 Scanners can disagree about severity, fixed versions, affected ranges or recommendations;
 those associations remain available on the originals, but are not exported as nested JSON.
 
-Rows are deduplicated by finding type, ecosystem, case-insensitive package and either
+Rows are deduplicated by finding type, ecosystem, installed version, case-insensitive package and either
 case-insensitive `PUBLIC_ID` or nonempty case-insensitive `NAME`. The title check
 matches npm GHSA findings with OSV CVE findings even when their public IDs differ.
 When a public ID is unavailable, the primary identity still falls back to the native

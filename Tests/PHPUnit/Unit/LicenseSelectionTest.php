@@ -25,7 +25,7 @@ class LicenseSelectionTest extends AuditTestCase
             'licenses' => ['Client-License' => ['license_text' => 'Installation terms']]
         ]));
         $bom = new IncludesBOM($folder . '/Licenses.config.json', $folder);
-        $package = $bom->getPackages()['example/client-app'];
+        $package = $bom->getPackages()['private:example/client-app:'];
         self::assertSame(['Client-License'], $package->getLicenseNames());
         self::assertTrue($package->hasLicense());
         self::assertTrue($package->hasLicenseText());
@@ -50,7 +50,7 @@ class LicenseSelectionTest extends AuditTestCase
         $overrides = new LicenseBOM();
         $overrides->addPackage(new BOMPackage(['name' => 'example/library', 'license_used' => 'Apache-2.0']));
         $composer->merge($overrides);
-        $package = $composer->getPackages()['example/library'];
+        $package = $composer->getPackages()['composer:example/library:1.2.3'];
         self::assertSame(['GPL-2.0-only', 'Apache-2.0'], $package->getLicenseNames());
         self::assertSame('Apache-2.0', $package->getLicenseUsed());
         self::assertSame('1.2.3', $package->getVersion());

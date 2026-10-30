@@ -88,14 +88,15 @@ class AuditTest extends AuditTestCase
     public function testMergeRetainsEvidenceAndOrdersBySeverity() : void
     {
         $findings = $this->resultSheet(array_merge($this->npmRows, $this->trivyRows, [$this->npmRows[0]]))->getRows();
-        self::assertCount(2, $findings);
+        self::assertCount(3, $findings);
         self::assertSame(400, $findings[0]['LEVEL']);
-        self::assertSame('npm, trivy', $findings[0]['SOURCE']);
+        self::assertSame('trivy', $findings[0]['SOURCE']);
+        self::assertSame('npm:@scope/package:1.0.0', $findings[0]['BOM_URN']);
         self::assertArrayNotHasKey('CVE', $findings[0]);
         self::assertSame('CVE-2026-0001', $findings[0]['PUBLIC_ID']);
         self::assertArrayNotHasKey('DETECTIONS', $findings[0]);
         $groups = $this->invokeProtected($this->action, 'groupFindings', [array_merge($this->npmRows, $this->trivyRows, [$this->npmRows[0]])]);
-        self::assertCount(3, $groups[0]->getMergedFindings());
+        self::assertCount(2, $groups[0]->getMergedFindings());
         self::assertSame('CVE-2026-0001', $groups[0]->getMergedFindings()[0]->getCve());
     }
 
@@ -463,10 +464,11 @@ class AuditTest extends AuditTestCase
             'VERSIONS_AFFECTED' => '<2',
             'VERSION_INSTALLED' => '1',
             'VERSION_FIXED' => '2; 3',
-            'PUBLIC_ID' => 'CVE-2026-0001'
+            'PUBLIC_ID' => 'CVE-2026-0001',
+            'BOM_URN' => 'npm:first:1'
         ], $row);
         self::assertArrayNotHasKey('DETECTIONS', $row);
-        self::assertCount(15, Audit::COLUMNS);
+        self::assertCount(16, Audit::COLUMNS);
         $rawRow = $this->invokeProtected($this->action, 'toDataSheetRow', [$first]);
         self::assertSame($single['ID'], $rawRow['ID']);
         self::assertSame(200, $rawRow['LEVEL']);
