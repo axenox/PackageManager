@@ -8,6 +8,9 @@ use exface\Core\DataTypes\StringDataType;
 /**
  * This license BOM parses an includes.json file containing additional licenses not managed by Composer.
  * 
+ * Registry format and maintenance rules:
+ * [Bundling libraries and supplementing license metadata](https://github.com/ExFace/Core/blob/1.x-dev/Docs/developer_docs/Thrid-party_libraries/Bundling_third_party_libs.md).
+ * 
  * @author andrej.kabachnik
  *
  */

@@ -44,6 +44,10 @@ use exface\Core\DataTypes\StringDataType;
  * - JSON (by default to `vendor/Licenses.json`) - machine readable - e.g. for the `axenox.PackageManager.Audit` action
  * - CycloneDX (by default to `vendor/SBOM.cdx.json`) - for integration with security and compliance tools
  * 
+ * For registry ownership, versionless supplements and supported license-text sources, see
+ * [Bundling libraries and supplementing license metadata](https://github.com/ExFace/Core/blob/1.x-dev/Docs/developer_docs/Thrid-party_libraries/Bundling_third_party_libs.md).
+ * Regenerate the full BOM after registry changes before running a license audit.
+ * 
  * @author Andrej Kabachnik
  *        
  */
