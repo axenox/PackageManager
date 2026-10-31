@@ -321,6 +321,12 @@ POST to `https://registry.npmjs.org/-/npm/v1/security/advisories/bulk` and use t
 result normalization. No Composer executable, Composer plugin, Node.js, installed
 vendor directory or target composer.json is required. Empty npm dependency lists
 do not trigger a request. HTTP failures propagate rather than reporting a clean scan.
+Packages with missing versions or `dev-` versions are skipped with visible coverage
+hints, while packages with released versions continue to be audited. This includes
+unmatched versionless license supplements retained in older inventories. New BOM
+generation excludes unmatched supplements with a warning after processing all manifests.
+A skipped package has not been checked for vulnerabilities; do not invent a version
+merely to make it scannable.
 No scanner installation is needed; its interface-compatible `install()` is a no-op.
 The scanner never changes the target Composer setup or removes previously installed
 plugins. The `ComposerNpmAuditScanner` class name remains unchanged for compatibility.

@@ -365,9 +365,14 @@ declaration; an unknown-version package still counts as supplemental even when r
 inventory. Explicit `bundled_in` alone does not change this classification. The methods do not
 change URN generation or exclude entries from exports.
 
-For backward compatibility, a versionless entry with no matching package remains a standalone
-unknown-version entry without automatic bundle ownership; it does not currently produce an
-unmatched-supplement warning. Review such entries for misspelled names or missing dependencies.
+During generation, all versioned bundles from app manifests and local license overrides are
+registered before versionless supplements are applied. A supplement can therefore match a
+package declared by a later manifest. Supplements then apply in manifest order, with local
+license overrides last. A versionless entry with no matching installed or bundled package is
+excluded from the generated inventory with a warning. Review such entries for misspelled names
+or missing dependencies. Genuinely installed packages with unknown versions remain present;
+this filtering applies to inclusion supplements, not installed Composer entries. Regenerate
+the BOM to remove unmatched supplements from older inventories; archived build BOMs are unchanged.
 
 Supplying a version in an app's includes manifest is also a bundled-package declaration for
 automatic ownership, even when it matches an existing package. For a version-specific license

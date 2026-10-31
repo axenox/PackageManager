@@ -322,6 +322,62 @@ class GenerateLicenseBOMTest extends AuditTestCase
     }
 
     /**
+     * Unmatched supplements must not create packages, regardless of manifest ordering.
+     * 
+     * @return void
+     */
+    public function testInclusionsOnlySupplementPresentPackages() : void
+    {
+        foreach ([false, true] as $reverse) {
+            $bom = new LicenseBOM();
+            foreach (['0.5.0', '0.4.0'] as $version) {
+                $bom->addPackage(new BOMPackage(['name' => 'npm-asset/union', 'version' => $version]));
+            }
+            $supplements = new LicenseBOM();
+            $supplements->setLicenses(['MIT' => ['license_text' => 'Shared terms']]);
+            foreach ([
+                ['name' => 'union', 'ecosystem' => 'npm', 'license' => ['MIT']],
+                ['name' => 'npm-asset/absent', 'license' => ['MIT']],
+                ['name' => 'npm-asset/later', 'license' => ['MIT']],
+                ['name' => 'later', 'ecosystem' => 'bower', 'license' => ['MIT']]
+            ] as $data) {
+                $supplements->addPackage(new BOMPackage($data));
+            }
+            $bundles = new LicenseBOM();
+            $bundles->addPackage(new BOMPackage(['name' => 'later', 'ecosystem' => 'npm', 'version' => '1.0.0']));
+            $inclusions = $reverse ? [$bundles, $supplements] : [$supplements, $bundles];
+            self::assertSame(['npm-asset/absent', 'later'], $this->invokeProtected($this->action, 'mergeInclusions', [$bom, $inclusions]));
+            self::assertCount(3, $bom->getPackages());
+            foreach ($bom->getPackages() as $package) {
+                self::assertSame(['MIT'], $package->getLicenseNames());
+                self::assertSame('Shared terms', $package->getLicenseText('MIT'));
+            }
+            $packages = json_decode((new JsonBOM($bom))->setFormat('minimal')->buildJson(), true)['packages'];
+            self::assertSame(['union', 'union', 'later'], array_column($packages, 'name'));
+            self::assertSame(['0.5.0', '0.4.0', '1.0.0'], array_column($packages, 'version'));
+        }
+    }
+
+    /**
+     * A real installed package with an unknown version must not be discarded as a supplement.
+     * 
+     * @return void
+     */
+    public function testInclusionsPreserveUnversionedInstalledPackages() : void
+    {
+        $bom = new LicenseBOM();
+        $bom->addPackage(new BOMPackage(['name' => 'npm-asset/installed']));
+        $supplements = new LicenseBOM();
+        $supplements->addPackage(new BOMPackage(['name' => 'npm-asset/installed', 'license' => ['MIT']]));
+        $supplements->addPackage(new BOMPackage(['name' => 'npm-asset/union', 'license' => ['MIT']]));
+        self::assertSame(['npm-asset/union'], $this->invokeProtected($this->action, 'mergeInclusions', [$bom, [$supplements]]));
+        self::assertCount(1, $bom->getPackages());
+        $package = $bom->getPackages()['npm:installed:'];
+        self::assertNull($package->getVersion());
+        self::assertSame(['MIT'], $package->getLicenseNames());
+    }
+
+    /**
      * Unknown exporter properties remain strict UXON configuration errors.
      * 
      * @return void

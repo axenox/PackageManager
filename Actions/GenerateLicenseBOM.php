@@ -20,6 +20,7 @@ use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
 use axenox\PackageManager\Interfaces\LicenseBOMExporterInterface;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use exface\Core\DataTypes\StringDataType;
 
 /**
@@ -111,18 +112,21 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         foreach ($bigBOM->getPackages() as $package) {
             $bundleUrns[$package->getName()] = $package->getUrn();
         }
+        $inclusionBOMs = [];
         foreach ($includes as $include) {
             // find license_text if license_file is set
             $bundleName = basename(dirname($include, 2)) . '/' . basename(dirname($include));
-            $includesBOM = new IncludesBOM($include, $vendorPath, $bundleUrns[$bundleName] ?? null);
-            $bigBOM->merge($includesBOM);
+            $inclusionBOMs[] = new IncludesBOM($include, $vendorPath, $bundleUrns[$bundleName] ?? null);
             yield "  - " . StringDataType::substringAfter($include, $vendorPath . '/') .  PHP_EOL;
         }
 
         $licensesPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'Licenses.config.json';
         if (is_file($licensesPath)) {
-            $bigBOM->merge(new IncludesBOM($licensesPath, $vendorPath));
+            $inclusionBOMs[] = new IncludesBOM($licensesPath, $vendorPath);
             yield '  - config/Licenses.config.json' . PHP_EOL;
+        }
+        foreach ($this->mergeInclusions($bigBOM, $inclusionBOMs) as $name) {
+            yield '  WARNING: Ignoring license supplement without an installed or bundled package: ' . $name . PHP_EOL;
         }
 
         $manifestEnricher = new FindLicensePackageJsonEnricher($vendorPath);
@@ -162,6 +166,54 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         yield "DONE generating license BOM" . PHP_EOL;
     }
     
+    /**
+     * Registers bundled packages before applying supplements so absent software is not inventoried.
+     * 
+     * All manifests are considered before matching supplements, including local license overrides.
+     * Matching uses registry identities rather than versions so installed packages with unknown
+     * versions remain present and each known installed version receives the supplement.
+     * 
+     * @param LicenseBOMInterface $bom Installed inventory to enrich in place.
+     * @param LicenseBOMInterface[] $inclusions
+     * @return string[] Unmatched supplement names for generation warnings.
+     */
+    protected function mergeInclusions(LicenseBOMInterface $bom, array $inclusions) : array
+    {
+        foreach ($inclusions as $inclusion) {
+            $bundles = new LicenseBOM();
+            $bundles->setLicenses($inclusion->getLicenses());
+            foreach ($inclusion->getPackages() as $package) {
+                if ($package->isSeparatePackage()) {
+                    $bundles->addPackage($package);
+                }
+            }
+            $bom->merge($bundles);
+        }
+        $identities = [];
+        foreach ($bom->getPackages() as $package) {
+            $data = $package->toComposerArray();
+            $identities[PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null)] = true;
+        }
+        $unmatched = [];
+        foreach ($inclusions as $inclusion) {
+            $supplements = new LicenseBOM();
+            foreach ($inclusion->getPackages() as $package) {
+                if (! $package->isSupplementalInfo()) {
+                    continue;
+                }
+                $data = $package->toComposerArray();
+                $identity = PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null);
+                if (isset($identities[$identity])) {
+                    $supplements->addPackage($package);
+                } else {
+                    $unmatched[] = $package->getName();
+                }
+            }
+            $bom->merge($supplements);
+        }
+        return array_values(array_unique($unmatched));
+    }
+
     /**
      * 
      * @param BOMPackage $package

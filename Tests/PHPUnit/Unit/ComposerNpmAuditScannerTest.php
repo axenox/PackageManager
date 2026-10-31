@@ -91,6 +91,55 @@ class ComposerNpmAuditScannerTest extends AuditTestCase
         self::assertCount(1, $this->requests);
     }
 
+    /**
+     * Versionless license supplements must not prevent auditing known package versions.
+     * 
+     * @return void
+     */
+    public function testVersionlessSupplementDoesNotAbortArchivedAudit() : void
+    {
+        $this->task->setParameter('sbom', json_encode(['packages' => [
+            ['name' => 'union', 'ecosystem' => 'npm', 'license' => ['MIT']],
+            ['name' => 'npm-asset/unreleased', 'version' => 'dev-main']
+        ]], JSON_THROW_ON_ERROR));
+        self::assertTrue($this->scanner->supports($this->task));
+        $this->responses->append(new Response(200, [], '{}'));
+        self::assertSame([], $this->scanner->audit($this->task));
+        self::assertCount(1, $this->requests);
+        self::assertSame(
+            ['@scope/package' => ['1.0.0'], 'dev-package' => ['2.0.0']],
+            json_decode((string) $this->requests[0]['request']->getBody(), true, 512, JSON_THROW_ON_ERROR)
+        );
+        self::assertSame([
+            'Cannot audit npm package without a released version: union',
+            'Cannot audit npm package without a released version: unreleased'
+        ], $this->scanner->getHints());
+
+        $this->responses->append(new Response(200, [], '{}'));
+        $cleanTask = new GenericTask($this->workbench);
+        $cleanTask->setParameter('composer_lock', $this->lockJson);
+        self::assertTrue($this->scanner->supports($cleanTask));
+        self::assertSame([], $this->scanner->getHints());
+        self::assertSame([], $this->scanner->audit($cleanTask));
+        self::assertSame([], $this->scanner->getHints());
+    }
+
+    /**
+     * A versionless-only inventory must expose its coverage gap without querying npm.
+     * 
+     * @return void
+     */
+    public function testVersionlessOnlyInventoryProducesHintWithoutRequest() : void
+    {
+        $task = new GenericTask($this->workbench);
+        $task->setParameter('sbom', '{"packages":[{"name":"union","ecosystem":"npm"}]}');
+        self::assertFalse($this->scanner->supports($task));
+        self::assertSame(['Cannot audit npm package without a released version: union'], $this->scanner->getHints());
+        self::assertSame([], $this->scanner->audit($task));
+        self::assertSame(['Cannot audit npm package without a released version: union'], $this->scanner->getHints());
+        self::assertCount(0, $this->requests);
+    }
+
     /** Registry outages must propagate rather than masquerading as a clean dependency tree. */
     public function testRegistryFailureRetainsHttpStatus() : void
     {
