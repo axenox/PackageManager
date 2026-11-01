@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\LicenseBOM\Enricher;
 
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use exface\Core\DataTypes\FilePathDataType;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 
@@ -33,18 +34,30 @@ class FindLicenseTextEnricher implements BOMPackageEnricherInterface
     }
     
     /**
-     * 
+    * Reads installed terms without querying absent bundled packages or unrelated directories.
+    * 
+    * Native npm/Bower identities can be installed under their Asset Packagist aliases.
+    * Packages declared only in includes.json need not have a standalone directory.
+    * 
      * @param BOMPackage $package
      * @return BOMPackage
      */
     public function enrich(BOMPackage $package) : BOMPackage
     {
         $licenseUsed = $package->getLicenseUsed();
-        $packagePath = $this->vendorPath . DIRECTORY_SEPARATOR . $package->getName();
-
-        // if license-text for licenseUsed is empty and license-text in packagePath is found
-        if(null == $package->getLicenseText($licenseUsed) && null !== $this->findLicenseText($packagePath)) {
-            $package->setLicenseText($licenseUsed, $this->findLicenseText($packagePath));
+        $data = $package->toComposerArray();
+        $ecosystem = PackageEcosystemDataType::findEcosystem($package->getName(), $data['ecosystem'] ?? null);
+        $packagePath = $this->vendorPath . DIRECTORY_SEPARATOR
+            . PackageEcosystemDataType::convertNameToAssetPackagist($package->getName(), $ecosystem);
+        if (! is_dir($packagePath)) {
+            $packagePath = $this->vendorPath . DIRECTORY_SEPARATOR . $package->getName();
+        }
+        if (! is_dir($packagePath) || ($package->getLicenseText($licenseUsed) ?? '') !== '') {
+            return $package;
+        }
+        $text = $this->findLicenseText($packagePath);
+        if ($text !== null) {
+            $package->setLicenseText($licenseUsed, $text);
         }
         return $package;
     }
