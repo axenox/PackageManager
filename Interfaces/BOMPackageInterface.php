@@ -9,6 +9,19 @@ namespace axenox\PackageManager\Interfaces;
  */
 interface BOMPackageInterface
 {
+    public const LICENSE_TEXT_SOURCE_EMBEDDED = 'embedded';
+    public const LICENSE_TEXT_SOURCE_LOCAL = 'local';
+    public const LICENSE_TEXT_SOURCE_LINK = 'link';
+    public const LICENSE_TEXT_SOURCE_MISSING = 'missing';
+
+    /**
+     * Identifies available terms without requiring their contents in compact inventories.
+     * 
+     * @param string $licenseUsed
+     * @return string One of the LICENSE_TEXT_SOURCE_* constants.
+     */
+    public function getLicenseTextSource(string $licenseUsed) : string;
+
     /**
      * Returns the current version-specific identity using the native registry name.
      * 

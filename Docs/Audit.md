@@ -118,7 +118,7 @@ same class create independent instances with their own options. Use a map key fo
 
 ### Licenses
 
-`LicenseScanner` checks the full combined JSON supplied through `sbom`, or
+`LicenseScanner` checks full or minimal combined JSON supplied through `sbom`, or
 `vendor/licenses.json` in the target folder. It runs locally without installation,
 downloads or inventory generation. Regenerate the full inventory with
 `axenox.PackageManager:GenerateLicenseBOM` before auditing changed dependencies or terms.
@@ -134,12 +134,22 @@ Findings have type and source `license`:
 Both findings are returned if both are absent. `Other`, `NONE` and `NOASSERTION`
 are treated as missing declarations. The effective license is `license_used`, or
 the first declared license when no selection exists. Shared named license definitions
-are applied before checking. Only text for that effective license counts; a link
-alone or text for a different alternative does not satisfy the text check.
+are applied before checking. Only evidence for that effective license counts; a link
+alone or text for a different alternative does not satisfy the text check. A local
+license file reference counts as available terms, without rechecking the file on the
+audit machine, which may not hold the original build's files.
 Private packages are checked just like public packages.
 
-Use full JSON exports, not minimal build snapshots: minimal exports deliberately
-omit all licensing metadata and will therefore produce missing-evidence findings.
+Current minimal build snapshots retain `license`, `license_used` and a license-keyed
+`license_text_source` map. Each value is one of the shared `BOMPackageInterface`
+constants: `embedded`, `local`, `link` or `missing`. Nonempty inline terms take precedence,
+then local file references, then links, then archived source metadata when no inline
+text is recorded. Blank inline text overrides archived evidence. The scanner accepts
+`embedded` and `local`; `link` and `missing` produce missing-text findings. Compact
+exports do not embed terms, URLs or file paths. Malformed maps or unknown values fail the scan.
+Older minimal snapshots omitted this evidence and still produce missing-evidence findings.
+Re-auditing them cannot recover discarded metadata: create a new build from a regenerated
+full inventory, or supply the original build's full inventory if it is still available.
 These advisories describe the supplied inventory, not a legal determination that
 the package has no license. The scanner cannot detect omitted dependencies or
 stale inventories.

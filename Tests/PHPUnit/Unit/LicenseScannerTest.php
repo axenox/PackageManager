@@ -2,6 +2,9 @@
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
 use axenox\PackageManager\Common\Audit\Scanner\LicenseScanner;
+use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
+use axenox\PackageManager\Common\LicenseBOM\Format\JsonBOM;
+use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use exface\Core\CommonLogic\Tasks\GenericTask;
 use exface\Core\CommonLogic\UxonObject;
@@ -12,6 +15,96 @@ use exface\Core\Exceptions\RuntimeException;
  */
 class LicenseScannerTest extends AuditTestCase
 {
+    /**
+    * Source metadata must not turn contradictory full-inventory evidence into a clean result.
+     * 
+     * @return void
+     */
+    public function testInlineTextOverridesCompactSourceMetadata() : void
+    {
+        $task = new GenericTask($this->workbench);
+        $task->importUxonObject(new UxonObject(['parameters' => ['sbom' => ['packages' => [
+            ['name' => 'example/complete', 'license' => ['MIT'], 'license_text' => ['MIT' => 'Terms'], 'license_text_source' => ['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_MISSING]],
+            ['name' => 'example/blank', 'license' => ['MIT'], 'license_text' => ['MIT' => ' '], 'license_text_source' => ['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_EMBEDDED]]
+        ]]]]));
+        $findings = (new LicenseScanner($this->workbench))->audit($task);
+        self::assertCount(1, $findings);
+        self::assertSame('example/blank', $findings[0]->getPackage());
+        self::assertSame('missing-license-text', $findings[0]->getSourceId());
+    }
+
+    /**
+    * Unknown source values must fail rather than silently certify or reject license terms.
+     * 
+     * @return void
+     */
+    public function testMalformedCompactSourceFails() : void
+    {
+        $task = new GenericTask($this->workbench);
+        $task->importUxonObject(new UxonObject(['parameters' => ['sbom' => ['packages' => [[
+            'name' => 'example/library', 'license' => ['MIT'], 'license_text_source' => ['MIT' => 'unknown']
+        ]]]]]));
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('license_text_source values must be embedded, local, link or missing');
+        (new LicenseScanner($this->workbench))->audit($task);
+    }
+
+    /**
+     * Archived compact inventories must preserve license findings without storing any terms.
+     * 
+     * @return void
+     */
+    public function testMinimalExportPreservesFullLicenseFindingsWithoutTexts() : void
+    {
+        $bom = new LicenseBOM();
+        $bom->setLicenses(['Client-License' => ['license_text' => 'Shared installation terms']]);
+        foreach ([
+            ['name' => 'example/complete', 'license' => ['MIT'], 'license_text' => ['MIT' => 'MIT terms']],
+            ['name' => 'example/shared', 'ecosystem' => 'private', 'license_used' => 'Client-License'],
+            ['name' => 'example/dual', 'license' => ['MIT', 'BSD-3-Clause'], 'license_used' => 'BSD-3-Clause', 'license_text' => ['MIT' => 'MIT terms']],
+            ['name' => 'example/link', 'license' => ['MIT'], 'license_link' => ['MIT' => 'https://example.org/license']],
+            ['name' => 'example/blank', 'license' => ['MIT'], 'license_text' => ['MIT' => " \n "]],
+            ['name' => 'example/missing'],
+            ['name' => 'example/none', 'license' => ['NOASSERTION']],
+            ['name' => 'example/local', 'license' => ['MIT'], 'license_file' => ['MIT' => 'example/local/LICENSE']]
+        ] as $data) {
+            $bom->addPackage(new BOMPackage($data));
+        }
+        $minimalJson = (new JsonBOM($bom))->setFormat('minimal')->buildJson();
+        $minimal = json_decode($minimalJson, true, 512, JSON_THROW_ON_ERROR);
+        self::assertArrayNotHasKey('licenses', $minimal);
+        foreach ($minimal['packages'] as $data) {
+            self::assertArrayNotHasKey('license_text', $data);
+            self::assertArrayNotHasKey('license_link', $data);
+            self::assertArrayNotHasKey('license_file', $data);
+        }
+        self::assertStringNotContainsString('MIT terms', $minimalJson);
+        self::assertStringNotContainsString('Shared installation terms', $minimalJson);
+        self::assertSame(['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_EMBEDDED], $minimal['packages'][0]['license_text_source']);
+        self::assertSame(['Client-License'], $minimal['packages'][1]['license']);
+        self::assertSame(['Client-License' => BOMPackage::LICENSE_TEXT_SOURCE_EMBEDDED], $minimal['packages'][1]['license_text_source']);
+        self::assertSame(['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_EMBEDDED, 'BSD-3-Clause' => BOMPackage::LICENSE_TEXT_SOURCE_MISSING], $minimal['packages'][2]['license_text_source']);
+        self::assertSame(['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_LINK], $minimal['packages'][3]['license_text_source']);
+        self::assertSame(['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_LOCAL], $minimal['packages'][7]['license_text_source']);
+        $scanner = new LicenseScanner($this->workbench);
+        $results = [];
+        foreach ([(new JsonBOM($bom))->buildJson(), $minimalJson] as $json) {
+            $task = new GenericTask($this->workbench);
+            $task->importUxonObject(new UxonObject(['parameters' => ['sbom' => $json]]));
+            self::assertTrue($scanner->supports($task));
+            $results[] = array_map(static fn ($finding) => [
+                $finding->getPackage(), $finding->getSourceId(), $finding->getLevel()
+            ], $scanner->audit($task));
+        }
+        self::assertCount(7, $results[0]);
+        self::assertSame($results[0], $results[1]);
+        $roundTrip = new LicenseBOM();
+        foreach ($minimal['packages'] as $data) {
+            $roundTrip->addPackage(new BOMPackage($data));
+        }
+        self::assertSame($minimalJson, (new JsonBOM($roundTrip))->setFormat('minimal')->buildJson());
+    }
+
     /**
      * Severity and evidence must distinguish absent declarations from absent license text.
      * 

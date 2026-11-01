@@ -202,6 +202,34 @@ class BOMPackage implements BOMPackageInterface
     {
         return $this->packageArray['license_text'][$licenseUsed] ?? null;
     }
+
+    /**
+     * Resolves concrete license evidence before falling back to archived source metadata.
+     * 
+     * Nonempty embedded terms take precedence over local file references and links.
+     * A file reference records availability in the source inventory, not a filesystem check
+     * on the machine reading an archived build. Blank inline text overrides archived evidence.
+     * 
+     * {@inheritDoc}
+     * 
+     * @see BOMPackageInterface::getLicenseTextSource()
+     */
+    public function getLicenseTextSource(string $licenseUsed) : string
+    {
+        $text = $this->getLicenseText($licenseUsed);
+        if (trim($text ?? '') !== '') {
+            return self::LICENSE_TEXT_SOURCE_EMBEDDED;
+        }
+        if (trim($this->getLicenseFile($licenseUsed) ?? '') !== '') {
+            return self::LICENSE_TEXT_SOURCE_LOCAL;
+        }
+        if (trim($this->getLicenseLink($licenseUsed) ?? '') !== '') {
+            return self::LICENSE_TEXT_SOURCE_LINK;
+        }
+        return $text === null
+            ? ($this->packageArray['license_text_source'][$licenseUsed] ?? self::LICENSE_TEXT_SOURCE_MISSING)
+            : self::LICENSE_TEXT_SOURCE_MISSING;
+    }
     
     /**
      * Returns declared licenses, or the explicit selection when no nonempty list is available.

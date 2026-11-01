@@ -78,8 +78,9 @@ class LicenseSelectionTest extends AuditTestCase
         $bom = new LicenseBOM();
         $bom->addPackage($package);
         $minimal = json_decode((new JsonBOM($bom))->setFormat('minimal')->buildJson(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertArrayNotHasKey('license', $minimal['packages'][0]);
-        self::assertArrayNotHasKey('license_used', $minimal['packages'][0]);
+        self::assertSame(['Another-License'], $minimal['packages'][0]['license']);
+        self::assertSame('Another-License', $minimal['packages'][0]['license_used']);
+        self::assertSame(['Another-License' => BOMPackage::LICENSE_TEXT_SOURCE_MISSING], $minimal['packages'][0]['license_text_source']);
         $package->setLicenseUsed(null);
         self::assertSame([], $package->getLicenseNames());
     }

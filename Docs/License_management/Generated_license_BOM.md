@@ -36,7 +36,9 @@ The [dependency audit's LicenseScanner](../Audit.md#licenses), when selected thr
 `AUDIT.SCANNERS` or the action's `scanners` property, checks this full JSON inventory for missing license declarations (high severity)
 and missing text for the effective license (low severity), including private packages.
 A license URL alone does not satisfy the scanner's text check. Regenerate the inventory
-before auditing; minimal exports deliberately omit the evidence needed for these checks.
+before auditing. Current minimal exports preserve these checks using declarations and
+text-source metadata without including license texts. Local file references count as
+available terms; link-only evidence still produces a missing-text finding.
 
 To change the installation-wide defaults, configure PackageManager's `SBOM.files` option.
 To override those defaults for one action, configure its `save_to_files` property using the
@@ -137,7 +139,8 @@ shared definitions override the corresponding per-package metadata for that name
 Definitions are applied before missing license text is searched for locally or downloaded.
 
 Full JSON exports retain the top-level `licenses` object and resolve its metadata onto packages
-for existing consumers. Minimal exports omit definitions and license metadata. Markdown and
+for existing consumers. Minimal exports omit definitions and terms, but retain resolved
+license declarations, selections and text-source metadata. Markdown and
 CycloneDX exports use the same resolved license terms. Do not publish generated license documents
 without checking whether installation-specific terms may be disclosed.
 
@@ -164,9 +167,45 @@ The `license` array still contains all declared alternatives.
 Minimal exports keep the same `packages` array and retain each
 package's `name`, `ecosystem`, `urn`, its `version` when present, and `bundled_in` when available. Git sources with a nonempty
 reference also retain `source.type` and `source.reference` for commit-based auditing.
-License declarations, selected licenses, license texts, descriptions, repository URLs,
+They also retain the `license` array of declared alternatives and `license_used` with the
+effective selection when a license is declared or explicitly selected. Undeclared packages
+do not acquire a synthetic `Other` declaration or selection during compact export.
+The `license_text_source` object maps every declared license and the effective license
+to a value defined by constants on `BOMPackageInterface`, not an enum data type:
+
+| Constant | JSON Value | Evidence |
+| --- | --- | --- |
+| `LICENSE_TEXT_SOURCE_EMBEDDED` | `embedded` | Nonempty inline text after trimming whitespace. |
+| `LICENSE_TEXT_SOURCE_LOCAL` | `local` | A nonempty local license file reference. |
+| `LICENSE_TEXT_SOURCE_LINK` | `link` | A nonempty license URL, without embedded or local terms. |
+| `LICENSE_TEXT_SOURCE_MISSING` | `missing` | No available terms or reference. |
+
+Shared named definitions are resolved before these values are computed. Embedded text
+takes precedence over local files, which take precedence over links. If no concrete
+evidence is available, archived source metadata is retained unless blank inline text
+explicitly overrides it. Local references describe the source inventory; neither export
+nor archived audit verifies that the file still exists on the current machine.
+
+For example, a package selecting BSD terms while only MIT text is available carries:
+
+```json
+{
+  "name": "example/library",
+  "ecosystem": "composer",
+  "license": ["MIT", "BSD-3-Clause"],
+  "license_used": "BSD-3-Clause",
+  "license_text_source": {"MIT": "embedded", "BSD-3-Clause": "missing"}
+}
+```
+
+These values record available evidence at export time, not legal validity or the contents
+of the terms. Compact inventories can be re-exported without losing their source evidence.
+License texts, links, file paths, shared definitions, descriptions, repository URLs,
 non-Git source metadata, dependency requirements and other metadata are omitted.
 Exporting does not change the combined inventory or other exporters' output.
+Existing archived minimal inventories lack the new evidence and cannot be repaired by
+re-auditing alone. Generate a fresh full inventory and build snapshot; do not substitute
+today's installation metadata for a historical build's licenses.
 
 Use this configuration in `save_to_files`, or use its file map as the `SBOM.files` option:
 

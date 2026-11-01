@@ -94,8 +94,10 @@ class GenerateLicenseBOMTest extends AuditTestCase
         self::assertSame(file_get_contents($path), $exporter->buildJson());
         $document = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame(['packages' => [
-            ['name' => 'example/library', 'version' => 'v1.2.3', 'urn' => 'composer:example/library:v1.2.3', 'ecosystem' => 'composer'],
-            ['name' => '@scope/package', 'version' => 'v2.0.0', 'urn' => 'npm:@scope/package:v2.0.0', 'ecosystem' => 'npm']
+            ['name' => 'example/library', 'version' => 'v1.2.3', 'license' => ['MIT'], 'license_used' => 'MIT',
+                'urn' => 'composer:example/library:v1.2.3', 'ecosystem' => 'composer', 'license_text_source' => ['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_EMBEDDED]],
+            ['name' => '@scope/package', 'version' => 'v2.0.0', 'license' => ['MIT'], 'license_used' => 'MIT',
+                'urn' => 'npm:@scope/package:v2.0.0', 'ecosystem' => 'npm', 'license_text_source' => ['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_EMBEDDED]]
         ]], $document);
         $scanner = new ComposerNpmAuditScanner($this->workbench);
         self::assertSame(['@scope/package' => ['2.0.0']], $this->invokeProtected($scanner, 'dependencies', [$document]));
@@ -159,9 +161,9 @@ class GenerateLicenseBOMTest extends AuditTestCase
                 self::assertSame(['MIT', 'Apache-2.0'], $packages[0]['license']);
                 self::assertSame(['MIT', 'Apache-2.0'], $packages[1]['license']);
             } else {
-                foreach ($packages as $package) {
-                    self::assertArrayNotHasKey('license_used', $package);
-                }
+                self::assertSame(['Apache-2.0', 'MIT', 'BSD-3-Clause'], array_column($packages, 'license_used'));
+                self::assertSame(['MIT', 'Apache-2.0'], $packages[0]['license']);
+                self::assertArrayNotHasKey('license_used', $packages[3]);
             }
         }
         self::assertSame($before, array_map(static function ($package) {
@@ -185,7 +187,10 @@ class GenerateLicenseBOMTest extends AuditTestCase
         $bom->addPackage(new BOMPackage(['name' => 'example/unversioned', 'license' => ['MIT']]));
         $exporter->saveToFile($path);
         self::assertSame(file_get_contents($path), $exporter->buildJson());
-        self::assertSame(['packages' => [['name' => 'example/unversioned', 'urn' => 'composer:example/unversioned:', 'ecosystem' => 'composer']]], json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR));
+        self::assertSame(['packages' => [[
+            'name' => 'example/unversioned', 'license' => ['MIT'], 'urn' => 'composer:example/unversioned:',
+            'ecosystem' => 'composer', 'license_used' => 'MIT', 'license_text_source' => ['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_MISSING]
+        ]]], json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -222,7 +227,8 @@ class GenerateLicenseBOMTest extends AuditTestCase
         self::assertSame($exporter->buildJson(), file_get_contents($path));
         $packages = json_decode($exporter->buildJson(), true)['packages'];
         foreach ($packages as $index => $package) {
-            self::assertArrayNotHasKey('license', $package);
+            self::assertSame(['MIT'], $package['license']);
+            self::assertArrayNotHasKey('license_text', $package);
             if ($index < 2) {
                 self::assertSame(['type' => 'git', 'reference' => $commit], $package['source']);
             } else {
@@ -316,8 +322,11 @@ class GenerateLicenseBOMTest extends AuditTestCase
         self::assertSame('Apache-2.0', $bom->getPackages()['npm:@scope/package:v2.0.0']->getLicenseUsed());
         self::assertSame('v2.0.0', $bom->getPackages()['npm:@scope/package:v2.0.0']->getVersion());
         $packages = json_decode((new JsonBOM($bom))->setFormat('minimal')->buildJson(), true)['packages'];
-        self::assertSame(['name' => '@scope/package', 'version' => 'v2.0.0', 'ecosystem' => 'npm', 'urn' => 'npm:@scope/package:v2.0.0'], $packages[1]);
-        self::assertSame(['name' => 'Newtonsoft.Json', 'ecosystem' => 'nuget', 'version' => '12.0.1', 'bundled_in' => 'composer:example/host:1.0.0', 'urn' => 'nuget:Newtonsoft.Json:12.0.1'], $packages[2]);
+        self::assertSame(['name' => '@scope/package', 'version' => 'v2.0.0', 'license' => ['MIT'], 'license_used' => 'Apache-2.0',
+            'ecosystem' => 'npm', 'urn' => 'npm:@scope/package:v2.0.0', 'license_text_source' => ['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_EMBEDDED, 'Apache-2.0' => BOMPackage::LICENSE_TEXT_SOURCE_LOCAL]], $packages[1]);
+        self::assertSame(['name' => 'Newtonsoft.Json', 'ecosystem' => 'nuget', 'version' => '12.0.1',
+            'bundled_in' => 'composer:example/host:1.0.0', 'urn' => 'nuget:Newtonsoft.Json:12.0.1',
+            'license_text_source' => ['Other' => BOMPackage::LICENSE_TEXT_SOURCE_MISSING]], $packages[2]);
         self::assertSame(['npm', 'bower', 'nuget', 'composer'], array_column(array_slice($packages, 3), 'ecosystem'));
     }
 

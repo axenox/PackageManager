@@ -8,16 +8,19 @@ use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
+use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 
 /**
- * Reports missing license declarations and texts in the full combined package inventory.
+ * Reports missing license declarations and texts in full or compact combined package inventories.
  * 
- * Supply full JsonBOM output through sbom, or scan a folder containing vendor/licenses.json.
+ * Supply JsonBOM output through sbom, or scan a folder containing vendor/licenses.json.
  * Missing licenses produce high advisories; missing text for the effective license produces
- * low advisories. Private packages are included. License URLs do not count as license text.
+ * low advisories. Compact exports carry license-keyed text-source evidence instead of terms.
+ * Private packages are included. Embedded terms and local file references count as available
+ * text; license URLs alone do not. Local references are not rechecked on the audit machine.
  * This scanner neither downloads terms nor generates inventories and needs no installation.
  * 
  * Select this prototype in a named AUDIT.SCANNERS or action scanners entry:
@@ -61,6 +64,21 @@ class LicenseScanner extends AbstractAuditScanner
             if (! is_array($package) || ! is_string($package['name'] ?? null) || trim($package['name']) === '') {
                 throw new RuntimeException('LicenseScanner inventory packages must contain a nonempty name.');
             }
+            if (array_key_exists('license_text_source', $package)) {
+                if (! is_array($package['license_text_source'])) {
+                    throw new RuntimeException('LicenseScanner requires license_text_source to be a license-keyed source map.');
+                }
+                foreach ($package['license_text_source'] as $source) {
+                    if (! in_array($source, [
+                        BOMPackageInterface::LICENSE_TEXT_SOURCE_EMBEDDED,
+                        BOMPackageInterface::LICENSE_TEXT_SOURCE_LOCAL,
+                        BOMPackageInterface::LICENSE_TEXT_SOURCE_LINK,
+                        BOMPackageInterface::LICENSE_TEXT_SOURCE_MISSING
+                    ], true)) {
+                        throw new RuntimeException('LicenseScanner license_text_source values must be embedded, local, link or missing.');
+                    }
+                }
+            }
             $bom->addPackage(new BOMPackage($package));
         }
         return $bom;
@@ -77,10 +95,10 @@ class LicenseScanner extends AbstractAuditScanner
     }
 
     /**
-     * Checks each effective license independently for a declaration and nonempty inline text.
+    * Checks each effective license independently for a declaration and available terms.
      * 
-     * Both advisories are returned when both fields are missing. Text is checked directly
-     * because BOMPackage::hasLicenseText() also accepts links, which do not contain the terms.
+        * Both advisories are returned when both fields are missing. Concrete evidence takes
+        * precedence over compact source metadata. Links alone do not contain the terms.
      * 
      * {@inheritDoc}
      * 
@@ -108,10 +126,14 @@ class LicenseScanner extends AbstractAuditScanner
                     ecosystem: $ecosystem
                 );
             }
-            if (trim($package->getLicenseText($license) ?? '') === '') {
+            $textSource = $package->getLicenseTextSource($license);
+            if (! in_array($textSource, [
+                BOMPackageInterface::LICENSE_TEXT_SOURCE_EMBEDDED,
+                BOMPackageInterface::LICENSE_TEXT_SOURCE_LOCAL
+            ], true)) {
                 $findings[] = new Finding(
                     'missing-license-text', 'Package has no license text', AdvisoryTypeDataType::LICENSE, $name, 'license', 'low',
-                    description: 'The inventory contains no license text for the effective license "' . $license . '". A URL alone does not provide the text.',
+                    description: 'The inventory records no embedded terms or local license file for the effective license "' . $license . '". A URL alone does not provide the text.',
                     remediation: 'Supply the license text or a local license file for the effective license and regenerate the full BOM.',
                     versionInstalled: $package->getVersion() ?? '',
                     ecosystem: $ecosystem
