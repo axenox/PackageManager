@@ -86,7 +86,7 @@
         {
             "_EXPORT_SUMMARY": "Vulnerability level",
             "CREATED_ON": "2026-10-07 12:01:15",
-            "MODIFIED_ON": "2026-10-09 15:47:12",
+            "MODIFIED_ON": "2026-11-02 13:24:42",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f19fca08d274a69fca025041000001",
@@ -101,6 +101,7 @@
                 "fill": true,
                 "color_only": false,
                 "color_scale": {
+                    "50": "",
                     "100": "khaki",
                     "200": "sandybrown",
                     "300": "salmon",
