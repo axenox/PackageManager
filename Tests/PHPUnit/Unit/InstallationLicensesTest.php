@@ -12,12 +12,43 @@ use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use exface\Core\CommonLogic\Tasks\GenericTask;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\Exceptions\UxonMapError;
 
 /**
  * Protects installation-specific license choices and private inventory exclusions.
  */
 class InstallationLicensesTest extends AuditTestCase
 {
+    /**
+     * Includes configuration must not use result constructors to accept package evidence.
+     *
+     * @return void
+     */
+    public function testIncludesRejectsPackageEvidence() : void
+    {
+        $folder = $this->temporaryFolder();
+        $this->writeFixture($folder, 'includes.json', json_encode(['packages' => [[
+            'name' => 'example/library', 'licenses' => [['name' => 'MIT', 'source' => 'spdx', 'text_available' => true]]
+        ]]], JSON_THROW_ON_ERROR));
+        $this->expectException(UxonMapError::class);
+        new IncludesBOM($folder . '/includes.json', $folder);
+    }
+
+    /**
+     * Shared installation terms must pass strict UXON import even in definitions-only files.
+     *
+     * @return void
+     */
+    public function testInstallationConfigurationRejectsSharedEvidence() : void
+    {
+        $folder = $this->temporaryFolder();
+        $this->writeFixture($folder, 'Licenses.config.json', json_encode([
+            'licenses' => [['name' => 'MIT', 'text_available' => true]]
+        ], JSON_THROW_ON_ERROR));
+        $this->expectException(UxonMapError::class);
+        new IncludesBOM($folder . '/Licenses.config.json', $folder);
+    }
+
     /**
      * Shared definitions must work across files and override previously resolved license text.
      * 
@@ -48,18 +79,18 @@ class InstallationLicensesTest extends AuditTestCase
         $package = $bom->getPackages()['private:example/library:1.2.3'];
         self::assertSame('1.2.3', $package->getVersion());
         self::assertSame('Client-License', $package->getLicenseUsed());
-        self::assertSame(['GPL-2.0-only', 'Client-License'], $package->getLicenseNames());
-        self::assertSame('Installation terms', $package->getLicenseText('Client-License'));
-        self::assertSame('https://example.org/license', $package->getLicenseLink('Client-License'));
-        self::assertSame('private', $package->toComposerArray()['ecosystem']);
+        self::assertSame(['GPL-2.0-only', 'Client-License'], array_keys($package->getLicenses()));
+        self::assertSame('Installation terms', $package->getLicenses()['Client-License']->getText());
+        self::assertSame('https://example.org/license', $package->getLicenses()['Client-License']->getLink());
+        self::assertSame('private', $package->toBOM()['ecosystem']);
         self::assertTrue($package->hasLicenseText());
         $full = json_decode((new JsonBOM($bom))->buildJson(), true);
-        self::assertSame($bom->getLicenses(), $full['licenses']);
-        self::assertSame('Installation terms', $full['packages'][0]['license_text']['Client-License']);
+        self::assertSame($bom->getLicenses()['Client-License']->toBOM(), $full['licenses'][0]);
+        self::assertSame('Installation terms', array_column($full['packages'][0]['licenses'], 'text', 'name')['Client-License']);
         $minimal = json_decode((new JsonBOM($bom))->setFormat('minimal')->buildJson(), true);
         self::assertArrayNotHasKey('licenses', $minimal);
         self::assertSame('private', $minimal['packages'][0]['ecosystem']);
-        self::assertSame($package->toComposerArray()['source'], $minimal['packages'][0]['source']);
+        self::assertSame($package->toBOM()['source'], $minimal['packages'][0]['source']);
     }
 
     /**
@@ -78,8 +109,8 @@ class InstallationLicensesTest extends AuditTestCase
             'licenses' => ['Client-License' => ['license_text' => 'Shared terms']]
         ]));
         $bom->merge(new IncludesBOM($folder . '/Licenses.config.json', $folder));
-        self::assertSame('Shared terms', $bom->getPackages()['composer:example/library:']->getLicenseText('Client-License'));
-        self::assertSame('Shared terms', (new JsonBOM($bom))->getLicenses()['Client-License']['license_text']);
+        self::assertSame('Shared terms', $bom->getPackages()['composer:example/library:']->getLicenses()['Client-License']->getText());
+        self::assertSame('Shared terms', (new JsonBOM($bom))->getLicenses()['Client-License']->getText());
         self::assertTrue($bom->getPackages()['composer:example/library:']->hasLicenseText());
         self::assertNull($bom->getPackages()['composer:example/library:']->getSource());
     }

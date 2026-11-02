@@ -191,7 +191,7 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         }
         $identities = [];
         foreach ($bom->getPackages() as $package) {
-            $data = $package->toComposerArray();
+            $data = $package->toBOM();
             $identities[PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null)] = true;
         }
         $unmatched = [];
@@ -201,7 +201,7 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
                 if (! $package->isSupplementalInfo()) {
                     continue;
                 }
-                $data = $package->toComposerArray();
+                $data = $package->toBOM();
                 $identity = PackageEcosystemDataType::buildPackageKey($package->getName(), $data['ecosystem'] ?? null);
                 if (isset($identities[$identity])) {
                     $supplements->addPackage($package);

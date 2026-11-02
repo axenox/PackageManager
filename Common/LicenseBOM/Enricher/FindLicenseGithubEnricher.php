@@ -5,7 +5,7 @@ use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 
 /**
- * Attempts to download the license text from the `license_link` of the package
+ * Downloads missing terms independently from each license's raw GitHub link.
  * 
  * @author Thomas Ressel
  *
@@ -14,30 +14,34 @@ class FindLicenseGithubEnricher implements BOMPackageEnricherInterface
 {
     private $vendorPath = null;
     
+    /**
+     * Preserves the shared enricher construction contract used by BOM generation.
+     *
+     * @param string $vendorPath
+     */
     public function __construct($vendorPath)
     {
         $this->vendorPath = $vendorPath;
     }
     
     /**
-     * 
-     * @param BOMPackage $package
-     * @return BOMPackage
+     * Updates each downloaded license object without changing the package's selected license.
+     *
+     * {@inheritDoc}
+     *
+     * @see BOMPackageEnricherInterface::enrich()
      */
     public function enrich(BOMPackage $package) : BOMPackage
     {
-        // if license_link is set
-            foreach($package->getLicenseNames() as $licenseName){
-                $link = $package->getLicenseLink($licenseName);
-                // if license_link contains 'raw.githubusercontent.com' and license_text for licenseName is empty
-                if($link !== null && str_contains($link, "raw.githubusercontent.com") && null === $package->getLicenseText($licenseName))
-                {
-                    $content = file_get_contents($link);
-                    if($content !== false){
-                        $package->setLicenseText($licenseName, $content);
-                    }
+        foreach ($package->getLicenses() as $license) {
+            $link = $license->getLink();
+            if ($link !== null && str_contains($link, 'raw.githubusercontent.com') && $license->getText() === null) {
+                $content = file_get_contents($link);
+                if ($content !== false) {
+                    $license->setText($content, 'github');
                 }
             }
+        }
         return $package;
     }
 }

@@ -37,8 +37,8 @@ The [dependency audit's LicenseScanner](../Audit.md#licenses), when selected thr
 and missing text for the effective license (low severity), including private packages.
 A license URL alone does not satisfy the scanner's text check. Regenerate the inventory
 before auditing. Current minimal exports preserve these checks using declarations and
-text-source metadata without including license texts. Local file references count as
-available terms; link-only evidence still produces a missing-text finding.
+resolution metadata without including license texts. File references and URLs alone do not
+prove that terms were read; successful enrichment records availability.
 
 To change the installation-wide defaults, configure PackageManager's `SBOM.files` option.
 To override those defaults for one action, configure its `save_to_files` property using the
@@ -74,7 +74,9 @@ Regenerate the list whenever dependencies, bundled libraries, or license informa
 
 Manifest recovery reads the package's directory below `vendor`, also resolving native npm
 names to Composer asset paths when necessary. It does not download packages or query npm.
-SPDX expressions remain intact rather than being split into separate alternatives. Missing
+Pure SPDX `AND` expressions expand into component licenses while retaining the complete
+expression as the effective selection. Every component needs terms. Expressions containing
+`OR` or `WITH` remain intact rather than being flattened into incorrect alternatives. Missing
 manifests, absent declarations and `SEE LICENSE IN ...` references do not establish a license
 name; malformed JSON fails generation. Shared named definitions apply to recovered license
 names before license-text enrichment, so installation-specific metadata retains precedence.
@@ -95,8 +97,8 @@ separate even when their texts match. JSON and CycloneDX retain their original p
 ### Installation-Specific Licenses
 
 Create `config/Licenses.config.json` in the installation, outside the app packages. It uses
-the internal BOM structure: a `packages` array and an optional `licenses` object keyed by
-license name. List each private package with the same name used in `composer.lock`.
+the internal BOM structure: a `packages` array and an optional `licenses` array of named
+license objects. List each private package with the same name used in `composer.lock`.
 For example:
 
 ```json
@@ -112,35 +114,38 @@ For example:
       "license_used": "Apache-2.0"
     }
   ],
-  "licenses": {
-    "Client-License": {
-      "license_link": "https://example.org/client-license",
-      "license_text": "The complete license terms agreed for this installation."
+  "licenses": [
+    {
+      "name": "Client-License",
+      "link": "https://example.org/client-license",
+      "text": "The complete license terms agreed for this installation."
     }
-  }
+  ]
 }
 ```
 
 Version, source and other omitted package fields remain available from Composer or includes.
 An installation's explicit license selection takes precedence over app declarations. Declared
-license alternatives remain unchanged unless the configuration supplies a nonempty `license` list.
-You only need `license_used` when selecting a license. If no nonempty `license` list is available
-after merging, its effective value is generated as `[license_used]`, including in full JSON exports.
+license objects are supplemented by name rather than array position; omitted licenses and
+fields remain available. You only need `license_used` when selecting a license. If no declared
+licenses exist after merging, exporters generate a named license object for that selection.
 This fallback does not replace alternatives already declared by Composer or an app.
 Setting `ecosystem: private` on a Composer package updates that package rather than adding a duplicate.
 
 Both `config/Licenses.config.json` and app `includes.json` files accept this object structure.
 Existing flat includes arrays remain supported. A file may contain only `licenses`, allowing
 several apps to reference a shared license without repeating its terms. Packages reference a
-definition using its exact name in `license` or `license_used`. The definition's `license_link`
-and `license_text` are strings, unlike the per-package maps keyed by license name. These fields
-can be supplied independently. Later definitions override matching fields of earlier definitions;
+definition using its exact name in a package's `licenses` array or `license_used`. Each definition
+has `name` and optional `link`, `text` and `file` properties, just like per-package configuration.
+`source` and `text_available` belong only to BOM results and are rejected in UXON configuration.
+Configurable fields can be supplied independently. Later definitions
+override matching fields of earlier definitions;
 shared definitions override the corresponding per-package metadata for that named license.
 Definitions are applied before missing license text is searched for locally or downloaded.
 
-Full JSON exports retain the top-level `licenses` object and resolve its metadata onto packages
+Full JSON exports retain the top-level `licenses` array and resolve its metadata onto packages
 for existing consumers. Minimal exports omit definitions and terms, but retain resolved
-license declarations, selections and text-source metadata. Markdown and
+license declarations, selections and resolution metadata. Markdown and
 CycloneDX exports use the same resolved license terms. Do not publish generated license documents
 without checking whether installation-specific terms may be disclosed.
 
@@ -160,31 +165,34 @@ retain their own coverage and exclusion rules.
 
 ### JSON Export Format
 
-`JsonBOM` accepts `format: full` (the default) or `format: minimal`. Full exports preserve all
-combined package metadata and include `license_used` with the effective license: the explicit
-selection when configured, otherwise the first declared license, or `Other` when none is declared.
-The `license` array still contains all declared alternatives.
-Minimal exports keep the same `packages` array and retain each
-package's `name`, `ecosystem`, `urn`, its `version` when present, and `bundled_in` when available. Git sources with a nonempty
-reference also retain `source.type` and `source.reference` for commit-based auditing.
-They also retain the `license` array of declared alternatives and `license_used` with the
-effective selection when a license is declared or explicitly selected. Undeclared packages
-do not acquire a synthetic `Other` declaration or selection during compact export.
-The `license_text_source` object maps every declared license and the effective license
-to a value defined by constants on `BOMPackageInterface`, not an enum data type:
+`JsonBOM` accepts `format: full` (the default) or `format: minimal`. Both export a `packages`
+array. Full exports retain supported package metadata and include `license_used`: the explicit
+selection, otherwise the first declared license, or `Other` when none is declared. Each package's
+`licenses` array contains named license objects rather than parallel name-keyed maps.
 
-| Constant | JSON Value | Evidence |
-| --- | --- | --- |
-| `LICENSE_TEXT_SOURCE_EMBEDDED` | `embedded` | Nonempty inline text after trimming whitespace. |
-| `LICENSE_TEXT_SOURCE_LOCAL` | `local` | A nonempty local license file reference. |
-| `LICENSE_TEXT_SOURCE_LINK` | `link` | A nonempty license URL, without embedded or local terms. |
-| `LICENSE_TEXT_SOURCE_MISSING` | `missing` | No available terms or reference. |
+| License Property | Meaning |
+| --- | --- |
+| `name` | Required SPDX identifier, expression or custom license name. |
+| `link` | URL referencing the terms; a URL alone does not establish available text. |
+| `file` | Local terms reference relative to the installation's `vendor` directory. |
+| `text` | Complete license text, including applicable attribution. |
+| `source` | Result-only provenance recorded with text, such as `config`, `local`, `github` or `spdx`. Not configurable. |
+| `text_available` | Result-only availability, retained even when a compact export omits the terms. Not configurable. |
 
-Shared named definitions are resolved before these values are computed. Embedded text
-takes precedence over local files, which take precedence over links. If no concrete
-evidence is available, archived source metadata is retained unless blank inline text
-explicitly overrides it. Local references describe the source inventory; neither export
-nor archived audit verifies that the file still exists on the current machine.
+`source` is provenance, not resolution success: a name or attempted lookup does not prove that
+terms were obtained. Successful enrichers explicitly record their source when setting text.
+Inline text records `config`; successfully reading a local file records `local`. Configuring
+a path alone does not establish resolution or provenance. Designers cannot set either result field.
+Legacy provenance values `embedded`, `link` and `missing` remain readable for archived inputs.
+Concrete inline text controls availability, including a blank text that invalidates older
+compact evidence. A link-only supplement does not erase previously resolved text or provenance.
+
+Minimal exports retain `name`, `ecosystem`, `urn`, optional `version` and `bundled_in`, the
+effective `license_used`, and `licenses` entries reduced to `name`, optional `source` and
+`text_available`. Git sources with a nonempty reference also retain package-level `source.type`
+and `source.reference` for commit auditing. This repository source object is distinct from a
+license's provenance string. Undeclared packages do not acquire a synthetic `Other` declaration
+or selection during compact export.
 
 For example, a package selecting BSD terms while only MIT text is available carries:
 
@@ -192,9 +200,11 @@ For example, a package selecting BSD terms while only MIT text is available carr
 {
   "name": "example/library",
   "ecosystem": "composer",
-  "license": ["MIT", "BSD-3-Clause"],
   "license_used": "BSD-3-Clause",
-  "license_text_source": {"MIT": "embedded", "BSD-3-Clause": "missing"}
+  "licenses": [
+    {"name": "MIT", "source": "spdx", "text_available": true},
+    {"name": "BSD-3-Clause", "text_available": false}
+  ]
 }
 ```
 
@@ -206,6 +216,66 @@ Exporting does not change the combined inventory or other exporters' output.
 Existing archived minimal inventories lack the new evidence and cannot be repaired by
 re-auditing alone. Generate a fresh full inventory and build snapshot; do not substitute
 today's installation metadata for a historical build's licenses.
+
+Readers accept Composer's `license` declaration and legacy `license_text`, `license_link`,
+`license_file` and `license_text_source` fields, including old shared name-keyed definitions.
+Canonical license fields override corresponding legacy fields; definitions merge by name.
+Exports emit only the new structure. No database or file migration is required. Old compact
+`embedded`/`local` evidence remains usable; a discarded or unresolved text cannot be recovered
+merely by recognizing its SPDX name. Archived audits use recorded resolution evidence rather
+than checking file references on a different machine. An unqualified file reference is unresolved.
+
+#### PHP UXON Prototypes
+
+`LicenseBOM`, `BOMPackage` and `BOMPackageLicense` implement UXON conversion using Core's
+`iCanBeConvertedToUxonTrait`. Their annotated setters define supported configuration;
+class docs provide runnable configuration shapes. A package accepts legacy/Composer arrays
+at construction, discarding unrelated Composer fields such as requirements, autoload and
+transport metadata. Supported package fields are the properties listed below, with repository
+`source.type`, `source.url` and `source.reference`. Supplied URNs are recalculated.
+
+Use `toBOM(): array` for current inventory, package and license results instead of `toArray()`
+or the removed `toComposerArray()` API. All three prototypes accept `?array $bom = null` in their
+constructors to restore BOM results, including compact evidence. For designer configuration,
+create an empty instance and call `importUxonObject()` separately; that method returns `void`.
+Never pass includes or installation configuration to the result constructor. File readers use
+`BOMPackage::normalizeArray()` to adapt legacy package fields before strict UXON import.
+Values live in private class properties. The trait's
+`exportUxonObject()` returns imported configuration, not a snapshot of runtime state;
+selection, enrichment, additions and merging do not rewrite that configuration.
+`exportUxonObject()->toArray()` therefore describes configuration, while `toBOM()` describes results.
+
+```php
+use axenox\PackageManager\Common\LicenseBOM\BOMPackageLicense;
+use exface\Core\CommonLogic\UxonObject;
+
+$recordedLicense = new BOMPackageLicense($savedLicense);
+$configuredLicense = new BOMPackageLicense();
+$configuredLicense->importUxonObject(new UxonObject([
+  'name' => 'MIT',
+  'file' => 'example/library/LICENSE'
+]));
+```
+
+`getLicenseUsed()` retains effective selection; package merging and selection-aware completeness
+checks remain available. `getLicenses()` returns live typed license objects keyed by name, including
+components named only by an explicit selection. Selection-only objects remain stable while selected;
+changing the selection does not retain previous unresolved placeholders as additional declarations.
+Objects containing actual terms remain available as recorded evidence when the selection changes.
+Read `getName()`, `getText()`, `getLink()`, `getFile()`, `getSource()` and `hasText()` on each license.
+Package-level `getLicenseName()`, `getLicenseNames()`, `getLicenseText()`, `getLicenseLink()`,
+`getLicenseFile()` and `getLicenseTextSource()` are not available.
+
+Per-license enrichers iterate `foreach ($package->getLicenses() as $license)` and call
+`$license->setText($text, $source)` on that same object when terms are obtained. `addLicense()`
+supplies new typed declarations without configuration import. Source identifiers are producer-defined
+strings passed with resolved text; there are no configurable setters for source or availability.
+Custom enrichers are not restricted to built-in source names. JSON and CycloneDX serializers
+read current state, including later changes to nested license objects.
+Generic package-directory discovery only assigns an unqualified license file to a single selected
+license, never to every alternative or every component of a conjunction. Per-license file references
+and SPDX lookup can resolve those components independently. Markdown and CycloneDX explicitly
+assemble selected component terms; missing component text is not replaced by another alternative.
 
 Use this configuration in `save_to_files`, or use its file map as the `SBOM.files` option:
 
@@ -309,13 +379,12 @@ For example, a library copied into an app's resources directory can be registere
     "version": "1.0.0",
     "description": "Bundled library",
     "source": {"url": "https://github.com/example/bundled-library"},
-    "license": ["MIT"],
-    "license_file": "example/host-app/resources/bundled-library/LICENSE"
+    "licenses": [{"name": "MIT", "file": "example/host-app/resources/bundled-library/LICENSE"}]
   }
 ]
 ```
 
-The `license_file` path is relative to the installation's `vendor` directory, not to the app directory. Include the library's own license file and copyright notices when available.
+The license's `file` path is relative to the installation's `vendor` directory, not to the app directory. Include the library's own license file and copyright notices when available.
 
 Packages from other registries use native names, for example:
 
@@ -341,12 +410,10 @@ for OSV queries. An ecosystem being queryable does not guarantee complete adviso
 | `urn` | Generated identity `ecosystem:package:version`, using the native name. |
 | `bundled_in` | Owning package's URN, assigned automatically for versioned app includes entries. Versionless entries preserve existing ownership unless this field is supplied explicitly. |
 | `description` | Explains what the component is. |
-| `source.url` | Points to the component's source repository. |
-| `license` | Lists the declared licenses, preferably using standard SPDX identifiers such as `MIT` or `Apache-2.0`. |
+| `homepage` | Component's public homepage. |
+| `source.type`, `source.url`, `source.reference` | Repository type, URL and locked revision. Other source fields are discarded. |
+| `licenses` | Named license objects, preferably using standard SPDX identifiers such as `MIT` or `Apache-2.0`. |
 | `license_used` | Explicitly selects the license used for this installation when necessary. |
-| `license_file` | Points to a local license file relative to `vendor`. |
-| `license_link` | Provides license reference URLs, grouped by license name. |
-| `license_text` | Provides complete license texts, grouped by license name. |
 
 ## Supplement Existing Packages
 
@@ -375,7 +442,7 @@ An app can supply the intended license selection and a license file without repe
   {
     "name": "example/library",
     "license_used": "Apache-2.0",
-    "license_file": "example/library/LICENSE-APACHE"
+    "licenses": [{"name": "Apache-2.0", "file": "example/library/LICENSE-APACHE"}]
   }
 ]
 ```
@@ -421,9 +488,9 @@ An explicitly supplied `bundled_in` is metadata and follows the normal replaceme
 The following rules apply when combining information about the same package:
 
 - Supplied fields replace earlier values; omitted fields are preserved.
-- An empty `license` list does not erase previously declared licenses. A non-empty list replaces the previous list.
+- License objects merge by name. Omitted names and fields remain available; an empty list does not erase earlier declarations.
 - The last non-empty explicit `license_used` takes precedence. An omitted or empty selection preserves an earlier explicit selection.
-- If you supply grouped information such as `license_text` or `license_link`, supply the complete map you want to retain; it replaces the earlier map.
+- Later supplied fields override corresponding fields for the same license. A link-only supplement preserves resolved terms.
 
 Avoid conflicting declarations for the same package URN across apps. Different known versions
 or public ecosystems remain separate entries, even when package names match. Matching URNs
@@ -435,16 +502,24 @@ The private classification can still replace the Composer classification for the
 The readable document groups each package under one effective license:
 
 - An explicit `license_used` takes precedence.
-- Without an explicit selection, the first entry in `license` is used for display and license-text lookup. This does not add a selection to the JSON package information.
+- Without an explicit selection, the first entry in `licenses` is used for display and license-text lookup. Exporters emit this effective selection without changing the source package.
 - If neither a selection nor a declared license is available, the package is grouped under `Other`.
 
-Choosing the first license is only a display default. It does not determine whether multiple licenses are alternatives or must be satisfied together. Review the package's actual terms before choosing a license, and ensure the selected license agrees with the license text supplied.
+Choosing the first license is only a display default. Pure `AND` declarations expand into component
+objects and preserve their complete expression as the selection; all components require terms.
+`OR` and `WITH` expressions remain intact. Review the actual terms before choosing a license.
 
 ## License Texts
 
-Generation looks for license texts supplied with packages, supported raw GitHub license links, and standard SPDX license texts. An explicitly configured local `license_file` takes precedence over automatically found text.
+Generation looks for supplied texts, explicit per-license `file` references, supported raw GitHub
+`link` URLs and standard SPDX license texts. Explicit file enrichment fills missing text; it does
+not replace nonempty supplied terms.
 
-For bundled software, an explicit path to its own license file is the most direct way to supply the text. For a package with several license files, use a single path to the file matching the selected license; do not rely on the order of a license-file map.
+For bundled software, an explicit path to its own license file is the most direct way to supply text.
+For several licenses, assign the correct file to each named object. Automatic whole-file discovery
+does not assign one generic file to every component of an AND expression. SPDX lookup attempts each
+component separately, even when a URL already exists, and records `spdx` only on a successful
+nonempty response. A recognized identifier alone does not satisfy the scanner.
 
 A source repository URL alone does not supply a license text. Downloading remote texts requires network access. Standard license templates may not include the package's own copyright notices, so prefer the distributed license file when available.
 

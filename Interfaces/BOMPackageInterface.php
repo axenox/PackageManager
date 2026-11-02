@@ -1,26 +1,21 @@
 <?php
 namespace axenox\PackageManager\Interfaces;
 
+use exface\Core\Interfaces\iCanBeConvertedToUxon;
+use axenox\PackageManager\Common\LicenseBOM\BOMPackageLicense;
+
 /**
  * Describes one included software package and the license information used in a license BOM.
  * 
  * Provides a shared contract for metadata overrides, effective license selection, license references,
  * and exportable package information across sources, enrichers, and exporters.
  */
-interface BOMPackageInterface
+interface BOMPackageInterface extends iCanBeConvertedToUxon
 {
     public const LICENSE_TEXT_SOURCE_EMBEDDED = 'embedded';
     public const LICENSE_TEXT_SOURCE_LOCAL = 'local';
     public const LICENSE_TEXT_SOURCE_LINK = 'link';
     public const LICENSE_TEXT_SOURCE_MISSING = 'missing';
-
-    /**
-     * Identifies available terms without requiring their contents in compact inventories.
-     * 
-     * @param string $licenseUsed
-     * @return string One of the LICENSE_TEXT_SOURCE_* constants.
-     */
-    public function getLicenseTextSource(string $licenseUsed) : string;
 
     /**
      * Returns the current version-specific identity using the native registry name.
@@ -57,32 +52,58 @@ interface BOMPackageInterface
     
     public function getSource(): ?string;
     
-    public function getLicenseNames(): array;
-    
-    public function getLicenseLink(string $licenseUsed) : ?string;
-    
-    public function getLicenseFile(string $licenseUsed = null) : ?string;
-    
-    public function getLicenseText(string $licenseUsed) : ?string;
-    
     public function getLicenseUsed() : ?string;
     
     public function setLicenseUsed(?string $name) : BOMPackageInterface;
     
-    public function setLicenseText(string $licenseName, string $text) : BOMPackageInterface;
+    public function setLicenseText(string $licenseName, string $text, string $source = 'config') : BOMPackageInterface;
 
     public function hasLicense() : bool;
     
     public function hasLicenseText() : bool;
     
-    public function toComposerArray() : array;
+    /**
+     * Returns the normalized registry owning this package.
+     *
+     * @return string
+     */
+    public function getEcosystem() : string;
+
+    /**
+    * Returns live license objects keyed by identifier, including selection-only components.
+     *
+     * @return \axenox\PackageManager\Common\LicenseBOM\BOMPackageLicense[]
+     */
+    public function getLicenses() : array;
+
+    /**
+     * Supplements runtime license evidence independently of imported UXON configuration.
+     *
+     * @param BOMPackageLicense $license
+     * @return BOMPackageInterface
+     */
+    public function addLicense(BOMPackageLicense $license) : BOMPackageInterface;
+
+    /**
+     * Returns current package metadata for inventories rather than the original configuration.
+     *
+     * @return array<string,mixed>
+     */
+    public function toBOM() : array;
+
+    /**
+     * Returns all licenses required by the effective selection.
+     *
+     * @return string[]
+     */
+    public function getSelectedLicenseNames() : array;
     
     /**
      * Updates values of this package by corresponding data of another package.
-     * 
-    * Names and ecosystems must identify the same package. Two known versions must match;
-    * an omitted version supplies metadata without replacing the installed version.
-     * 
+     *
+     * Names and ecosystems must identify the same package. Two known versions must match;
+     * an omitted version supplies metadata without replacing the installed version.
+     *
      * @param BOMPackageInterface $otherPackage
      * @return BOMPackageInterface
      */

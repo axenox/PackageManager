@@ -7,7 +7,6 @@ use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
-use axenox\PackageManager\Interfaces\AuditScannerInterface;
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Exceptions\RuntimeException;
@@ -15,14 +14,14 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 
 /**
  * Reports missing license declarations and texts in full or compact combined package inventories.
- * 
+ *
  * Supply JsonBOM output through sbom, or scan a folder containing vendor/licenses.json.
  * Missing licenses produce high advisories; missing text for the effective license produces
- * low advisories. Compact exports carry license-keyed text-source evidence instead of terms.
+ * low advisories. Compact exports carry per-license provenance and text_available evidence.
  * Private packages are included. Embedded terms and local file references count as available
  * text; license URLs alone do not. Local references are not rechecked on the audit machine.
  * This scanner neither downloads terms nor generates inventories and needs no installation.
- * 
+ *
  * Select this prototype in a named AUDIT.SCANNERS or action scanners entry:
  * `{"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\LicenseScanner"}`.
  * This scanner has no additional UXON options.
@@ -58,8 +57,7 @@ class LicenseScanner extends AbstractAuditScanner
         if (isset($data['licenses']) && ! is_array($data['licenses'])) {
             throw new RuntimeException('LicenseScanner requires named licenses to be an object.');
         }
-        $bom = new LicenseBOM();
-        $bom->setLicenses($data['licenses'] ?? []);
+        $bom = new LicenseBOM(['licenses' => $data['licenses'] ?? []]);
         foreach ($data['packages'] as $package) {
             if (! is_array($package) || ! is_string($package['name'] ?? null) || trim($package['name']) === '') {
                 throw new RuntimeException('LicenseScanner inventory packages must contain a nonempty name.');
@@ -113,7 +111,7 @@ class LicenseScanner extends AbstractAuditScanner
         }
         $findings = [];
         foreach ($bom->getPackages() as $package) {
-            $data = $package->toComposerArray();
+            $data = $package->toBOM();
             $ecosystem = PackageEcosystemDataType::findEcosystem($package->getName(), $data['ecosystem'] ?? null);
             $name = PackageEcosystemDataType::convertNameToAssetPackagist($package->getName(), $ecosystem);
             $license = $package->getLicenseUsed();
@@ -126,14 +124,10 @@ class LicenseScanner extends AbstractAuditScanner
                     ecosystem: $ecosystem
                 );
             }
-            $textSource = $package->getLicenseTextSource($license);
-            if (! in_array($textSource, [
-                BOMPackageInterface::LICENSE_TEXT_SOURCE_EMBEDDED,
-                BOMPackageInterface::LICENSE_TEXT_SOURCE_LOCAL
-            ], true)) {
+            if (! $package->hasLicenseText()) {
                 $findings[] = new Finding(
                     'missing-license-text', 'Package has no license text', AdvisoryTypeDataType::LICENSE, $name, 'license', 'low',
-                    description: 'The inventory records no embedded terms or local license file for the effective license "' . $license . '". A URL alone does not provide the text.',
+                    description: 'The inventory records no resolved terms or local license file for every component of the effective license "' . $license . '". A URL or an attempted SPDX lookup alone does not provide the text.',
                     remediation: 'Supply the license text or a local license file for the effective license and regenerate the full BOM.',
                     versionInstalled: $package->getVersion() ?? '',
                     ecosystem: $ecosystem

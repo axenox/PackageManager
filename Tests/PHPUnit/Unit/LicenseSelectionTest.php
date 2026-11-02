@@ -26,14 +26,14 @@ class LicenseSelectionTest extends AuditTestCase
         ]));
         $bom = new IncludesBOM($folder . '/Licenses.config.json', $folder);
         $package = $bom->getPackages()['private:example/client-app:'];
-        self::assertSame(['Client-License'], $package->getLicenseNames());
+        self::assertSame(['Client-License'], array_keys($package->getLicenses()));
         self::assertTrue($package->hasLicense());
         self::assertTrue($package->hasLicenseText());
-        self::assertSame('Installation terms', $package->getLicenseText('Client-License'));
+        self::assertSame('Installation terms', $package->getLicenses()['Client-License']->getText());
         $export = json_decode((new JsonBOM($bom))->buildJson(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame(['Client-License'], $export['packages'][0]['license']);
+        self::assertSame(['Client-License'], array_column($export['packages'][0]['licenses'], 'name'));
         self::assertSame('Client-License', $export['packages'][0]['license_used']);
-        self::assertArrayNotHasKey('license', $package->toComposerArray());
+        self::assertArrayNotHasKey('license', $package->toBOM());
     }
 
     /**
@@ -51,11 +51,11 @@ class LicenseSelectionTest extends AuditTestCase
         $overrides->addPackage(new BOMPackage(['name' => 'example/library', 'license_used' => 'Apache-2.0']));
         $composer->merge($overrides);
         $package = $composer->getPackages()['composer:example/library:1.2.3'];
-        self::assertSame(['GPL-2.0-only', 'Apache-2.0'], $package->getLicenseNames());
+        self::assertSame(['GPL-2.0-only', 'Apache-2.0'], array_keys($package->getLicenses()));
         self::assertSame('Apache-2.0', $package->getLicenseUsed());
         self::assertSame('1.2.3', $package->getVersion());
         $export = json_decode((new JsonBOM($composer))->buildJson(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame(['GPL-2.0-only', 'Apache-2.0'], $export['packages'][0]['license']);
+        self::assertSame(['GPL-2.0-only', 'Apache-2.0'], array_column($export['packages'][0]['licenses'], 'name'));
     }
 
     /**
@@ -68,20 +68,20 @@ class LicenseSelectionTest extends AuditTestCase
         $package = new BOMPackage(['name' => 'example/library', 'license' => []]);
         foreach ([null, ''] as $selection) {
             $package->setLicenseUsed($selection);
-            self::assertSame([], $package->getLicenseNames());
+            self::assertSame([], array_keys($package->getLicenses()));
             self::assertFalse($package->hasLicense());
         }
         $package->setLicenseUsed('Client-License');
-        self::assertSame(['Client-License'], $package->getLicenseNames());
+        self::assertSame(['Client-License'], array_keys($package->getLicenses()));
         $package->setLicenseUsed('Another-License');
-        self::assertSame(['Another-License'], $package->getLicenseNames());
+        self::assertSame(['Another-License'], array_keys($package->getLicenses()));
         $bom = new LicenseBOM();
         $bom->addPackage($package);
         $minimal = json_decode((new JsonBOM($bom))->setFormat('minimal')->buildJson(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame(['Another-License'], $minimal['packages'][0]['license']);
+        self::assertSame(['Another-License'], array_column($minimal['packages'][0]['licenses'], 'name'));
         self::assertSame('Another-License', $minimal['packages'][0]['license_used']);
-        self::assertSame(['Another-License' => BOMPackage::LICENSE_TEXT_SOURCE_MISSING], $minimal['packages'][0]['license_text_source']);
+        self::assertSame([['name' => 'Another-License', 'text_available' => false]], $minimal['packages'][0]['licenses']);
         $package->setLicenseUsed(null);
-        self::assertSame([], $package->getLicenseNames());
+        self::assertSame([], array_keys($package->getLicenses()));
     }
 }

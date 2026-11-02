@@ -49,10 +49,10 @@ class BOMUrnTest extends AuditTestCase
         $package = new BOMPackage(['name' => 'npm-asset/jquery', 'urn' => 'stale']);
         self::assertInstanceOf(\axenox\PackageManager\Interfaces\BOMPackageInterface::class, $package);
         self::assertSame('npm:jquery:', $package->getUrn());
-        self::assertSame($package->getUrn(), $package->toComposerArray()['urn']);
+        self::assertSame($package->getUrn(), $package->toBOM()['urn']);
         $package->merge(new BOMPackage(['name' => 'jquery', 'ecosystem' => 'npm', 'version' => '3.0.0']));
         self::assertSame('npm:jquery:3.0.0', $package->getUrn());
-        self::assertSame($package->getUrn(), $package->toComposerArray()['urn']);
+        self::assertSame($package->getUrn(), $package->toBOM()['urn']);
     }
 
     /**
@@ -120,7 +120,7 @@ class BOMUrnTest extends AuditTestCase
                 array_merge(['name' => 'npm-asset/scope--package', 'license_used' => 'MIT'], $versionData)
             ]));
             $supplement = new IncludesBOM($folder . '/includes.json', $folder, 'composer:example/host:1.0.0');
-            self::assertArrayNotHasKey('bundled_in', $supplement->getPackages()['npm:@scope/package:']->toComposerArray());
+            self::assertArrayNotHasKey('bundled_in', $supplement->getPackages()['npm:@scope/package:']->toBOM());
 
             $bom = new LicenseBOM();
             $bom->addPackage(new BOMPackage([
@@ -169,10 +169,10 @@ class BOMUrnTest extends AuditTestCase
         }
         $this->writeFixture($folder, 'composer.json', '{"name":"example/host","version":"2.0.0"}');
         $automatic = new IncludesBOM($folder . '/includes.json', $folder);
-        self::assertSame('composer:example/host:2.0.0', $automatic->getPackages()['npm:jquery:3.0.0']->toComposerArray()['bundled_in']);
+        self::assertSame('composer:example/host:2.0.0', $automatic->getPackages()['npm:jquery:3.0.0']->toBOM()['bundled_in']);
         $this->writeFixture($folder, 'Licenses.config.json', '{"packages":[{"name":"example/private"}]}');
         $configuration = new IncludesBOM($folder . '/Licenses.config.json', $folder);
-        self::assertArrayNotHasKey('bundled_in', $configuration->getPackages()['composer:example/private:']->toComposerArray());
+        self::assertArrayNotHasKey('bundled_in', $configuration->getPackages()['composer:example/private:']->toBOM());
     }
 
     /**

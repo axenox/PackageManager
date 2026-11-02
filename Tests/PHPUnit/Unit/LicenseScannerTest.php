@@ -80,12 +80,15 @@ class LicenseScannerTest extends AuditTestCase
         }
         self::assertStringNotContainsString('MIT terms', $minimalJson);
         self::assertStringNotContainsString('Shared installation terms', $minimalJson);
-        self::assertSame(['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_EMBEDDED], $minimal['packages'][0]['license_text_source']);
-        self::assertSame(['Client-License'], $minimal['packages'][1]['license']);
-        self::assertSame(['Client-License' => BOMPackage::LICENSE_TEXT_SOURCE_EMBEDDED], $minimal['packages'][1]['license_text_source']);
-        self::assertSame(['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_EMBEDDED, 'BSD-3-Clause' => BOMPackage::LICENSE_TEXT_SOURCE_MISSING], $minimal['packages'][2]['license_text_source']);
-        self::assertSame(['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_LINK], $minimal['packages'][3]['license_text_source']);
-        self::assertSame(['MIT' => BOMPackage::LICENSE_TEXT_SOURCE_LOCAL], $minimal['packages'][7]['license_text_source']);
+        self::assertSame([['name' => 'MIT', 'source' => 'config', 'text_available' => true]], $minimal['packages'][0]['licenses']);
+        self::assertSame(['Client-License'], array_column($minimal['packages'][1]['licenses'], 'name'));
+        self::assertSame([['name' => 'Client-License', 'source' => 'config', 'text_available' => true]], $minimal['packages'][1]['licenses']);
+        self::assertSame([
+            ['name' => 'MIT', 'source' => 'config', 'text_available' => true],
+            ['name' => 'BSD-3-Clause', 'text_available' => false]
+        ], $minimal['packages'][2]['licenses']);
+        self::assertSame([['name' => 'MIT', 'text_available' => false]], $minimal['packages'][3]['licenses']);
+        self::assertSame([['name' => 'MIT', 'text_available' => false]], $minimal['packages'][7]['licenses']);
         $scanner = new LicenseScanner($this->workbench);
         $results = [];
         foreach ([(new JsonBOM($bom))->buildJson(), $minimalJson] as $json) {
@@ -96,12 +99,9 @@ class LicenseScannerTest extends AuditTestCase
                 $finding->getPackage(), $finding->getSourceId(), $finding->getLevel()
             ], $scanner->audit($task));
         }
-        self::assertCount(7, $results[0]);
+        self::assertCount(8, $results[0]);
         self::assertSame($results[0], $results[1]);
-        $roundTrip = new LicenseBOM();
-        foreach ($minimal['packages'] as $data) {
-            $roundTrip->addPackage(new BOMPackage($data));
-        }
+        $roundTrip = new LicenseBOM($minimal);
         self::assertSame($minimalJson, (new JsonBOM($roundTrip))->setFormat('minimal')->buildJson());
     }
 

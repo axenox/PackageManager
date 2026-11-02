@@ -85,7 +85,7 @@ class CycloneDxBOM extends AbstractBOMDecorator implements LicenseBOMExporterInt
      */
     protected function buildComponent(BOMPackageInterface $package) : array
     {
-        $data = $package->toComposerArray();
+        $data = $package->toBOM();
         $component = [
             'type' => 'library',
             'bom-ref' => 'package-' . hash('sha256', json_encode([
@@ -115,7 +115,7 @@ class CycloneDxBOM extends AbstractBOMDecorator implements LicenseBOMExporterInt
         $licenseUsed = $package->getLicenseUsed();
         if ($licenseUsed !== null && $licenseUsed !== '' && $licenseUsed !== 'Other') {
             $license = ['name' => $licenseUsed];
-            $text = $package->getLicenseText($licenseUsed);
+            $text = $this->buildSelectedLicenseText($package);
             if ($text !== null && $text !== '') {
                 $license['text'] = [
                     'contentType' => 'text/plain',
@@ -123,7 +123,8 @@ class CycloneDxBOM extends AbstractBOMDecorator implements LicenseBOMExporterInt
                     'content' => base64_encode($text)
                 ];
             }
-            $url = $package->getLicenseLink($licenseUsed);
+            $licenses = $package->getLicenses();
+            $url = isset($licenses[$licenseUsed]) ? $licenses[$licenseUsed]->getLink() : null;
             if ($url !== null && $url !== '') {
                 $license['url'] = $url;
                 $references[] = ['type' => 'license', 'url' => $url];

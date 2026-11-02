@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\LicenseBOM;
 
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\StringDataType;
 
@@ -62,10 +63,12 @@ class IncludesBOM extends LicenseBOM implements LicenseBOMInterface
                 $packageArray = $packageArray['packages'] ?? [];
             }
             foreach ($packageArray as $packageData) {
-                $package = new BOMPackage($packageData);
+                $package = new BOMPackage();
+                $package->importUxonObject(new UxonObject(BOMPackage::normalizeArray($packageData)));
                 if ($this->bundledIn !== null && $package->isSeparatePackage()) {
                     $packageData['bundled_in'] = $this->bundledIn;
-                    $package = new BOMPackage($packageData);
+                    $package = new BOMPackage();
+                    $package->importUxonObject(new UxonObject(BOMPackage::normalizeArray($packageData)));
                 }
                 $this->addPackage($package);
             }

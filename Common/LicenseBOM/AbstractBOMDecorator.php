@@ -91,8 +91,30 @@ abstract class AbstractBOMDecorator implements LicenseBOMInterface
      * 
      * @see LicenseBOMInterface::setLicenses()
      */
-    public function setLicenses(array $licenses) : LicenseBOMInterface
+    public function setLicenses($licenses) : LicenseBOMInterface
     {
         return $this->innerBOM->setLicenses($licenses);
+    }
+
+    /**
+     * Combines selected component terms for text exporters without substituting another alternative.
+     *
+     * Partial conjunctions and compact inventories must not be presented as complete terms.
+     *
+     * @param BOMPackageInterface $package
+     * @return string|null
+     */
+    protected function buildSelectedLicenseText(BOMPackageInterface $package) : ?string
+    {
+        $licenses = $package->getLicenses();
+        $texts = [];
+        foreach ($package->getSelectedLicenseNames() as $name) {
+            $text = isset($licenses[$name]) ? $licenses[$name]->getText() : null;
+            if ($text === null) {
+                return null;
+            }
+            $texts[] = $text;
+        }
+        return $texts === [] ? null : implode(PHP_EOL . PHP_EOL, $texts);
     }
 }

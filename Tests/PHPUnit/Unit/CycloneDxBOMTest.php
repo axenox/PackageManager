@@ -48,7 +48,7 @@ class CycloneDxBOMTest extends TestCase
             'license_link' => ['proprietary' => 'https://example.org/license']
         ]));
         $bom->merge($includes);
-        $before = $bom->getPackages()['composer:example/library:v1.2.3']->toComposerArray();
+        $before = $bom->getPackages()['composer:example/library:v1.2.3']->toBOM();
         $exporter = new CycloneDxBOM($bom);
         $component = json_decode($exporter->toJSON(), true)['components'][0];
         self::assertSame('example/library', $component['name']);
@@ -62,7 +62,7 @@ class CycloneDxBOMTest extends TestCase
         self::assertSame('https://example.org/license', $component['licenses'][0]['license']['url']);
         self::assertSame(['vcs', 'website', 'license'], array_column($component['externalReferences'], 'type'));
         self::assertSame($component['bom-ref'], json_decode($exporter->toJSON(), true)['components'][0]['bom-ref']);
-        self::assertSame($before, $bom->getPackages()['composer:example/library:v1.2.3']->toComposerArray());
+        self::assertSame($before, $bom->getPackages()['composer:example/library:v1.2.3']->toBOM());
     }
 
     /**

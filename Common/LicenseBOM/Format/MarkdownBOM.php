@@ -101,12 +101,14 @@ class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInte
              // Writes packages underneath correct license-value
              $md .= "| {$package->getName()} | " . ($package->getVersion() ?? '') . "| "
                  . ($package->getDescription() ?? '') . " |";
+             $licenses = $package->getLicenses();
+             $link = isset($licenses[$licenseUsed]) ? $licenses[$licenseUsed]->getLink() : null;
              // If license_text is set, return 'See version XX: YY below'
              if($package->hasLicenseText()){
                  $md .= $this->getLicenseVariantName($packageArray, $package) . PHP_EOL;
-             } else if(null !== $package->getLicenseLink($licenseUsed)) {
+             } else if(null !== $link) {
                  // If license_link is set, return '[licenseUsed]' as link
-                 $md .= "See Link: [" . $licenseUsed . "](" . $package->getLicenseLink($licenseUsed) . ")" . PHP_EOL;
+                 $md .= "See Link: [" . $licenseUsed . "](" . $link . ")" . PHP_EOL;
              } else {
                  // if no license_text/link is set, return 'Empty'
                  $md .= "Empty" . PHP_EOL;
@@ -141,7 +143,7 @@ class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInte
                 array_push($processedLicsHeader, $package->getLicenseUsed());
             }
             // Writes version-number beneath License-text variant if license-text does not exist yet
-            $text = $package->getLicenseText($licenseUsed) ?? '';
+            $text = $this->buildSelectedLicenseText($package) ?? '';
             $normalized = $this->normalizeLicenseText($text);
             if (! isset($processedLicsVariants[$licenseUsed][$normalized])) {
                 $md .= PHP_EOL . "### {$this->getLicenseVariantName($packageArray, $package)}" . PHP_EOL . PHP_EOL;
@@ -182,7 +184,7 @@ class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInte
             $searchArray[0] = '';
         }
         $normalizedTexts = array_map([$this, 'normalizeLicenseText'], $searchArray);
-        $count = array_search($this->normalizeLicenseText($package->getLicenseText($licenseUsed) ?? ''), $normalizedTexts, true);
+        $count = array_search($this->normalizeLicenseText($this->buildSelectedLicenseText($package) ?? ''), $normalizedTexts, true);
         $count = $count + 1;
         return $count;
     }
@@ -201,7 +203,7 @@ class MarkdownBOM extends AbstractBOMDecorator implements LicenseBOMExporterInte
         $knownTexts = [];
         foreach ($packageArray as $package) {
             $licenseUsed = $package->getLicenseUsed();
-            $text = $package->getLicenseText($licenseUsed) ?? '';
+            $text = $this->buildSelectedLicenseText($package) ?? '';
             $normalized = $this->normalizeLicenseText($text);
             if (! isset($knownTexts[$licenseUsed][$normalized])) {
                 $knownTexts[$licenseUsed][$normalized] = true;
