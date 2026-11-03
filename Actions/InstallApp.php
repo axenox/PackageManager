@@ -4,6 +4,7 @@ namespace axenox\PackageManager\Actions;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\CommonLogic\Debugger\DebugWidgetRenderer;
 use exface\Core\CommonLogic\Log\LogEntry;
+use exface\Core\CommonLogic\Log\Processors\DebugWidgetProcessor;
 use exface\Core\DataTypes\MessageTypeDataType;
 use exface\Core\DataTypes\PhpFilePathDataType;
 use exface\Core\Facades\ConsoleFacade\CliOutputPrinter;
@@ -11,7 +12,6 @@ use exface\Core\Factories\AppFactory;
 use exface\Core\Exceptions\DirectoryNotFoundError;
 use exface\Core\Exceptions\Actions\ActionInputInvalidObjectError;
 use exface\Core\CommonLogic\Constants\Icons;
-use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Interfaces\Selectors\AppSelectorInterface;
@@ -27,7 +27,6 @@ use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 use exface\Core\Interfaces\Actions\iModifyData;
 use exface\Core\Events\Installer\OnBeforeAppInstallEvent;
 use exface\Core\Events\Installer\OnAppInstallEvent;
-use exface\Core\Interfaces\WidgetInterface;
 
 /**
  * Installs/updates one or more apps including their meta model, custom installer, etc.
@@ -78,15 +77,6 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
     private $target_app_aliases = [];
     
     protected array $outputLog = [];
-    
-    private DebugWidgetRenderer $debugWidgetRenderer;
-
-    public function __construct(AppInterface $app, WidgetInterface $trigger_widget = null)
-    {
-        parent::__construct($app, $trigger_widget);
-        
-        $this->debugWidgetRenderer = new DebugWidgetRenderer($this->getWorkbench());
-    }
 
 
     protected function init()
@@ -186,9 +176,32 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
     }
 
     /**
+     * Renders the debug widget of the exception as UXON JSON.
+     * 
+     * Works with Monolog 1 and Monolog 3. 
+     * Do not use this class as property type, `extends` or `implements`.
+     * 
+     * @param ExceptionInterface $exception
+     * @return string
+     */
+    protected function renderDebugWidget(ExceptionInterface $exception) : string
+    {
+        // Core with Monolog 3.
+        if (class_exists(DebugWidgetRenderer::class)) {
+            // Level is taken from the exception, so no level is passed here
+            $entry = new LogEntry(null, $exception->getMessage(), [], $exception);
+            return (new DebugWidgetRenderer($this->getWorkbench()))->render($entry);
+        }
+        
+        // Core with Monolog 1.
+        $record = (new DebugWidgetProcessor($this->getWorkbench(), 'sender', 'message'))(['context' => ['sender' => $exception]]);
+        return $record['message'];
+    }
+
+    /**
      * Commits all lines in the output log to the database. Optionally, an exception may be passed to be saved alongside
      * the previously logged lines.
-     * 
+     *
      * @param AppSelectorInterface $appSelector
      * @param \Throwable|null      $exception
      * @return string
@@ -218,9 +231,7 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
                 $errorText = $exception->getMessage();
                 if($exception instanceof ExceptionInterface) {
                     $errorLogId = $exception->getLogId();
-                    // Level is taken from the exception, so no level is passed here
-                    $entry = new LogEntry(null, $exception->getMessage(), [], $exception);
-                    $debugWidget = $this->debugWidgetRenderer->render($entry);
+                    $debugWidget = $this->renderDebugWidget($exception);
                 }
             } 
             
