@@ -3,6 +3,9 @@ namespace axenox\PackageManager\Common\LicenseBOM\Enricher;
 
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
+use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
+use exface\Core\Exceptions\RuntimeException;
 
 /**
  * Downloads missing terms independently from each license's raw GitHub link.
@@ -12,16 +15,17 @@ use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
  */
 class FindLicenseGithubEnricher implements BOMPackageEnricherInterface
 {
-    private $vendorPath = null;
+    private $client;
     
     /**
      * Preserves the shared enricher construction contract used by BOM generation.
      *
      * @param string $vendorPath
+     * @param ClientInterface|null $client HTTP transport shared with other remote license sources.
      */
-    public function __construct($vendorPath)
+    public function __construct(string $vendorPath, ?ClientInterface $client = null)
     {
-        $this->vendorPath = $vendorPath;
+        $this->client = $client ?? new Client();
     }
     
     /**
@@ -36,8 +40,17 @@ class FindLicenseGithubEnricher implements BOMPackageEnricherInterface
         foreach ($package->getLicenses() as $license) {
             $link = $license->getLink();
             if ($link !== null && str_contains($link, 'raw.githubusercontent.com') && $license->getText() === null) {
-                $content = file_get_contents($link);
-                if ($content !== false) {
+                $response = $this->client->request('GET', $link, [
+                    'http_errors' => false, 'timeout' => 30, 'allow_redirects' => false
+                ]);
+                if ($response->getStatusCode() === 404) {
+                    continue;
+                }
+                if ($response->getStatusCode() !== 200) {
+                    throw new RuntimeException('Cannot download license ' . $license->getName() . ': HTTP ' . $response->getStatusCode());
+                }
+                $content = (string) $response->getBody();
+                if (trim($content) !== '') {
                     $license->setText($content, 'github');
                 }
             }

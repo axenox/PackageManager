@@ -9,12 +9,8 @@ use exface\Core\Interfaces\Actions\iCanBeCalledFromCLI;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
-use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseTextEnricher;
-use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicensePackageJsonEnricher;
-use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseGithubEnricher;
-use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseSPDXEnricher;
+use axenox\PackageManager\Common\LicenseBOM\LocalVendorBOM;
 use axenox\PackageManager\Common\LicenseBOM\ComposerBOM;
-use axenox\PackageManager\Common\LicenseBOM\Enricher\FindLicenseFileEnricher;
 use axenox\PackageManager\Common\LicenseBOM\IncludesBOM;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
@@ -93,7 +89,7 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
         yield '  Found BOMs:' . PHP_EOL;
         
         // Create empty BigBom
-        $bigBOM = new LicenseBOM();
+        $bigBOM = new LocalVendorBOM($vendorPath);
         
         // Create BOM from Composer.lock
         $composerLockPath = $this->getWorkbench()->getInstallationPath() . DIRECTORY_SEPARATOR . 'composer.lock';
@@ -129,18 +125,7 @@ class GenerateLicenseBOM extends AbstractActionDeferred implements iCanBeCalledF
             yield '  WARNING: Ignoring license supplement without an installed or bundled package: ' . $name . PHP_EOL;
         }
 
-        $manifestEnricher = new FindLicensePackageJsonEnricher($vendorPath);
-        foreach ($bigBOM->getPackages() as $package) {
-            $bigBOM->addPackage($manifestEnricher->enrich($package));
-        }
-
-        $bigBOM->addEnricher(new FindLicenseTextEnricher($vendorPath));
-        $bigBOM->addEnricher(new FindLicenseGithubEnricher($vendorPath));
-        $bigBOM->addEnricher(new FindLicenseSPDXEnricher($vendorPath));
-        $bigBOM->addEnricher(new FindLicenseFileEnricher($vendorPath));
-        foreach ($bigBOM->getPackages() as $package) {
-            $bigBOM->addPackage($package);
-        }
+        $bigBOM->enrich();
 
         foreach ($this->getSaveTo() as $path => $configuration) {
             $uxon = $configuration instanceof UxonObject ? $configuration->copy() : new UxonObject($configuration);
