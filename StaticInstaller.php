@@ -24,6 +24,22 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * - `StaticInstaller::composerFinishPackageUpdate()`
  * - `StaticInstaller::composerPrepareUninstall()`
  * 
+ * ## Why some entry points run in a separate PHP process
+ * 
+ * Composer scripts run inside the Composer process. Composer ships its own copies of several libraries and loads
+ * them before calling any script. A PHP process can only hold one definition of a class or interface, so whenever
+ * the workbench needs a different version of one of these libraries, it fails to load inside Composer. For example,
+ * Composer bundles the psr/log 1 interfaces, while the workbench's logger (Monolog 3) implements psr/log 3. Other
+ * bundled libraries (e.g. symfony/console, symfony/process, react/promise) could clash the same way in the future.
+ * Starting the workbench in its own process isolates it from Composer's dependencies altogether.
+ * 
+ * The entry points that start a workbench (`composerFinishInstall()`, `composerFinishUpdate()` and
+ * `composerBackupEverything()`) therefore restart themselves in a new PHP process, if they are running inside
+ * Composer. The `$composer_event` tells them: Composer always passes an event to its scripts, while all other
+ * callers pass none - the new process itself, actions and manual calls like
+ * `php -r "require 'vendor/autoload.php'; axenox\PackageManager\StaticInstaller::composerFinishInstall();"`.
+ * Without an event, they run the installers right away. See `runInChildProcess()`.
+ * 
  * By default, this installer will initialize a new Workbench before running installers for each app. However, this
  * might cause rare side effects, so you can opt for a global workbench instance for all apps by setting
  * `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` to FALSE in `config/axenox.PackageManager.config.json` in your
@@ -92,6 +108,9 @@ class StaticInstaller
      */
     public static function composerFinishInstall(Event $composer_event = null)
     {
+        if ($composer_event !== null) {
+            return static::runInChildProcess(__FUNCTION__);
+        }
         static::init();
         try {
             $result = '';
@@ -128,6 +147,9 @@ class StaticInstaller
      */
     public static function composerFinishUpdate(Event $composer_event = null)
     {
+        if ($composer_event !== null) {
+            return static::runInChildProcess(__FUNCTION__);
+        }
         static::init();
         
         self::printToStdout("Running installers for newly installed and updated apps...\n");
@@ -220,6 +242,45 @@ class StaticInstaller
     }
     
     /**
+     * Runs the given entry point in a new PHP process and streams its output to the console.
+     * 
+     * Used when Composer called the entry point (see class description): the new process does not contain
+     * Composer's bundled libraries, so the workbench loads only its own `vendor` versions (e.g. psr/log 3 for
+     * Monolog 3 instead of Composer's psr/log 1). The entry point is called there without an
+     * event, so it runs the installers instead of starting yet another process.
+     * 
+     * The child is started like Composer starts `@php` scripts: same PHP binary and `memory_limit` as the
+     * Composer process. The command is passed as an array, so no shell is involved and nothing is
+     * interpolated into a command line.
+     * 
+     * @param string $method public static method of this class, that runs in-process if called without event
+     * @throws \RuntimeException if the child process cannot be started or does not exit successfully
+     * @return string
+     */
+    protected static function runInChildProcess(string $method) : string
+    {
+        if (PHP_BINARY === '') {
+            throw new \RuntimeException('Cannot run "' . $method . '" in a separate PHP process: PHP binary unknown!');
+        }
+        $autoloadPath = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'autoload.php';
+        $code = 'require ' . var_export($autoloadPath, true) . '; \\' . static::class . '::' . $method . '();';
+        $command = [PHP_BINARY, '-d', 'memory_limit=' . ini_get('memory_limit'), '-r', $code];
+        
+        self::printToStdout('Running ' . $method . ' in a separate PHP process...' . PHP_EOL);
+        // Hand the console streams to the child, so its output appears live and is not buffered here
+        $process = proc_open($command, [0 => STDIN, 1 => STDOUT, 2 => STDERR], $pipes);
+        if (! is_resource($process)) {
+            throw new \RuntimeException('Cannot start a separate PHP process for "' . $method . '"!');
+        }
+        $exitCode = proc_close($process);
+        if ($exitCode !== 0) {
+            // Composer stops with an error, just like it did when the installers crashed inside its own process
+            throw new \RuntimeException('"' . $method . '" failed in a separate PHP process with exit code ' . $exitCode . ' - see output above.');
+        }
+        return '';
+    }
+    
+    /**
      * Unlink backup from specified backup folder, folder name is defined by backupTime-String
      *
      * @param string $app_alias
@@ -262,6 +323,9 @@ class StaticInstaller
      * @return Event $composer_event
      */
     public static function composerBackupEverything(Event $composer_event = null){
+        if ($composer_event !== null) {
+            return static::runInChildProcess(__FUNCTION__);
+        }
         static::init();
         $installer = new self();
         $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());
