@@ -2,7 +2,8 @@
 namespace axenox\PackageManager\Actions;
 
 use exface\Core\CommonLogic\AbstractActionDeferred;
-use exface\Core\CommonLogic\Log\Processors\DebugWidgetProcessor;
+use exface\Core\CommonLogic\Debugger\DebugWidgetRenderer;
+use exface\Core\CommonLogic\Log\LogEntry;
 use exface\Core\DataTypes\MessageTypeDataType;
 use exface\Core\DataTypes\PhpFilePathDataType;
 use exface\Core\Facades\ConsoleFacade\CliOutputPrinter;
@@ -78,17 +79,13 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
     
     protected array $outputLog = [];
     
-    private DebugWidgetProcessor $debugWidgetProcessor;
+    private DebugWidgetRenderer $debugWidgetRenderer;
 
     public function __construct(AppInterface $app, WidgetInterface $trigger_widget = null)
     {
         parent::__construct($app, $trigger_widget);
         
-        $this->debugWidgetProcessor = new DebugWidgetProcessor(
-            $this->getWorkbench(),
-            'sender',
-            'message'
-        );
+        $this->debugWidgetRenderer = new DebugWidgetRenderer($this->getWorkbench());
     }
 
 
@@ -221,8 +218,9 @@ class InstallApp extends AbstractActionDeferred implements iCanBeCalledFromCLI, 
                 $errorText = $exception->getMessage();
                 if($exception instanceof ExceptionInterface) {
                     $errorLogId = $exception->getLogId();
-                    $debugWidget = call_user_func($this->debugWidgetProcessor, ['context' => ['sender' => $exception]]);
-                    $debugWidget = $debugWidget['message'];
+                    // Level is taken from the exception, so no level is passed here
+                    $entry = new LogEntry(null, $exception->getMessage(), [], $exception);
+                    $debugWidget = $this->debugWidgetRenderer->render($entry);
                 }
             } 
             
