@@ -3,41 +3,58 @@ namespace axenox\PackageManager\Common\LicenseBOM\Enricher;
 
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
+use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
+use exface\Core\Exceptions\RuntimeException;
 
 /**
- * Attempts to download the license text from the `license_link` of the package
+ * Downloads missing terms independently from each license's raw GitHub link.
  * 
  * @author Thomas Ressel
  *
  */
 class FindLicenseGithubEnricher implements BOMPackageEnricherInterface
 {
-    private $vendorPath = null;
+    private $client;
     
-    public function __construct($vendorPath)
+    /**
+     * Preserves the shared enricher construction contract used by BOM generation.
+     *
+     * @param string $vendorPath
+     * @param ClientInterface|null $client HTTP transport shared with other remote license sources.
+     */
+    public function __construct(string $vendorPath, ?ClientInterface $client = null)
     {
-        $this->vendorPath = $vendorPath;
+        $this->client = $client ?? new Client();
     }
     
     /**
-     * 
-     * @param BOMPackage $package
-     * @return BOMPackage
+     * Updates each downloaded license object without changing the package's selected license.
+     *
+     * {@inheritDoc}
+     *
+     * @see BOMPackageEnricherInterface::enrich()
      */
     public function enrich(BOMPackage $package) : BOMPackage
     {
-        // if license_link is set
-            foreach($package->getLicenseNames() as $licenseName){
-                $link = $package->getLicenseLink($licenseName);
-                // if license_link contains 'raw.githubusercontent.com' and license_text for licenseName is empty
-                if($link !== null && str_contains($link, "raw.githubusercontent.com") && null === $package->getLicenseText($licenseName))
-                {
-                    $content = file_get_contents($link);
-                    if($content !== false){
-                        $package->setLicenseText($licenseName, $content);
-                    }
+        foreach ($package->getLicenses() as $license) {
+            $link = $license->getLink();
+            if ($link !== null && str_contains($link, 'raw.githubusercontent.com') && $license->getText() === null) {
+                $response = $this->client->request('GET', $link, [
+                    'http_errors' => false, 'timeout' => 30, 'allow_redirects' => false
+                ]);
+                if ($response->getStatusCode() === 404) {
+                    continue;
+                }
+                if ($response->getStatusCode() !== 200) {
+                    throw new RuntimeException('Cannot download license ' . $license->getName() . ': HTTP ' . $response->getStatusCode());
+                }
+                $content = (string) $response->getBody();
+                if (trim($content) !== '') {
+                    $license->setText($content, 'github');
                 }
             }
+        }
         return $package;
     }
 }

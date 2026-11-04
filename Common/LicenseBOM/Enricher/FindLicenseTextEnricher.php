@@ -2,11 +2,12 @@
 namespace axenox\PackageManager\Common\LicenseBOM\Enricher;
 
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use exface\Core\DataTypes\FilePathDataType;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 
 /**
- * Searches for a license file within the directory of a package.
+ * Searches a package directory for terms of the single selected license.
  * 
  * Examples:
  * 
@@ -33,18 +34,35 @@ class FindLicenseTextEnricher implements BOMPackageEnricherInterface
     }
     
     /**
-     * 
-     * @param BOMPackage $package
-     * @return BOMPackage
+     * Reads terms for one selected license without attributing a generic file to a conjunction.
+     *
+     * Native npm/Bower identities can be installed under their Asset Packagist aliases.
+     * Packages declared only in includes.json need not have a standalone directory.
+     *
+     * {@inheritDoc}
+     *
+     * @see BOMPackageEnricherInterface::enrich()
      */
     public function enrich(BOMPackage $package) : BOMPackage
     {
         $licenseUsed = $package->getLicenseUsed();
-        $packagePath = $this->vendorPath . DIRECTORY_SEPARATOR . $package->getName();
-
-        // if license-text for licenseUsed is empty and license-text in packagePath is found
-        if(null == $package->getLicenseText($licenseUsed) && null !== $this->findLicenseText($packagePath)) {
-            $package->setLicenseText($licenseUsed, $this->findLicenseText($packagePath));
+        $ecosystem = $package->getEcosystem();
+        $packagePath = $this->vendorPath . DIRECTORY_SEPARATOR
+            . PackageEcosystemDataType::convertNameToAssetPackagist($package->getName(), $ecosystem);
+        if (! is_dir($packagePath)) {
+            $packagePath = $this->vendorPath . DIRECTORY_SEPARATOR . $package->getName();
+        }
+        if (! is_dir($packagePath) || count($package->getSelectedLicenseNames()) > 1) {
+            return $package;
+        }
+        foreach ($package->getLicenses() as $license) {
+            if ($license->getName() !== $licenseUsed || ($license->getText() ?? '') !== '') {
+                continue;
+            }
+            $text = $this->findLicenseText($packagePath);
+            if ($text !== null) {
+                $license->setText($text, 'local');
+            }
         }
         return $package;
     }

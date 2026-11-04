@@ -2,6 +2,7 @@
 namespace axenox\PackageManager\Common\LicenseBOM\Enricher;
 
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
+use axenox\PackageManager\Common\LicenseBOM\BOMPackageLicense;
 use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 use exface\Core\DataTypes\JsonDataType;
@@ -30,12 +31,12 @@ class FindLicensePackageJsonEnricher implements BOMPackageEnricherInterface
 
     /**
      * Fills missing declarations without replacing Composer, app or installation choices.
-     * 
+     *
      * Supports npm's license string, legacy license objects and legacy licenses arrays.
-     * SPDX expressions are preserved as declared, not split into independent alternatives.
-     * 
+     * Pure AND expressions become required component licenses; alternatives remain intact.
+     *
      * {@inheritDoc}
-     * 
+     *
      * @see BOMPackageEnricherInterface::enrich()
      */
     public function enrich(BOMPackage $package) : BOMPackage
@@ -43,10 +44,9 @@ class FindLicensePackageJsonEnricher implements BOMPackageEnricherInterface
         if ($package->hasLicense()) {
             return $package;
         }
-        $data = $package->toComposerArray();
         $path = $this->vendorPath . DIRECTORY_SEPARATOR . $package->getName() . '/package.json';
         if (! is_file($path)) {
-            $ecosystem = PackageEcosystemDataType::findEcosystem($package->getName(), $data['ecosystem'] ?? null);
+            $ecosystem = $package->getEcosystem();
             $path = $this->vendorPath . DIRECTORY_SEPARATOR
                 . PackageEcosystemDataType::convertNameToAssetPackagist($package->getName(), $ecosystem) . '/package.json';
         }
@@ -72,19 +72,21 @@ class FindLicensePackageJsonEnricher implements BOMPackageEnricherInterface
                 continue;
             }
             $name = trim($name);
-            $names[$name] = $name;
+            $names[$name] = ['name' => $name];
             $url = is_array($definition) ? ($definition['url'] ?? null) : null;
-            if (is_string($url) && trim($url) !== '' && empty($data['license_link'][$name])) {
-                $data['license_link'][$name] = $url;
+            if (is_string($url) && trim($url) !== '') {
+                $names[$name]['link'] = $url;
             }
         }
         if ($names === []) {
             return $package;
         }
-        $data['license'] = array_values($names);
-        if (($data['license_used'] ?? null) === 'Other') {
-            unset($data['license_used']);
+        if ($package->getLicenseUsed() === 'Other') {
+            $package->setLicenseUsed(null);
         }
-        return new BOMPackage($data);
+        foreach ($names as $definition) {
+            $package->addLicense(new BOMPackageLicense($definition));
+        }
+        return $package;
     }
 }

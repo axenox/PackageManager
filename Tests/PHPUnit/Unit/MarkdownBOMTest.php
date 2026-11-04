@@ -31,7 +31,7 @@ class MarkdownBOMTest extends TestCase
         self::assertStringNotContainsString('MIT<sup>*2</sup>', $markdown);
         self::assertStringContainsString($text, $markdown);
         self::assertStringNotContainsString($variant, $markdown);
-        self::assertSame($variant, $packages[1]->getLicenseText('MIT'));
+        self::assertSame($variant, $packages[1]->getLicenses()['MIT']->getText());
     }
 
     /**

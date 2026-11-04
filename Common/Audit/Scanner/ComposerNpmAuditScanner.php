@@ -73,7 +73,8 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
      * Extracts released npm dependencies from a Composer lock.
      * 
      * Composer's scoped asset notation is converted to npm registry package names.
-     * Development dependencies are included, but unreleased versions are rejected.
+    * Development dependencies are included. Missing or unreleased versions produce
+    * coverage hints so supplemental license metadata cannot abort the entire audit.
      * 
      * @param array<string, mixed> $lock
      * @return array<string, string[]>
@@ -93,7 +94,8 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
             $name = PackageEcosystemDataType::convertNameFromAssetPackagist($name, $ecosystem);
             $version = ltrim((string) ($package['version'] ?? ''), 'v');
             if ($version === '' || strpos($version, 'dev-') === 0) {
-                throw new RuntimeException('Cannot audit npm package without a released version: ' . $name);
+                $this->hints[] = 'Cannot audit npm package without a released version: ' . $name;
+                continue;
             }
             if (! in_array($version, $dependencies[$name] ?? [], true)) {
                 $dependencies[$name][] = $version;
@@ -111,6 +113,7 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
      */
     public function supports(TaskInterface $task) : bool
     {
+        $this->hints = [];
         foreach ($this->locks($task) as $lock) {
             if ($this->dependencies($lock) !== []) {
                 return true;
@@ -128,6 +131,7 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
      */
     public function audit(TaskInterface $task) : array
     {
+        $this->hints = [];
         $findings = [];
         $client = $this->createHttpClient();
         $dependencies = [];

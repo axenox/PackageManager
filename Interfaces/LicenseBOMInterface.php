@@ -4,24 +4,24 @@ namespace axenox\PackageManager\Interfaces;
 /**
  * Defines the package collection shared by license metadata sources, combined BOMs, and exporters.
  * 
- * Supports combining package information from multiple sources and accessing packages by name.
+ * Supports combining version-specific package information from multiple sources, keyed by URN.
  */
 interface LicenseBOMInterface
 {
     /**
      * Returns reusable license definitions keyed by their installation-specific names.
-     * 
-     * @return array<string, array<string, string>>
+     *
+     * @return \axenox\PackageManager\Common\LicenseBOM\BOMPackageLicense[]
      */
     public function getLicenses() : array;
 
     /**
      * Registers shared license metadata so packages need only reference its name.
-     * 
-     * @param array<string, array<string, string>> $licenses
+     *
+     * @param array|\exface\Core\CommonLogic\UxonObject $licenses
      * @return LicenseBOMInterface
      */
-    public function setLicenses(array $licenses) : LicenseBOMInterface;
+    public function setLicenses($licenses) : LicenseBOMInterface;
 
     /**
      * Merge LicenseBOM-Array with array in method-parameter
@@ -31,6 +31,11 @@ interface LicenseBOMInterface
      */
     public function merge(LicenseBOMInterface $mergingBOM) : LicenseBOMInterface;
     
+    /**
+     * Returns inventory entries keyed by ecosystem:package:version URNs.
+     * 
+     * @return array<string, BOMPackageInterface>
+     */
     public function getPackages() : array;
     
     public function hasPackage(string $name) : bool;

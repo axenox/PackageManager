@@ -120,7 +120,7 @@ class AuditConfigurationTest extends AuditTestCase
             'second' => ['class' => get_class($prototype), 'label' => 'Second']
         ]);
         $before = $configuration->toArray();
-        $this->action->getApp()->getConfig()->setOption('AUDIT.SCANNERS', $configuration);
+        $this->action->setScanners($configuration);
         $scanners = $this->invokeProtected($this->action, 'getScanners');
         self::assertNotSame($scanners['first'], $scanners['second']);
         self::assertSame('First', $scanners['first']->getLabel());

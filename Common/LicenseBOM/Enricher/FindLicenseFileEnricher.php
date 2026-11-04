@@ -5,7 +5,7 @@ use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
 
 /**
- * Reads the license text from the `license_file` specified for the package
+ * Reads each license's configured file into that same license object.
  * 
  * @author Thomas Ressel
  *
@@ -16,22 +16,33 @@ class FindLicenseFileEnricher implements BOMPackageEnricherInterface
     
     private $vendorPath = null;
     
+    /**
+     * Resolves per-license paths against the installation being enriched.
+     *
+     * @param string $vendorPath
+     */
     public function __construct($vendorPath)
     {
         $this->vendorPath = $vendorPath;
     }
     
     /**
-     * 
-     * @param BOMPackage $package
-     * @return BOMPackage
+     * Fills missing terms independently without assigning one license's file to another license.
+     *
+     * {@inheritDoc}
+     *
+     * @see BOMPackageEnricherInterface::enrich()
      */
     public function enrich(BOMPackage $package) : BOMPackage
     {
-        $licenseUsed = $package->getLicenseUsed();
-
-        if(null !== $package->getLicenseFile() && $this->getLicenseFileContent($package->getLicenseFile()) !== null){
-            $package->setLicenseText($licenseUsed, $this->getLicenseFileContent($package->getLicenseFile()));
+        foreach ($package->getLicenses() as $license) {
+            $path = $license->getFile();
+            if ($path !== null && ($license->getText() ?? '') === '') {
+                $text = $this->getLicenseFileContent($path);
+                if ($text !== null) {
+                    $license->setText($text, 'local');
+                }
+            }
         }
         return $package;
     }

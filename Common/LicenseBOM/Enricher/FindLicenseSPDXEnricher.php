@@ -3,43 +3,64 @@ namespace axenox\PackageManager\Common\LicenseBOM\Enricher;
 
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Interfaces\BOMPackageEnricherInterface;
+use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
+use exface\Core\Exceptions\RuntimeException;
 
 /**
- * Searches for a license text for each of the licenses of a package in the SPDX database
+ * Resolves SPDX terms independently for each license object in a package.
  * 
  * @author Thomas Ressel
  *
  */
 class FindLicenseSPDXEnricher implements BOMPackageEnricherInterface
 {
-    private $vendorPath = null;
+    private $client;
     
-    public function __construct($vendorPath)
+    /**
+     * Uses a replaceable HTTP boundary so SPDX resolution can be verified without live services.
+     *
+     * @param string $vendorPath
+     * @param ClientInterface|null $client
+     */
+    public function __construct(string $vendorPath, ?ClientInterface $client = null)
     {
-        $this->vendorPath = $vendorPath;
+        $this->client = $client ?? new Client();
     }
     
     /**
-     * 
-     * @param BOMPackage $package
-     * @return BOMPackage
+    * Resolves missing standard terms on each license object, including unselected alternatives.
+     *
+    * {@inheritDoc}
+    *
+    * @see BOMPackageEnricherInterface::enrich()
      */
     public function enrich(BOMPackage $package) : BOMPackage
     {
-        // set license_text for each licenseName with SPDX-text from github.com/spdx/license-list-data/tree/main/text
-        foreach($package->getLicenseNames() as $licenseName){
-            // if license_text and license_link for licensename is empty
-            if(null === $package->getLicenseText($licenseName) && null === $package->getLicenseLink($licenseName))
-            {
-                $url = "https://raw.githubusercontent.com/spdx/license-list-data/main/text/" . $licenseName . ".txt";
-                $content = file_get_contents($url);
-                if($content === false){
-                    $url = "https://raw.githubusercontent.com/spdx/license-list-data/main/text/deprecated_" . $licenseName . ".txt";
-                    $content = file_get_contents($url);
+        foreach ($package->getLicenses() as $license) {
+            $licenseName = $license->getName();
+            if (trim($license->getText() ?? '') !== ''
+                || ! preg_match('/^[A-Za-z0-9][A-Za-z0-9.+-]*$/D', $licenseName)
+                || in_array(strtolower($licenseName), ['proprietary', 'other', 'none', 'noassertion'], true)) {
+                continue;
+            }
+            $identifier = preg_replace('/^(A?GPL|LGPL|GFDL)-(\d+\.\d+)\+$/', '$1-$2-or-later', $licenseName);
+            foreach ([$identifier, 'deprecated_' . $identifier] as $file) {
+                $response = $this->client->request('GET',
+                    'https://raw.githubusercontent.com/spdx/license-list-data/main/text/' . rawurlencode($file) . '.txt',
+                    ['http_errors' => false, 'timeout' => 30, 'allow_redirects' => false]
+                );
+                if ($response->getStatusCode() === 404) {
+                    continue;
                 }
-                if($content !== false){
-                    $package->setLicenseText($licenseName, $content);
+                if ($response->getStatusCode() !== 200) {
+                    throw new RuntimeException('Cannot resolve SPDX license ' . $licenseName . ': HTTP ' . $response->getStatusCode());
                 }
+                $text = (string) $response->getBody();
+                if (trim($text) !== '') {
+                    $license->setText($text, 'spdx');
+                }
+                break;
             }
         }
         return $package;

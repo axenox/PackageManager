@@ -51,6 +51,10 @@ or database. Scenarios requiring the full application lifecycle belong in applic
 tests, not a mocked Workbench unit test. The action checks here exercise local `perform`
 behavior, not public authorization or persistence.
 
+Select required scanners explicitly with `Audit::setScanners()`; do not assert which services
+the shipped or installation-specific configuration enables. Tests of configuration fallback
+must inject their own `AUDIT.SCANNERS` values rather than depend on system defaults.
+
 Use PHPUnit process isolation when a scenario changes immutable global state. The
 Apache PHP executable regression defines a namespaced `PHP_BINARY` constant and therefore
 runs in a separate process with global-state preservation disabled. Other tests do not

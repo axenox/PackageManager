@@ -1,11 +1,13 @@
 <?php
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
+use axenox\PackageManager\Actions\Audit;
 use axenox\PackageManager\Common\Audit\Scanner\NpmOutdatedScanner;
 use axenox\PackageManager\Common\Audit\Scanner\PackagistOutdatedScanner;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use exface\Core\CommonLogic\Tasks\GenericTask;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\Factories\ActionFactory;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -490,15 +492,23 @@ class RegistryOutdatedScannerTest extends AuditTestCase
     }
 
     /**
-     * Only the registry scanners should be enabled by default; Composer remains an opt-in backup.
+    * Registry scanner selection must not depend on the installation's configured services.
      * 
      * @return void
      */
-    public function testDefaultScannerRegistration() : void
+    public function testRegistryScannersCanBeSelectedExplicitly() : void
     {
-        $config = json_decode(file_get_contents(dirname(__DIR__, 3) . '/Config/axenox.PackageManager.config.json'), true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame(NpmOutdatedScanner::class, ltrim($config['AUDIT.SCANNERS']['npm_outdated']['class'], '\\'));
-        self::assertSame(PackagistOutdatedScanner::class, ltrim($config['AUDIT.SCANNERS']['packagist_outdated']['class'], '\\'));
-        self::assertArrayNotHasKey('composer_outdated', $config['AUDIT.SCANNERS']);
+        $action = ActionFactory::createFromString($this->workbench, Audit::class);
+        if (! $action instanceof Audit) {
+            self::fail('Expected an Audit action from the factory.');
+        }
+        $action->setScanners([
+            'npm' => ['class' => NpmOutdatedScanner::class],
+            'packagist' => ['class' => PackagistOutdatedScanner::class]
+        ]);
+        $scanners = $this->invokeProtected($action, 'getScanners');
+        self::assertSame(['npm', 'packagist'], array_keys($scanners));
+        self::assertInstanceOf(NpmOutdatedScanner::class, $scanners['npm']);
+        self::assertInstanceOf(PackagistOutdatedScanner::class, $scanners['packagist']);
     }
 }

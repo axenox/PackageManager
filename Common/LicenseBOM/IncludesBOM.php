@@ -2,11 +2,15 @@
 namespace axenox\PackageManager\Common\LicenseBOM;
 
 use axenox\PackageManager\Interfaces\LicenseBOMInterface;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\StringDataType;
 
 /**
  * This license BOM parses an includes.json file containing additional licenses not managed by Composer.
+ * 
+ * Registry format and maintenance rules:
+ * [Bundling libraries and supplementing license metadata](https://github.com/ExFace/Core/blob/1.x-dev/Docs/developer_docs/Thrid-party_libraries/Bundling_third_party_libs.md).
  * 
  * @author andrej.kabachnik
  *
@@ -18,16 +22,27 @@ class IncludesBOM extends LicenseBOM implements LicenseBOMInterface
     private $vendorFolderPath = null;
     
     private $json = null;
+
+    private $bundledIn = null;
     
     /**
      * 
      * @param string $includesJsonPath
      * @param string $vendorPath
+     * @param string|null $bundledIn URN of the installed package owning this manifest.
      */
-    public function __construct(string $includesJsonPath, string $vendorPath)
+    public function __construct(string $includesJsonPath, string $vendorPath, ?string $bundledIn = null)
     {
         $this->filePath = $includesJsonPath;
         $this->vendorFolderPath = $vendorPath;
+        $this->bundledIn = $bundledIn;
+        if ($this->bundledIn === null && basename($includesJsonPath) === 'includes.json') {
+            $folder = dirname($includesJsonPath);
+            $manifestPath = $folder . '/composer.json';
+            $manifest = is_file($manifestPath) ? JsonDataType::decodeJson(file_get_contents($manifestPath)) : [];
+            $name = $manifest['name'] ?? basename(dirname($folder)) . '/' . basename($folder);
+            $this->bundledIn = BOMPackage::buildUrn($name, $manifest['version'] ?? null);
+        }
         // reads composerJson and fills BOM with packages
         $this->readIncludesJson($this->filePath);
     }
@@ -48,7 +63,14 @@ class IncludesBOM extends LicenseBOM implements LicenseBOMInterface
                 $packageArray = $packageArray['packages'] ?? [];
             }
             foreach ($packageArray as $packageData) {
-                $this->addPackage(new BOMPackage($packageData));
+                $package = new BOMPackage();
+                $package->importUxonObject(new UxonObject(BOMPackage::normalizeArray($packageData)));
+                if ($this->bundledIn !== null && $package->isSeparatePackage()) {
+                    $packageData['bundled_in'] = $this->bundledIn;
+                    $package = new BOMPackage();
+                    $package->importUxonObject(new UxonObject(BOMPackage::normalizeArray($packageData)));
+                }
+                $this->addPackage($package);
             }
         }
         return $this;
