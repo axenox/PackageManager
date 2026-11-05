@@ -7,7 +7,7 @@ use exface\Core\Interfaces\DataTypes\EnumDataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
- * Classifies audit advisories, including outdated and unscannable packages.
+ * Classifies audit advisories, including outdated, upgradable and unscannable packages.
  * 
  * Stored values remain independent of translated display labels. Use this enum
  * for advisory type attributes and scanner findings; severity is modeled separately
@@ -22,6 +22,7 @@ class AdvisoryTypeDataType extends StringDataType implements EnumDataTypeInterfa
     const UNSCANNABLE = 'unscannable';
     const LICENSE = 'license';
     const OUTDATED = 'outdated';
+    const UPGRADABLE = 'upgradable';
 
     /**
      * {@inheritDoc}

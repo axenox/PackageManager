@@ -45,7 +45,8 @@ class ComposerOutdatedScannerTest extends AuditTestCase
         self::assertSame([], $scanner->getHints());
         self::assertCount(1, $findings);
         self::assertSame(50, $findings[0]->getLevel());
-        self::assertSame('outdated', $findings[0]->getType());
+        self::assertSame('upgradable', $findings[0]->getType());
+        self::assertSame('New version 2 available for package example/library', $findings[0]->getName());
         self::assertSame('1.0.0', $findings[0]->getVersionInstalled());
         self::assertSame('2.0.0', $findings[0]->getVersionFixed());
         self::assertStringContainsString('example/project', $findings[0]->getDescription());

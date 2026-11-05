@@ -13,6 +13,25 @@ use PHPUnit\Framework\TestCase;
 class CycloneDxBOMTest extends TestCase
 {
     /**
+     * Bundle ownership survives standards-based export without inventing dependency relationships.
+     * 
+     * @return void
+     */
+    public function testBundledComponentsRetainPackageAndOwnerUrns() : void
+    {
+        $bom = new LicenseBOM(['packages' => [[
+            'name' => '@scope/library', 'ecosystem' => 'npm', 'version' => 'v1.2.3',
+            'bundled_in' => 'composer:example/bundle:v2.0.0'
+        ]]]);
+        $document = json_decode((new CycloneDxBOM($bom))->toJSON(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame([
+            'axenox:packagemanager:urn' => 'npm:@scope/library:v1.2.3',
+            'axenox:packagemanager:bundled_in' => 'composer:example/bundle:v2.0.0'
+        ], array_column($document['components'][0]['properties'], 'value', 'name'));
+        self::assertArrayNotHasKey('dependencies', $document);
+    }
+
+    /**
      * Empty inventories remain valid JSON arrays and do not assert dependency completeness.
      * 
      * @return void

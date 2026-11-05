@@ -10,7 +10,7 @@ use exface\Core\Exceptions\InvalidArgumentException;
 /**
  * Represents one scanner's advisory for one package.
  * 
- * Findings are immutable and retain their scanner-specific evidence. Consumers
+ * Scanner-specific evidence is read-only; consumers can set bundle metadata. Consumers
  * decide how to group, compare for reporting and format findings for output.
  */
 class Finding implements FindingInterface
@@ -20,6 +20,7 @@ class Finding implements FindingInterface
     private string $type;
     private string $package;
     private string $ecosystem;
+    private string $bundledInUrn;
     private string $source;
     private string $sourceLevel;
     private int $level;
@@ -56,6 +57,7 @@ class Finding implements FindingInterface
      * @param string $versionFixed
      * @param string $publicId
     * @param string|null $ecosystem
+     * @param string $bundledInUrn
      * @throws InvalidArgumentException If the finding type is unsupported.
      */
     public function __construct(
@@ -73,7 +75,8 @@ class Finding implements FindingInterface
         string $versionInstalled = '',
         string $versionFixed = '',
         string $publicId = '',
-        ?string $ecosystem = null
+        ?string $ecosystem = null,
+        string $bundledInUrn = ''
     ) {
         if (! in_array($type, AdvisoryTypeDataType::getValuesStatic(), true)) {
             throw new InvalidArgumentException('Unsupported audit finding type: ' . $type);
@@ -84,6 +87,7 @@ class Finding implements FindingInterface
         $this->package = $package;
         $this->ecosystem = $ecosystem === '' ? PackageEcosystemDataType::UNKNOWN
             : PackageEcosystemDataType::findEcosystem(strtolower($package), $ecosystem);
+        $this->bundledInUrn = $bundledInUrn;
         $this->source = $source;
         $this->sourceLevel = $sourceLevel;
         $this->level = VulnerabilityLevelDataType::normalize($sourceLevel);
@@ -147,6 +151,29 @@ class Finding implements FindingInterface
     public function getEcosystem() : string
     {
         return $this->ecosystem;
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see FindingInterface::getBundledInUrn()
+     * @return string
+     */
+    public function getBundledInUrn() : string
+    {
+        return $this->bundledInUrn;
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see FindingInterface::setBundledInUrn()
+     * @param string $urn
+     * @return void
+     */
+    public function setBundledInUrn(string $urn) : void
+    {
+        $this->bundledInUrn = $urn;
     }
 
     /**
@@ -274,6 +301,7 @@ class Finding implements FindingInterface
             && $this->type === $finding->getType()
             && $this->package === $finding->getPackage()
             && $this->ecosystem === $finding->getEcosystem()
+            && $this->bundledInUrn === $finding->getBundledInUrn()
             && $this->source === $finding->getSource()
             && $this->sourceLevel === $finding->getSourceLevel()
             && $this->level === $finding->getLevel()

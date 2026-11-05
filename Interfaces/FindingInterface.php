@@ -4,7 +4,7 @@ namespace axenox\PackageManager\Interfaces;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 
 /**
- * Defines an immutable advisory for one package.
+ * Defines an advisory and its reporting metadata for one package.
  * 
  * Implementations expose normalized properties from either one scanner or a
  * consumer-selected group. Consumers choose grouping and output formatting;
@@ -67,6 +67,27 @@ interface FindingInterface
      * @return string
      */
     public function getEcosystem() : string;
+
+    /**
+     * Returns the owning bundle URN, or an empty string when no bundle is recorded.
+     * 
+     * Bundled dependencies must be remediated through their owning package.
+     * Merged findings retain distinct bundle URNs separated by a semicolon and space.
+     * 
+     * @return string
+     */
+    public function getBundledInUrn() : string;
+
+    /**
+     * Sets bundle ownership metadata on this finding.
+     * 
+     * Scanner evidence remains unchanged. Aggregates update their own metadata,
+     * not the original scanner findings they contain.
+     * 
+     * @param string $urn
+     * @return void
+     */
+    public function setBundledInUrn(string $urn) : void;
 
     /**
      * Returns advisory URLs.

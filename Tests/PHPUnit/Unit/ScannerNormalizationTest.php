@@ -159,7 +159,7 @@ class ScannerNormalizationTest extends AuditTestCase
         self::assertSame('CVE-2026-0004', $finding->getCve());
     }
 
-    /** Excludes PHP dependencies from npm requests and strips Composer version prefixes. */
+    /** Excludes PHP dependencies from npm requests while retaining original version prefixes. */
     public function testNpmDependenciesAreExtractedFromComposerLock() : void
     {
         $scanner = new ComposerNpmAuditScanner($this->workbench);
@@ -167,7 +167,7 @@ class ScannerNormalizationTest extends AuditTestCase
             ['name' => 'npm-asset/scope--package', 'version' => 'v1.0.0'],
             ['name' => 'php/package', 'version' => '1.0.0']
         ]]]);
-        self::assertSame(['@scope/package' => ['1.0.0']], $dependencies);
+        self::assertSame(['@scope/package' => ['v1.0.0']], $dependencies);
     }
 
     /** Keeps Trivy package identities compatible with npm evidence while retaining OS EOL findings. */

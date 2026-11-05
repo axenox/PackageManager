@@ -56,7 +56,8 @@ class RegistryOutdatedScannerTest extends AuditTestCase
         self::assertCount(1, $findings);
         self::assertSame('npm-asset/example--library', $findings[0]->getPackage());
         self::assertSame('npm', $findings[0]->getEcosystem());
-        self::assertSame('outdated', $findings[0]->getType());
+        self::assertSame('upgradable', $findings[0]->getType());
+        self::assertSame('New version 2 available for package @example/library', $findings[0]->getName());
         self::assertSame(50, $findings[0]->getLevel());
         self::assertSame('v1.0.0', $findings[0]->getVersionInstalled());
         self::assertSame('2.0.0', $findings[0]->getVersionFixed());
@@ -100,10 +101,11 @@ class RegistryOutdatedScannerTest extends AuditTestCase
      * @param string $installed
      * @param string $latest
      * @param string $title
+     * @param string $type
      * @return void
      */
     #[DataProvider('findingTitleVersions')]
-    public function testFindingTitleIncludesInstalledAndUpstreamVersions(string $installed, string $latest, string $title) : void
+    public function testFindingTitleIsStableAndDescriptionRetainsVersions(string $installed, string $latest, string $title, string $type) : void
     {
         $scanner = $this->npmScanner(new MockHandler([new Response(200, [], json_encode(['version' => $latest], JSON_THROW_ON_ERROR))]));
         $findings = $scanner->audit($this->task(['sbom' => ['packages' => [
@@ -111,24 +113,59 @@ class RegistryOutdatedScannerTest extends AuditTestCase
         ]]]));
         self::assertCount(1, $findings);
         self::assertSame($title, $findings[0]->getName());
+        self::assertSame($type, $findings[0]->getType());
+        self::assertStringContainsString($latest . ' available - currently on ' . $installed, $findings[0]->getDescription());
+        self::assertSame($installed, $findings[0]->getVersionInstalled());
+        self::assertSame($latest, $findings[0]->getVersionFixed());
         self::assertSame(50, $findings[0]->getLevel());
     }
 
     /**
      * Covers numeric major comparisons, smaller updates and prerelease-to-stable transitions.
      * 
-     * @return array<string, array{string, string, string}>
+     * @return array<string, array{string, string, string, string}>
      */
     public static function findingTitleVersions() : array
     {
         return [
-            'major' => ['v1.0.0', '2.0.0', 'New major version 2.0.0 available - currently on v1.0.0'],
-            'numeric major' => ['9.0.0', 'v10.0.0', 'New major version v10.0.0 available - currently on 9.0.0'],
-            'minor' => ['1.9.0', 'v1.10.0', 'New version v1.10.0 available - currently on 1.9.0'],
-            'patch' => ['1.2.3', '1.2.4', 'New version 1.2.4 available - currently on 1.2.3'],
-            'zero major' => ['0.1.0', '0.2.0', 'New version 0.2.0 available - currently on 0.1.0'],
-            'stable' => ['2.0.0-beta.1', '2.0.0', 'New version 2.0.0 available - currently on 2.0.0-beta.1']
+            'major' => ['v1.0.0', '2.0.0', 'New version 2 available for package library', 'upgradable'],
+            'same target major' => ['v1.2.0', '2.9.1', 'New version 2 available for package library', 'upgradable'],
+            'numeric major' => ['9.0.0', 'v10.0.0', 'New version 10 available for package library', 'upgradable'],
+            'minor' => ['1.9.0', 'v1.10.0', 'Update available for package library', 'outdated'],
+            'patch' => ['1.2.3', '1.2.4', 'Update available for package library', 'outdated'],
+            'zero major' => ['0.1.0', '0.2.0', 'Update available for package library', 'outdated'],
+            'stable' => ['2.0.0-beta.1', '2.0.0', 'Update available for package library', 'outdated']
         ];
+    }
+
+    /**
+     * Packagist uses the same stable categories and titles as the npm scanner.
+     * 
+     * @return void
+     */
+    public function testPackagistProducesStableUpgradeFinding() : void
+    {
+        $scanner = new class($this->workbench) extends PackagistOutdatedScanner {
+            public Client $client;
+
+            /** {@inheritDoc} @see PackagistOutdatedScanner::createHttpClient() */
+            protected function createHttpClient() : Client
+            {
+                return $this->client;
+            }
+        };
+        $scanner->client = new Client(['handler' => HandlerStack::create(new MockHandler([
+            new Response(200, [], '{"packages":{"example/library":[{"version":"v2.4.1"}]}}')
+        ]))]);
+        $scanner->setCacheTtlSeconds(0);
+        $finding = $scanner->audit($this->task(['composer_lock' => [
+            'packages' => [['name' => 'example/library', 'version' => '1.2.3']]
+        ]]))[0];
+        self::assertSame('upgradable', $finding->getType());
+        self::assertSame('New version 2 available for package example/library', $finding->getName());
+        self::assertSame('1.2.3', $finding->getVersionInstalled());
+        self::assertSame('v2.4.1', $finding->getVersionFixed());
+        self::assertStringContainsString('New major version v2.4.1 available - currently on 1.2.3', $finding->getDescription());
     }
 
     /**

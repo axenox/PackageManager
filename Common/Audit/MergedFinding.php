@@ -19,6 +19,8 @@ class MergedFinding implements FindingInterface
      */
     private array $findings;
 
+    private ?string $bundledInUrn = null;
+
     /**
      * Creates an aggregate without choosing which advisories belong together.
      * 
@@ -147,6 +149,31 @@ class MergedFinding implements FindingInterface
     public function getEcosystem() : string
     {
         return $this->findings[0]->getEcosystem();
+    }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * @see FindingInterface::getBundledInUrn()
+     * @return string
+     */
+    public function getBundledInUrn() : string
+    {
+        return $this->bundledInUrn ?? $this->mergeValues('getBundledInUrn');
+    }
+
+    /**
+     * Sets the aggregate's bundle metadata without changing its original scanner findings.
+     * 
+     * {@inheritDoc}
+     * 
+     * @see FindingInterface::setBundledInUrn()
+     * @param string $urn
+     * @return void
+     */
+    public function setBundledInUrn(string $urn) : void
+    {
+        $this->bundledInUrn = $urn;
     }
 
     /**
@@ -322,7 +349,7 @@ class MergedFinding implements FindingInterface
     {
         foreach (['getSourceId', 'getName', 'getType', 'getPackage', 'getEcosystem', 'getSource', 'getSourceLevel',
             'getLevel', 'getDetailsUrl', 'getCve', 'getPublicId', 'getDescription', 'getRemediation',
-            'getVersionsAffected', 'getVersionInstalled', 'getVersionFixed'] as $getter) {
+            'getVersionsAffected', 'getVersionInstalled', 'getVersionFixed', 'getBundledInUrn'] as $getter) {
             if ($this->$getter() !== $finding->$getter()) {
                 return false;
             }

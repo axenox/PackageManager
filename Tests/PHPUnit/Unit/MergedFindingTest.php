@@ -8,12 +8,42 @@ use exface\Core\Exceptions\InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Covers aggregation strategies and access to immutable scanner evidence.
+ * Covers aggregation strategies and preservation of original scanner evidence.
  * 
  * These scenarios do not require Workbench, scanners or database access.
  */
 class MergedFindingTest extends TestCase
 {
+    /**
+     * Merging preserves all known bundle evidence instead of losing it to an unknown first source.
+     * 
+     * @return void
+     */
+    public function testBundleEvidenceIsMergedAndCompared() : void
+    {
+        $unknown = new Finding('id', 'Advisory', 'vulnerability', 'library', 'npm', 'low');
+        $first = new Finding('id', 'Advisory', 'vulnerability', 'library', 'npm', 'low',
+            bundledInUrn: 'composer:example/first:1.0.0');
+        $second = new Finding('id', 'Advisory', 'vulnerability', 'library', 'npm', 'low',
+            bundledInUrn: 'composer:example/second:2.0.0');
+        $merged = new MergedFinding([$unknown, $first, $second, clone $first]);
+        self::assertCount(3, $merged->getMergedFindings());
+        self::assertSame('composer:example/first:1.0.0; composer:example/second:2.0.0', $merged->getBundledInUrn());
+        self::assertTrue((new MergedFinding([$first]))->is($first));
+        self::assertFalse((new MergedFinding([$first]))->is($unknown));
+        self::assertFalse($first->is(new MergedFinding([$unknown])));
+        $originals = $merged->getMergedFindings();
+        $merged->setBundledInUrn('composer:example/replacement:3.0.0');
+        self::assertSame('composer:example/replacement:3.0.0', $merged->getBundledInUrn());
+        self::assertSame($originals, $merged->getMergedFindings());
+        self::assertSame('', $unknown->getBundledInUrn());
+        self::assertSame('composer:example/first:1.0.0', $first->getBundledInUrn());
+        self::assertSame('composer:example/second:2.0.0', $second->getBundledInUrn());
+        $merged->setBundledInUrn('');
+        self::assertSame('', $merged->getBundledInUrn());
+        self::assertSame('composer:example/first:1.0.0', $first->getBundledInUrn());
+    }
+
     /**
      * Aggregation must not erase ecosystem identity for packages with matching names.
      * 

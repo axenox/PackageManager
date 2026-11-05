@@ -3,6 +3,8 @@ namespace axenox\PackageManager\Actions;
 
 use axenox\PackageManager\Common\Audit\MergedFinding;
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
+use axenox\PackageManager\Common\LicenseBOM\IncludesBOM;
+use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
@@ -13,6 +15,7 @@ use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\DataSheets\DataCollector;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\FilePathDataType;
+use exface\Core\DataTypes\JsonDataType;
 use exface\Core\Exceptions\Actions\ActionConfigurationError;
 use exface\Core\Exceptions\Actions\ActionInputError;
 use exface\Core\Exceptions\Actions\ActionRuntimeError;
@@ -74,7 +77,8 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
     
     const COLUMNS = [
         'LEVEL', 'ID', 'NAME', 'TYPE', 'PACKAGE', 'ECOSYSTEM', 'DETAILS_URL', 'SOURCE', 'SOURCE_LEVEL',
-        'DESCRIPTION', 'REMEDIATION', 'VERSIONS_AFFECTED', 'VERSION_INSTALLED', 'VERSION_FIXED', 'PUBLIC_ID', 'BOM_URN'
+        'DESCRIPTION', 'REMEDIATION', 'VERSIONS_AFFECTED', 'VERSION_INSTALLED', 'VERSION_FIXED', 'PUBLIC_ID', 'BOM_URN',
+        'BUNDLED_IN_URN'
     ];
 
     private ?string $composerLockAttributeAlias = null;
@@ -197,7 +201,7 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
             $hints[] = $hint;
             $messages[] = $hint;
         }
-        $sheet = $this->createResultSheet($findings);
+        $sheet = $this->createResultSheet($findings, $scanTask);
         if ($needOutput !== null) {
             $messages[] = 'Saving audit JSON...';
             $this->saveOutput($needOutput, $sheet, $hints, $status);
@@ -369,13 +373,18 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
       * into that sheet or serializing an external output.
       * 
       * @param FindingInterface[] $findings
+      * @param TaskInterface|null $task Audited input for post-group bundle enrichment.
       * @return array<int, array<string, string|int>>
       */
-    protected function toDataSheetRows(array $findings) : array
+    protected function toDataSheetRows(array $findings, ?TaskInterface $task = null) : array
     {
+        $groups = $this->groupFindings($findings);
+        if ($task !== null) {
+            $this->addBundleInformation($groups, $task);
+        }
         return array_map(function (FindingInterface $finding) {
             return $this->toDataSheetRow($finding);
-        }, $this->groupFindings($findings));
+        }, $groups);
     }
 
     /**
@@ -386,9 +395,10 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
      * the already normalized finding values and is reused by CLI and JSON output.
      * 
      * @param FindingInterface[] $findings
+     * @param TaskInterface|null $task Audited input for post-group bundle enrichment.
      * @return DataSheetInterface
      */
-    protected function createResultSheet(array $findings) : DataSheetInterface
+    protected function createResultSheet(array $findings, ?TaskInterface $task = null) : DataSheetInterface
     {
         $object = $this->getResultObjectExpected()
             ?? MetaObjectFactory::createFromString($this->getWorkbench(), 'axenox.PackageManager.AUDIT_ADVISORY');
@@ -396,12 +406,206 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         foreach (self::COLUMNS as $column) {
             $sheet->getColumns()->addFromExpression($column);
         }
-        $sheet->addRows($this->toDataSheetRows($findings));
+        $sheet->addRows($this->toDataSheetRows($findings, $task));
         $sheet->getSorters()->addFromString('LEVEL', 'DESC');
         $sheet->getSorters()->addFromString('PACKAGE', 'ASC');
         $sheet->getSorters()->addFromString('PUBLIC_ID', 'ASC');
         $sheet->getSorters()->addFromString('ID', 'ASC');
         return $sheet->sort(null, false);
+    }
+
+    /**
+     * Sets bundle metadata on completed groups without changing scanner originals.
+     * 
+     * Ownership is matched by exact ecosystem, package and installed version.
+     * Missing evidence leaves existing metadata unchanged.
+     * 
+     * @param MergedFinding[] $findings
+     * @param TaskInterface $task
+     * @return void
+     */
+    protected function addBundleInformation(array $findings, TaskInterface $task) : void
+    {
+        if ($findings === []) {
+            return;
+        }
+        $bundles = $this->getBundledInUrns($task);
+        foreach ($findings as $finding) {
+            $urn = BOMPackage::buildUrn($finding->getPackage(), $finding->getVersionInstalled(), $finding->getEcosystem());
+            if (isset($bundles[$urn])) {
+                $finding->setBundledInUrn($bundles[$urn]);
+            }
+        }
+    }
+
+    /**
+     * Resolves bundle ownership from the audited artifacts or folder, never an unrelated installation.
+     * 
+     * Combined and generated CycloneDX inventories retain ownership evidence.
+     * Folder audits also read includes.json using locked versions for owner URNs.
+     * 
+     * @param TaskInterface $task
+     * @return array<string, string>
+     */
+    protected function getBundledInUrns(TaskInterface $task) : array
+    {
+        // Archived SBOM: use its recorded ownership, never this installation's manifests.
+        if ($task->hasParameter(self::TASK_PARAM_SBOM)) {
+            return $this->getBundleUrnsFromInventory($this->decodeBundleInventory($task->getParameter(self::TASK_PARAM_SBOM)));
+        }
+        // Lock-only input has no bundle evidence and must not fall back to local files.
+        if ($task->hasParameter(self::TASK_PARAM_COMPOSER_LOCK)) {
+            return [];
+        }
+        // Folder audit: resolve the selected project, defaulting to this installation.
+        $path = $task->getParameter(self::TASK_PARAM_FOLDER);
+        if ($path === null || $path === '') {
+            $path = $this->getWorkbench()->getInstallationPath();
+        }
+        if (! is_string($path) || strpos($path, "\0") !== false) {
+            throw new ActionInputError($this, 'Audit folder must be a local directory path.');
+        }
+        $folder = realpath(FilePathDataType::makeAbsolute($path, $this->getWorkbench()->getInstallationPath()));
+        if ($folder === false || ! is_dir($folder)) {
+            throw new ActionInputError($this, 'Audit folder does not exist: ' . $path);
+        }
+        $vendorPath = $folder . '/vendor';
+        $paths = [$vendorPath . '/licenses.json', $vendorPath . '/SBOM.cdx.json'];
+        // The global data-folder fallback applies only to a current-installation audit.
+        if (realpath($this->getWorkbench()->getInstallationPath()) === $folder) {
+            $paths[] = $this->getWorkbench()->filemanager()->getPathToDataFolder() . '/sbom.cdx.json';
+        }
+        $paths[] = $folder . '/data/sbom.cdx.json';
+        $paths[] = $folder . '/sbom.cdx.json';
+        $bundles = [];
+        // Merge saved inventories; the folder's SBOM takes precedence over cached links.
+        foreach (array_unique($paths) as $inventoryPath) {
+            if (is_file($inventoryPath)) {
+                $bundles = array_replace($bundles, $this->getBundleUrnsFromInventory($this->readBundleInventory($inventoryPath)));
+            }
+        }
+        $bundleUrns = [];
+        // Locked versions identify the owning bundles, including development dependencies.
+        if (is_file($folder . '/composer.lock')) {
+            $lock = $this->readBundleInventory($folder . '/composer.lock');
+            foreach (array_merge($lock['packages'] ?? [], $lock['packages-dev'] ?? []) as $package) {
+                $owner = new BOMPackage($package);
+                $bundleUrns[$owner->getName()] = $owner->getUrn();
+            }
+        }
+        $includes = glob($vendorPath . '/*/*/includes.json');
+        if ($includes === false) {
+            throw new ActionRuntimeError($this, 'Cannot enumerate audit bundle manifests in ' . $vendorPath . '.');
+        }
+        // Live includes declarations supply or override ownership for their exact package URNs.
+        foreach ($includes as $include) {
+            $ownerName = basename(dirname($include, 2)) . '/' . basename(dirname($include));
+            $bom = new IncludesBOM($include, $vendorPath, $bundleUrns[$ownerName] ?? null);
+            foreach ($bom->getPackages() as $package) {
+                $owner = $package->toBOM()['bundled_in'] ?? null;
+                if ($owner !== null && $owner !== '') {
+                    $bundles[$package->getUrn()] = $owner;
+                }
+            }
+        }
+        return $bundles;
+    }
+
+    /**
+     * Reads explicit bundle metadata without inferring ownership from component nesting.
+     * 
+     * SPDX inventories without platform-specific ownership metadata supply no bundle links.
+     * Nested CycloneDX components and the metadata root are visited.
+     * 
+     * @param array<string, mixed> $data
+     * @return array<string, string>
+     */
+    protected function getBundleUrnsFromInventory(array $data) : array
+    {
+        if (isset($data['spdxVersion'])) {
+            return [];
+        }
+        $bundles = [];
+        if (($data['bomFormat'] ?? '') === 'CycloneDX') {
+            $components = $data['components'] ?? [];
+            if (! is_array($components) || ! array_is_list($components)) {
+                throw new ActionRuntimeError($this, 'CycloneDX bundle lookup requires an array of components.');
+            }
+            if (isset($data['metadata']['component'])) {
+                $components[] = $data['metadata']['component'];
+            }
+            foreach ($components as $component) {
+                if (! is_array($component)) {
+                    throw new ActionRuntimeError($this, 'CycloneDX bundle lookup requires component objects.');
+                }
+                $componentProperties = $component['properties'] ?? [];
+                if (! is_array($componentProperties) || ! array_is_list($componentProperties)) {
+                    throw new ActionRuntimeError($this, 'CycloneDX bundle lookup requires an array of component properties.');
+                }
+                $properties = [];
+                foreach ($componentProperties as $property) {
+                    if (! is_array($property) || ! is_string($property['name'] ?? null) || ! is_string($property['value'] ?? null)) {
+                        throw new ActionRuntimeError($this, 'CycloneDX component properties require string names and values.');
+                    }
+                    $properties[$property['name']] = $property['value'];
+                }
+                $owner = $properties['axenox:packagemanager:bundled_in'] ?? '';
+                if ($owner !== '') {
+                    $urn = $properties['axenox:packagemanager:urn'] ?? null;
+                    if (! is_string($urn) || $urn === '') {
+                        throw new ActionRuntimeError($this, 'CycloneDX bundle evidence requires nonempty package and bundle URNs.');
+                    }
+                    $bundles[$urn] = $owner;
+                }
+                if (isset($component['components'])) {
+                    $bundles = array_replace($bundles, $this->getBundleUrnsFromInventory([
+                        'bomFormat' => 'CycloneDX', 'components' => $component['components']
+                    ]));
+                }
+            }
+            return $bundles;
+        }
+        foreach ((new LicenseBOM($data))->getPackages() as $package) {
+            $owner = $package->toBOM()['bundled_in'] ?? null;
+            if ($owner !== null && $owner !== '') {
+                $bundles[$package->getUrn()] = $owner;
+            }
+        }
+        return $bundles;
+    }
+
+    /**
+     * Accepts structured inventory parameters and decodes JSON through the shared datatype.
+     * 
+     * @param string|array|UxonObject $value
+     * @return array<array-key, mixed>
+     */
+    protected function decodeBundleInventory($value) : array
+    {
+        if ($value instanceof UxonObject) {
+            $value = $value->toArray();
+        } elseif (is_string($value)) {
+            $value = JsonDataType::decodeJson($value);
+        }
+        if (! is_array($value)) {
+            throw new ActionInputError($this, 'Audit bundle inventory must be a JSON object or array.');
+        }
+        return $value;
+    }
+
+    /**
+     * Reads a local inventory and fails explicitly when it cannot be read or decoded.
+     * 
+     * @param string $path
+     * @return array<array-key, mixed>
+     */
+    protected function readBundleInventory(string $path) : array
+    {
+        $value = file_get_contents($path);
+        if ($value === false) {
+            throw new ActionRuntimeError($this, 'Cannot read audit bundle inventory: ' . $path);
+        }
+        return $this->decodeBundleInventory($value);
     }
 
     /**
@@ -434,7 +638,8 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
             'PUBLIC_ID' => $finding->getPublicId(),
             'BOM_URN' => BOMPackage::buildUrn(
                 $finding->getPackage(), $finding->getVersionInstalled(), $finding->getEcosystem()
-            )
+            ),
+            'BUNDLED_IN_URN' => $finding->getBundledInUrn()
         ];
     }
 

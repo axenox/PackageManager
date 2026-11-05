@@ -2,15 +2,58 @@
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
 use axenox\PackageManager\Common\Audit\Scanner\ComposerOutdatedScanner;
+use axenox\PackageManager\Actions\Audit;
 use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use exface\Core\CommonLogic\Tasks\GenericTask;
 use exface\Core\Exceptions\RuntimeException;
+use exface\Core\Factories\ActionFactory;
 
 /**
  * Protects constraint evidence and scan completeness without invoking Composer.
  */
 class ComposerOutdatedScannerTest extends AuditTestCase
 {
+    /**
+     * Release-specific construction is available only through the outdated scanner trait.
+     * 
+     * @return void
+     */
+    public function testOutdatedHelpersBelongToTheTraitNotGenericScanners() : void
+    {
+        self::assertFalse(method_exists(\axenox\PackageManager\Common\Audit\Scanner\AbstractAuditScanner::class, 'createOutdatedFinding'));
+        self::assertFalse(method_exists(\axenox\PackageManager\Common\Audit\Scanner\LicenseScanner::class, 'createOutdatedFinding'));
+        foreach ([ComposerOutdatedScanner::class, \axenox\PackageManager\Common\Audit\Scanner\AbstractRegistryOutdatedScanner::class] as $class) {
+            self::assertArrayHasKey(\axenox\PackageManager\Common\Audit\Scanner\OutdateScannerTrait::class,
+                (new \ReflectionClass($class))->getTraits());
+            self::assertTrue(method_exists($class, 'createOutdatedFinding'));
+        }
+    }
+
+    /**
+     * The action enriches grouped constraint-blocked findings without changing scanner evidence.
+     * 
+     * @return void
+     */
+    public function testBlockedReleaseGetsBundleOwnershipAfterGrouping() : void
+    {
+        $vendor = $this->folder . '/vendor';
+        self::assertTrue(mkdir($vendor, 0700));
+        try {
+            $this->writeFixture($vendor, 'licenses.json', '{"packages":[{"name":"example/library","version":"1.0.0","bundled_in":"composer:example/bundle:3.0.0"}]}');
+            $finding = $this->scanner->audit($this->task)[0];
+            $action = ActionFactory::createFromString($this->workbench, Audit::class);
+            $groups = $this->invokeProtected($action, 'groupFindings', [[$finding]]);
+            $this->invokeProtected($action, 'addBundleInformation', [$groups, $this->task]);
+            self::assertSame('', $finding->getBundledInUrn());
+            self::assertSame($finding, $groups[0]->getMergedFindings()[0]);
+            self::assertSame('composer:example/bundle:3.0.0', $groups[0]->getBundledInUrn());
+            self::assertSame('upgradable', $finding->getType());
+        } finally {
+            unlink($vendor . '/licenses.json');
+            rmdir($vendor);
+        }
+    }
+
     private $scanner;
     private string $folder;
     private GenericTask $task;
@@ -84,11 +127,12 @@ class ComposerOutdatedScannerTest extends AuditTestCase
         $findings = $this->scanner->audit($this->task);
         self::assertCount(1, $findings);
         $finding = $findings[0];
-        self::assertSame('outdated', $finding->getType());
+        self::assertSame('upgradable', $finding->getType());
+        self::assertSame('New version 2 available for package example/library', $finding->getName());
         self::assertSame(50, $finding->getLevel());
         self::assertSame('composer', $finding->getSource());
         self::assertSame('example/library', $finding->getPackage());
-        self::assertSame('outdated:example/library', $finding->getSourceId());
+        self::assertSame('upgradable:example/library:2', $finding->getSourceId());
         self::assertSame('1.0.0', $finding->getVersionInstalled());
         self::assertSame('2.0.0', $finding->getVersionFixed());
         self::assertStringContainsString($this->scanner->evidence, $finding->getDescription());
@@ -100,6 +144,27 @@ class ComposerOutdatedScannerTest extends AuditTestCase
         ], $this->scanner->commands[1][0]);
         self::assertSame([0, 1], $this->scanner->commands[1][2]);
         self::assertSame([], $this->scanner->getHints());
+    }
+
+    /**
+     * Minor and patch blockers share one advisory title while full versions remain in the evidence.
+     * 
+     * @return void
+     */
+    public function testMinorAndPatchUpdatesUseStableOutdatedTitle() : void
+    {
+        foreach (['1.0.1', 'v1.2.0'] as $latest) {
+            $this->scanner->packages[0]['latest'] = $latest;
+            $finding = $this->scanner->audit($this->task)[0];
+            self::assertSame('outdated', $finding->getType());
+            self::assertSame('Update available for package example/library', $finding->getName());
+            self::assertSame('outdated:example/library', $finding->getSourceId());
+            self::assertSame('1.0.0', $finding->getVersionInstalled());
+            self::assertSame($latest, $finding->getVersionFixed());
+            self::assertStringContainsString($latest . ' available - currently on 1.0.0', $finding->getDescription());
+            self::assertStringContainsString('Newer release blocked by Composer constraints', $finding->getDescription());
+            self::assertStringContainsString($this->scanner->evidence, $finding->getDescription());
+        }
     }
 
     /**

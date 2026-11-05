@@ -9,6 +9,7 @@ use exface\Core\Exceptions\RuntimeException;
 use GuzzleHttp\Client;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use axenox\PackageManager\Common\Audit\Finding;
+use Composer\Semver\Semver;
 
 /**
  * Audits locked npm-asset dependencies through npm's advisory API.
@@ -70,7 +71,7 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
     }
 
     /**
-     * Extracts released npm dependencies from a Composer lock.
+     * Extracts released npm dependencies while retaining their original version spelling.
      * 
      * Composer's scoped asset notation is converted to npm registry package names.
     * Development dependencies are included. Missing or unreleased versions produce
@@ -92,8 +93,9 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
                 continue;
             }
             $name = PackageEcosystemDataType::convertNameFromAssetPackagist($name, $ecosystem);
-            $version = ltrim((string) ($package['version'] ?? ''), 'v');
-            if ($version === '' || strpos($version, 'dev-') === 0) {
+            $version = (string) ($package['version'] ?? '');
+            $queryVersion = ltrim($version, 'v');
+            if ($queryVersion === '' || strpos($queryVersion, 'dev-') === 0) {
                 $this->hints[] = 'Cannot audit npm package without a released version: ' . $name;
                 continue;
             }
@@ -141,8 +143,11 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
             }
         }
         if ($dependencies !== []) {
-            $response = $client->post('https://registry.npmjs.org/-/npm/v1/security/advisories/bulk', ['json' => $dependencies]);
-            $findings = $this->normalize($this->decode((string) $response->getBody()));
+            $queryVersions = array_map(static function (array $versions) {
+                return array_values(array_unique(array_map(static fn (string $version) => ltrim($version, 'v'), $versions)));
+            }, $dependencies);
+            $response = $client->post('https://registry.npmjs.org/-/npm/v1/security/advisories/bulk', ['json' => $queryVersions]);
+            $findings = $this->normalize($this->decode((string) $response->getBody()), $dependencies);
         }
         return $findings;
     }
@@ -164,19 +169,42 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
      * 
      * Registry IDs, patched ranges and upgrade recommendations are retained.
      * Supplied CVEs produce separate findings for each public advisory identity.
+     * When inventory versions are supplied, only versions matching the advisory's
+     * affected range produce findings, preserving exact bundle attribution.
      * 
      * @param array<string, array<int, array<string, mixed>>> $data
+     * @param array<string, string[]> $installedVersions
      * @return FindingInterface[]
      */
-    protected function normalize(array $data) : array
+    protected function normalize(array $data, array $installedVersions = []) : array
     {
         $findings = [];
         foreach ($data as $package => $advisories) {
             $name = PackageEcosystemDataType::convertNameToAssetPackagist($package, PackageEcosystemDataType::NPM);
+            $versions = $installedVersions === [] ? [''] : ($installedVersions[$package] ?? null);
+            if ($versions === null) {
+                throw new RuntimeException('npm returned an advisory for an unrequested package: ' . $package);
+            }
             foreach ($advisories as $advisory) {
                 $cves = $advisory['cves'] ?? [];
-                foreach ($cves !== [] ? $cves : [''] as $cve) {
-                    $findings[] = $this->createFinding($name, $advisory, $cve);
+                foreach ($versions as $version) {
+                    if ($version !== '') {
+                        $range = $advisory['vulnerable_versions'] ?? null;
+                        if (! is_string($range) || trim($range) === '') {
+                            throw new RuntimeException('npm advisory requires an affected version range for ' . $package . '.');
+                        }
+                        try {
+                            $affected = Semver::satisfies($version, $range);
+                        } catch (\UnexpectedValueException $error) {
+                            throw new RuntimeException('Cannot match npm advisory versions for ' . $package . ': ' . $error->getMessage(), null, $error);
+                        }
+                        if (! $affected) {
+                            continue;
+                        }
+                    }
+                    foreach ($cves !== [] ? $cves : [''] as $cve) {
+                        $findings[] = $this->createFinding($name, $advisory, $cve, $version);
+                    }
                 }
             }
         }
@@ -192,9 +220,10 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
      * @param string $package The Composer npm-asset package name.
      * @param array{id?: int|string, title?: string, severity?: string, url?: string, overview?: string, recommendation?: string, vulnerable_versions?: string, patched_versions?: string, cves?: string[]} $advisory
      * @param string $cve
+     * @param string $versionInstalled
      * @return FindingInterface
      */
-    protected function createFinding(string $package, array $advisory, string $cve = '') : FindingInterface
+    protected function createFinding(string $package, array $advisory, string $cve = '', string $versionInstalled = '') : FindingInterface
     {
         return new Finding(
             $cve !== '' ? $cve : (isset($advisory['id']) ? 'npm:' . $advisory['id'] : ''),
@@ -208,7 +237,7 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
             (string) ($advisory['overview'] ?? ''),
             (string) ($advisory['recommendation'] ?? ''),
             (string) ($advisory['vulnerable_versions'] ?? ''),
-            '',
+            $versionInstalled,
             (string) ($advisory['patched_versions'] ?? '')
         );
     }

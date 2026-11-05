@@ -66,7 +66,7 @@ abstract class AuditTestCase extends TestCase
     {
         return ['@scope/package' => [[
             'id' => 123, 'url' => 'https://github.com/advisories/GHSA-jpcq-cgw6-v4j6',
-            'title' => 'Fixture', 'severity' => 'high'
+            'title' => 'Fixture', 'severity' => 'high', 'vulnerable_versions' => '<2'
         ]]];
     }
 

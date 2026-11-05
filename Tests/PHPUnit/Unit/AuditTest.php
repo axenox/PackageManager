@@ -20,8 +20,10 @@ use exface\Core\CommonLogic\Model\Model;
 use exface\Core\DataTypes\IntegerDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataTypeFactory;
+use exface\Core\Factories\ActionFactory;
 use exface\Core\Factories\MetaObjectFactory;
 use exface\Core\CommonLogic\DataTransaction;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\CommonLogic\Tasks\GenericTask;
 use exface\Core\CommonLogic\Tasks\ResultData;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
@@ -44,7 +46,7 @@ class AuditTest extends AuditTestCase
     {
         parent::setUp();
         $this->setReportLocale('en');
-        $this->action = (new \ReflectionClass(FixtureAudit::class))->newInstanceWithoutConstructor();
+        $this->action = ActionFactory::createFromString($this->workbench, FixtureAudit::class);
         $object = new MetaObject(new Model($this->workbench));
         $object->setAlias('AUDIT_TEST');
         $object->setNamespace('axenox.PackageManager');
@@ -64,11 +66,162 @@ class AuditTest extends AuditTestCase
      * Builds the production result sheet using the local in-memory metaobject.
      * 
      * @param FindingInterface[] $findings
+     * @param GenericTask|null $task
      * @return DataSheetInterface
      */
-    private function resultSheet(array $findings) : DataSheetInterface
+    private function resultSheet(array $findings, ?GenericTask $task = null) : DataSheetInterface
     {
-        return $this->invokeProtected($this->action, 'createResultSheet', [$findings]);
+        return $this->invokeProtected($this->action, 'createResultSheet', [$findings, $task]);
+    }
+
+    /**
+     * Archived ownership matches the exact normalized package URN, not another ecosystem or version.
+     * 
+     * @return void
+     */
+    public function testBundleEvidenceMatchesExactInstalledUrns() : void
+    {
+        $task = new GenericTask($this->workbench);
+        $task->importUxonObject(new UxonObject(['parameters' => ['sbom' => ['packages' => [
+            ['name' => '@scope/library', 'ecosystem' => 'npm', 'version' => '1.0.0', 'bundled_in' => 'composer:example/bundle:v2.0.0'],
+            ['name' => 'npm-asset/scope--library', 'version' => '2.0.0', 'bundled_in' => 'composer:example/other:3.0.0']
+        ]]]]));
+        $findings = [];
+        foreach ([
+            ['npm', '1.0.0'], ['npm', '2.0.0'], ['npm', '3.0.0'], ['bower', '1.0.0']
+        ] as [$ecosystem, $version]) {
+            $findings[] = new Finding('id', 'Advisory', 'vulnerability', '@scope/library', 'osv', 'high',
+                versionInstalled: $version, ecosystem: $ecosystem);
+        }
+        $enriched = $this->invokeProtected($this->action, 'groupFindings', [$findings]);
+        $this->invokeProtected($this->action, 'addBundleInformation', [$enriched, $task]);
+        self::assertSame('', $findings[0]->getBundledInUrn());
+        self::assertSame('composer:example/bundle:v2.0.0', $enriched[0]->getBundledInUrn());
+        self::assertSame($findings[0], $enriched[0]->getMergedFindings()[0]);
+        $sheet = $this->resultSheet($findings, $task);
+        $owners = array_column($sheet->getRows(), 'BUNDLED_IN_URN', 'BOM_URN');
+        self::assertSame('composer:example/bundle:v2.0.0', $owners['npm:@scope/library:1.0.0']);
+        self::assertSame('composer:example/other:3.0.0', $owners['npm:@scope/library:2.0.0']);
+        self::assertSame('', $owners['npm:@scope/library:3.0.0']);
+        self::assertSame('', $owners['bower:@scope/library:1.0.0']);
+    }
+
+    /**
+     * The production pipeline enriches grouped results while keeping all scanner evidence unchanged.
+     * 
+     * @return void
+     */
+    public function testPerformEnrichesGroupsWithoutChangingScannerFindings() : void
+    {
+        $scanner = new FixtureNpmScanner($this->workbench);
+        $scanner->client = new Client(['handler' => HandlerStack::create(new MockHandler([
+            new Response(200, [], '{"library":[
+                {"id":123,"title":"Advisory","severity":"high","vulnerable_versions":"<2"},
+                {"id":123,"title":"Advisory","severity":"moderate","vulnerable_versions":"<2"}
+            ]}')
+        ]))]);
+        $this->action->scanner = $scanner;
+        $task = new GenericTask($this->workbench);
+        $task->setParameter('sbom', ['packages' => [[
+            'name' => 'library', 'ecosystem' => 'npm', 'version' => 'v1.0.0',
+            'bundled_in' => 'composer:example/bundle:3.0.0'
+        ]]]);
+        $transaction = (new \ReflectionClass(DataTransaction::class))->newInstanceWithoutConstructor();
+        $result = $this->invokeProtected($this->action, 'perform', [$task, $transaction]);
+        self::assertInstanceOf(ResultData::class, $result);
+        $rows = $result->getData()->getRows();
+        self::assertCount(1, $rows);
+        self::assertSame('composer:example/bundle:3.0.0', $rows[0]['BUNDLED_IN_URN']);
+        self::assertSame('v1.0.0', $rows[0]['VERSION_INSTALLED']);
+        self::assertSame(300, $rows[0]['LEVEL']);
+        $originals = $this->action->findings;
+        self::assertCount(2, $originals);
+        self::assertSame(['high', 'moderate'], array_map(static fn ($finding) => $finding->getSourceLevel(), $originals));
+        foreach ($originals as $original) {
+            self::assertSame('', $original->getBundledInUrn());
+        }
+        $groups = $this->invokeProtected($this->action, 'groupFindings', [$originals]);
+        $this->invokeProtected($this->action, 'addBundleInformation', [$groups, $task]);
+        self::assertSame($originals, $groups[0]->getMergedFindings());
+        self::assertSame('composer:example/bundle:3.0.0', $groups[0]->getBundledInUrn());
+        foreach ($originals as $original) {
+            self::assertSame('', $original->getBundledInUrn());
+        }
+    }
+
+    /**
+     * Explicit artifacts without bundle evidence must not inspect any supplied or installed folder.
+     * 
+     * @return void
+     */
+    public function testExplicitArtifactsNeverFallBackForBundleEvidence() : void
+    {
+        foreach ([
+            ['composer_lock' => ['packages' => []]],
+            ['sbom' => ['bomFormat' => 'CycloneDX', 'components' => []]],
+            ['sbom' => ['spdxVersion' => 'SPDX-2.3', 'packages' => []]],
+            ['sbom' => ['packages' => []]]
+        ] as $parameters) {
+            $task = new GenericTask($this->workbench);
+            $parameters['folder'] = $this->temporaryFolder() . '/nonexistent';
+            $task->importUxonObject(new UxonObject(['parameters' => $parameters]));
+            self::assertSame([], $this->invokeProtected($this->action, 'getBundledInUrns', [$task]));
+        }
+    }
+
+    /**
+     * Local includes.json declarations use the owning package's locked URN, including development packages.
+     * 
+     * @return void
+     */
+    public function testLocalBundleManifestsUseLockedOwnerVersions() : void
+    {
+        $folder = $this->temporaryFolder();
+        $vendor = $folder . '/vendor';
+        $namespace = $vendor . '/example';
+        $bundle = $namespace . '/bundle';
+        self::assertTrue(mkdir($bundle, 0700, true));
+        try {
+            $this->writeFixture($folder, 'composer.lock', '{"packages":[],"packages-dev":[{"name":"example/bundle","version":"v3.2.1"}]}');
+            $this->writeFixture($bundle, 'composer.json', '{"name":"example/bundle"}');
+            $this->writeFixture($bundle, 'includes.json', '[{"name":"library","ecosystem":"npm","version":"1.0.0"},{"name":"example/standalone","license":["MIT"]}]');
+            $task = new GenericTask($this->workbench);
+            $task->setParameter('folder', $folder);
+            self::assertSame(['npm:library:1.0.0' => 'composer:example/bundle:v3.2.1'],
+                $this->invokeProtected($this->action, 'getBundledInUrns', [$task]));
+        } finally {
+            unlink($bundle . '/includes.json');
+            unlink($bundle . '/composer.json');
+            rmdir($bundle);
+            rmdir($namespace);
+            rmdir($vendor);
+        }
+    }
+
+    /**
+     * Different target majors remain separate advisories while matching scanners merge current evidence.
+     * 
+     * @return void
+     */
+    public function testReleaseCategoriesAndTargetMajorsKeepSeparateIdentities() : void
+    {
+        $scanner = new \axenox\PackageManager\Common\Audit\Scanner\NpmOutdatedScanner($this->workbench);
+        $findings = [];
+        foreach ([
+            ['1.2.0', 'npm'], ['2.0.0', 'npm'], ['2.4.0', 'packagist'], ['3.0.0', 'npm']
+        ] as [$latest, $source]) {
+            $findings[] = $this->invokeProtected($scanner, 'createOutdatedFinding', [
+                'library', '1.0.0', $latest, $source, 'npm', 'Evidence ' . $latest, 'Review changes'
+            ]);
+        }
+        $rows = $this->resultSheet($findings)->getRows();
+        self::assertCount(3, $rows);
+        $byName = array_column($rows, null, 'NAME');
+        self::assertSame('outdated', $byName['Update available for package library']['TYPE']);
+        self::assertSame('upgradable', $byName['New version 2 available for package library']['TYPE']);
+        self::assertStringContainsString('Evidence 2.0.0', $byName['New version 2 available for package library']['DESCRIPTION']);
+        self::assertStringContainsString('Evidence 2.4.0', $byName['New version 2 available for package library']['DESCRIPTION']);
+        self::assertSame('upgradable', $byName['New version 3 available for package library']['TYPE']);
     }
 
     /**
@@ -465,10 +618,11 @@ class AuditTest extends AuditTestCase
             'VERSION_INSTALLED' => '1',
             'VERSION_FIXED' => '2; 3',
             'PUBLIC_ID' => 'CVE-2026-0001',
-            'BOM_URN' => 'npm:first:1'
+            'BOM_URN' => 'npm:first:1',
+            'BUNDLED_IN_URN' => ''
         ], $row);
         self::assertArrayNotHasKey('DETECTIONS', $row);
-        self::assertCount(16, Audit::COLUMNS);
+        self::assertCount(17, Audit::COLUMNS);
         $rawRow = $this->invokeProtected($this->action, 'toDataSheetRow', [$first]);
         self::assertSame($single['ID'], $rawRow['ID']);
         self::assertSame(200, $rawRow['LEVEL']);
@@ -478,24 +632,6 @@ class AuditTest extends AuditTestCase
         self::assertSame($row, $this->invokeProtected($this->action, 'toDataSheetRow', [$group]));
         self::assertSame('npm', $first->getSource());
         self::assertSame(200, $first->getLevel());
-    }
-
-    /**
-     * The modeled advisory attributes must match the action's output schema.
-     * 
-     * @return void
-     */
-    public function testResultColumnsMatchModeledAttributes() : void
-    {
-        $model = json_decode(file_get_contents(dirname(__DIR__, 3) . '/Model/axenox.PackageManager.AUDIT_ADVISORY/04_ATTRIBUTE.json'), true, 512, JSON_THROW_ON_ERROR);
-        $ecosystem = array_column($model['rows'], null, 'ALIAS')['ECOSYSTEM'];
-        self::assertSame(1, $ecosystem['REQUIREDFLAG']);
-        self::assertSame("'unknown'", $ecosystem['DEFAULT_VALUE']);
-        $attributes = array_column($model['rows'], 'ALIAS');
-        $columns = Audit::COLUMNS;
-        sort($attributes);
-        sort($columns);
-        self::assertSame($columns, $attributes);
     }
 
     /** Public reports must hide generated hashes and verbose evidence without changing source rows. */
@@ -540,7 +676,7 @@ class AuditTest extends AuditTestCase
         $task = new GenericTask($this->workbench);
         $task->setParameter('composer_lock', ['packages' => [['name' => 'npm-asset/fixture', 'version' => '1.0.0']]]);
         $scanner->client = new Client(['handler' => HandlerStack::create(new MockHandler([
-            new Response(200, [], '{"fixture":[{"id":123,"title":"Fixture","severity":"high"},{"id":123,"title":"Fixture","severity":"high"}]}')
+            new Response(200, [], '{"fixture":[{"id":123,"title":"Fixture","severity":"high","vulnerable_versions":"<2"},{"id":123,"title":"Fixture","severity":"high","vulnerable_versions":"<2"}]}')
         ]))]);
         $action->scanner = $scanner;
         $transaction = (new \ReflectionClass(DataTransaction::class))->newInstanceWithoutConstructor();

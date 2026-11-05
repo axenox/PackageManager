@@ -118,7 +118,7 @@ class GenerateLicenseBOMTest extends AuditTestCase
                 'urn' => 'npm:@scope/package:v2.0.0', 'ecosystem' => 'npm']
         ]], $document);
         $scanner = new ComposerNpmAuditScanner($this->workbench);
-        self::assertSame(['@scope/package' => ['2.0.0']], $this->invokeProtected($scanner, 'dependencies', [$document]));
+        self::assertSame(['@scope/package' => ['v2.0.0']], $this->invokeProtected($scanner, 'dependencies', [$document]));
         self::assertSame($before, $bom->getPackages()['composer:example/library:v1.2.3']->toBOM());
     }
 

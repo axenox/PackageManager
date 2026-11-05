@@ -137,10 +137,10 @@ class FixtureAudit extends Audit
     }
 
     /** {@inheritDoc} @see Audit::createResultSheet() */
-    protected function createResultSheet(array $findings) : DataSheetInterface
+    protected function createResultSheet(array $findings, ?\exface\Core\Interfaces\Tasks\TaskInterface $task = null) : DataSheetInterface
     {
         $this->findings = $findings;
-        $this->sheet = parent::createResultSheet($findings);
+        $this->sheet = parent::createResultSheet($findings, $task);
         return $this->sheet;
     }
 }

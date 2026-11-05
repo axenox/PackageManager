@@ -225,11 +225,19 @@ read `composer.lock` and the first available BOM from `vendor/licenses.json`,
 Overlapping artifacts share one metadata lookup per native package identity,
 while each distinct installed version is compared separately.
 
-Findings are optional-severity (`50`) `outdated` advisories with source `npm` or
-`packagist`. Titles distinguish an increased numeric major version from other updates:
+Findings have optional severity (`50`) and source `npm` or `packagist`.
+Their types and stable names distinguish routine updates from optional major upgrades:
 
-- `New major version <new> available - currently on <old>`
-- `New version <new> available - currently on <old>`
+- `outdated` (minor or patch): `Update available for package <name>`
+- `upgradable` (increased major): `New version <major> available for package <name>`
+
+The major number has no minor or patch suffix. Full upstream and installed versions,
+including the previous detailed title, are retained in `DESCRIPTION`. Patch and minor
+releases therefore update the same Deployer advisory; releases within the same target
+major update the same upgrade advisory. A different target major has a separate name.
+An `outdated` result on a freshly updated build is a reason to investigate why the
+update was not applied. An `upgradable` result offers an upgrade to consider, not
+an assertion that automatic updates are broken.
 
 The distinction follows version numbers, not a compatibility assessment. Minor
 and patch updates, especially before version 1.0, can still introduce breaking changes.
@@ -284,6 +292,9 @@ pending updates are excluded. Platform requirements are ignored for discovery on
 so an unsupported PHP version can appear as an actual blocker in the explanation.
 Both commands disable plugins and scripts and do not change project files or install
 packages. Composer may contact the project's repositories and update its own cache.
+The same `outdated`/`upgradable` types and stable titles described above apply.
+Its previous constraint-blocked title and detailed blocker output remain in `DESCRIPTION`;
+installed and candidate versions remain in their dedicated fields.
 
 The default process timeout is **1800 seconds per Composer command**, separate
 from the advisory scanner's unchanged 300 seconds. Repositories declared with
@@ -456,7 +467,7 @@ disabled; a missing issuer certificate fails the scan with a configuration hint.
 
 ## Findings
 
-Internally scanners and the action exchange immutable `FindingInterface` objects,
+Internally scanners and the action exchange typed `FindingInterface` objects,
 implemented by [Finding](../Common/Audit/Finding.php). Named getters expose every finding
 property. Each raw finding represents one advisory for exactly one package from one
 scanner, or an `unscannable` coverage gap for that package. `getSourceId()` retains
@@ -491,7 +502,7 @@ also accepts raw findings, without implementing merging logic itself. The action
 generates package-specific output IDs; removing internal finding IDs does not
 change those output IDs.
 
-Every result finding has `LEVEL`, `ID`, `PUBLIC_ID`, `NAME`, `TYPE`, `PACKAGE`, `ECOSYSTEM`, `BOM_URN`,
+Every result finding has `LEVEL`, `ID`, `PUBLIC_ID`, `NAME`, `TYPE`, `PACKAGE`, `ECOSYSTEM`, `BOM_URN`, `BUNDLED_IN_URN`,
 `DETAILS_URL`, `SOURCE` and `SOURCE_LEVEL`. Scanner-provided CVEs are normalized
 to uppercase and used as public identifiers. Original CVEs remain accessible
 through each raw finding's `getCve()` getter.
@@ -519,7 +530,23 @@ original's `getSourceId()` getter, independently of the group's output ID.
 Internal levels
 are integers: `50` (optional), `100` (low), `200` (medium), `300` (high), `400` (critical).
 All outdated scanners use `optional` by default, including major-version updates.
-No distinction is currently made between bundled and managed dependencies.
+`BUNDLED_IN_URN` records the owning bundle URN, or an empty string when no ownership
+is known. After grouping, the Audit action enriches the resulting `MergedFinding`
+objects with `setBundledInUrn()` and serializes `getBundledInUrn()`. The setter changes
+only the aggregate's metadata; original scanner findings remain unchanged. Scanners
+do not resolve internal bundle ownership, so direct scanner results do not include
+this action-owned enrichment. It applies to all finding types and is matched by the exact package URN,
+including ecosystem and installed version. Saved combined BOMs supply `bundled_in`;
+auditing explicit artifacts never reads this installation's manifests to invent it.
+Generated CycloneDX inventories preserve ownership in the paired
+`axenox:packagemanager:urn` and `axenox:packagemanager:bundled_in` properties;
+component nesting alone does not establish ownership. SPDX inventories without
+bundle metadata do not supply ownership.
+Folder audits also read the packages' `includes.json` files and use Composer lock
+versions for the owning bundle URNs. Bundled dependencies generally need updating
+through their owning package rather than separately. An aggregate can still combine
+bundle metadata already present on its originals, but Audit sets the group's ownership
+from the audited inventory without rewriting any original.
 Moderate becomes `200`, informational becomes `100`, and unknown severity
 conservatively becomes `300`. The original scanner label is retained in `SOURCE_LEVEL`.
 `VulnerabilityLevelDataType` is an integer-based static enum with translated labels.
@@ -539,7 +566,8 @@ and serialization, so all three outputs share one grouping and sorting pass.
 
 `AdvisoryTypeDataType` is a string-based static enum shared by findings and all
 scanners. Its constants are `VULNERABILITY` (`vulnerability`), `EOL` (`EOL`),
-`UNSCANNABLE` (`unscannable`), `LICENSE` (`license`), and `OUTDATED` (`outdated`).
+`UNSCANNABLE` (`unscannable`), `LICENSE` (`license`), `OUTDATED` (`outdated`), and
+`UPGRADABLE` (`upgradable`).
 DataSheet and JSON output retain these stored `TYPE` values; CLI tables display
 translated labels, including `Outdated` in English. Like vulnerability levels, the enum provides
 `getLabelsStatic($workbench)` and `getLabelOfValueStatic($workbench, $value)`;
@@ -560,8 +588,11 @@ are empty strings. `BOM_URN` links each row to the internal JSON BOM using
 `ecosystem:package:version`, with the native registry name (for example `npm:jquery:3.0.0`).
 Missing installed versions leave the final segment empty; versionless evidence is not merged
 with evidence for a known version. This can produce separate rows for scanners with different
-version coverage. The npm bulk scanner currently supplies no installed version.
-DataSheet and JSON output contain these 16 documented columns;
+version coverage. The npm bulk scanner matches advisory `vulnerable_versions` against
+each inventoried installed version and emits only affected copies, preserving the
+original version spelling and its specific bundle ownership. Missing or invalid
+affected ranges cause an explicit scanner error rather than guessed attribution.
+DataSheet and JSON output contain these 17 documented columns;
 the former `DETECTIONS` column and modeled attribute have been removed. Consumers
 that need original scanner evidence in PHP use `getMergedFindings()` instead.
 Scanners can disagree about severity, fixed versions, affected ranges or recommendations;
@@ -602,12 +633,16 @@ Expose scanner options with annotated UXON setters, which are called after const
 Implement `supports`,
 `audit`, `install`, and `getHints`. `audit` must return `FindingInterface[]`, not row
 arrays. Read artifact content from `composer_lock` and `sbom` task parameters and
-leave DataSheet enrichment and context mapping to the action. Composer execution and version checks belong to `ComposerAuditScanner`
+leave output serialization, bundle enrichment and context mapping to the action.
+Scanners only report their own evidence. Audit groups those findings first, then
+uses `setBundledInUrn()` on each aggregate; the setter does not change originals
+available through `getMergedFindings()`. Bundle evidence comes from the audited
+inventory, not an unrelated installation. Composer execution and version checks belong to `ComposerAuditScanner`
 and are reused by its `ComposerOutdatedScanner` subclass rather than moved into the generic base. npm and Trivy scanners do not
 inherit these methods. Construct `Finding` with the native ID, name, type, package, source and
 source-native severity; optional string arguments hold URLs, CVE, description,
 remediation and version evidence, plus an explicit public identifier when needed.
-The final optional `ecosystem` argument retains explicit registry metadata. Legacy
+The optional `ecosystem` argument retains explicit registry metadata. Legacy
 callers default to Composer or infer npm/Bower from asset prefixes; pass `unknown`
 when the registry cannot be established. Do not infer a registry from a bare package name.
 Severity normalization and public-identity resolution belong to the finding.
@@ -617,7 +652,9 @@ and `affectedVersions`; npm uses registry IDs, `overview`, `vulnerable_versions`
 and `patched_versions`; Trivy uses `VulnerabilityID`, `PkgName`, `InstalledVersion`
 and `FixedVersion`. Their methods document the native response shapes and need not
 share a signature. There is no intermediate advisory array schema or shared
-`finding()` helper in `AbstractAuditScanner`.
+`finding()` helper in `AbstractAuditScanner`. `OutdateScannerTrait` shares the
+release-specific `createOutdatedFinding()` policy between Composer and registry
+outdated scanners; the generic base has no release-specific construction methods.
 Ignored Composer advisories append policy notes while being mapped, and npm CVEs
 are supplied as separate arguments rather than injected into response arrays.
 Lifecycle findings are constructed directly from abandoned-package or OS metadata.

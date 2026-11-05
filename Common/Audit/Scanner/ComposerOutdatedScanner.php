@@ -1,12 +1,12 @@
 <?php
 namespace axenox\PackageManager\Common\Audit\Scanner;
 
-use axenox\PackageManager\Common\Audit\Finding;
-use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
+use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Exceptions\InvalidArgumentException;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\Tasks\TaskInterface;
+use Composer\Semver\VersionParser;
 
 /**
  * Reports newer Composer releases blocked by dependency or platform constraints.
@@ -22,6 +22,8 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
  */
 class ComposerOutdatedScanner extends ComposerAuditScanner
 {
+    use OutdateScannerTrait;
+
     private int $timeoutSeconds = 1800;
 
     /**
@@ -123,8 +125,16 @@ class ComposerOutdatedScanner extends ComposerAuditScanner
                 || ! is_string($package['version'] ?? null) || ! is_string($package['latest'] ?? null)) {
                 throw new RuntimeException('Composer outdated returned invalid package metadata.');
             }
-            if (($package['latest-status'] ?? '') === 'up-to-date'
-                || ! version_compare($package['latest'], $package['version'], '>')) {
+            if (($package['latest-status'] ?? '') === 'up-to-date') {
+                continue;
+            }
+            $parser = new VersionParser();
+            try {
+                $newer = version_compare($parser->normalize($package['latest']), $parser->normalize($package['version']), '>');
+            } catch (\UnexpectedValueException $error) {
+                throw new RuntimeException('Composer outdated returned incomparable versions for ' . $package['name'] . '.', null, $error);
+            }
+            if (! $newer) {
                 continue;
             }
             $blockers = $this->runComposer([
@@ -137,22 +147,17 @@ class ComposerOutdatedScanner extends ComposerAuditScanner
             if ($evidence === '') {
                 throw new RuntimeException('Composer prohibits failed without blocker evidence: ' . trim($blockers['stderr']));
             }
-            $findings[] = new Finding(
-                'outdated:' . $package['name'],
-                'Newer release blocked by Composer constraints',
-                AdvisoryTypeDataType::OUTDATED,
+            $findings[] = $this->createOutdatedFinding(
                 $package['name'],
+                $package['version'],
+                $package['latest'],
                 'composer',
-                'optional',
-                '',
-                '',
-                'Locked version: ' . $package['version'] . '. Latest release: ' . $package['latest']
+                PackageEcosystemDataType::findEcosystem($package['name']),
+                'Newer release blocked by Composer constraints.' . PHP_EOL
+                    . 'Locked version: ' . $package['version'] . '. Latest release: ' . $package['latest']
                     . '.' . PHP_EOL . 'Composer prohibits:' . PHP_EOL . $evidence,
                 'Review the reported package and platform constraints before updating to ' . $package['latest']
-                    . '; dependent packages may need upgrading first.',
-                '',
-                $package['version'],
-                $package['latest']
+                    . '; dependent packages may need upgrading first.'
             );
         }
         return $findings;

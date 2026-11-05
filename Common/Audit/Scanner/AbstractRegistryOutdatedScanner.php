@@ -2,8 +2,6 @@
 namespace axenox\PackageManager\Common\Audit\Scanner;
 
 use axenox\PackageManager\Actions\Audit;
-use axenox\PackageManager\Common\Audit\Finding;
-use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
 use axenox\PackageManager\Interfaces\AuditScannerInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
@@ -25,6 +23,8 @@ use Psr\Http\Message\ResponseInterface;
  */
 abstract class AbstractRegistryOutdatedScanner extends AbstractAuditScanner
 {
+    use OutdateScannerTrait;
+
     private int $timeoutSeconds = 30;
     private int $concurrency = 6;
     private int $cacheTtlSeconds = 86400;
@@ -362,19 +362,14 @@ abstract class AbstractRegistryOutdatedScanner extends AbstractAuditScanner
                 } elseif (($latest[$name] ?? null) === null) {
                     $this->hints[] = $this->getEcosystem() . ': no suitable public release metadata for ' . $name . '.';
                 } elseif (version_compare($this->normalizeVersion($latest[$name]), $normalized, '>')) {
-                    $isMajor = (int) explode('.', $this->normalizeVersion($latest[$name]))[0]
-                        > (int) explode('.', $normalized)[0];
-                    $title = ($isMajor ? 'New major version ' : 'New version ') . $latest[$name]
-                        . ' available - currently on ' . $installed;
-                    $findings[] = new Finding(
-                        'outdated:' . $name, $title, AdvisoryTypeDataType::OUTDATED,
-                        PackageEcosystemDataType::convertNameToAssetPackagist($name, $this->getEcosystem()),
-                        $this->getEcosystem() === PackageEcosystemDataType::COMPOSER ? 'packagist' : 'npm', 'optional',
-                        detailsUrl: $this->getMetadataUrl($name),
-                        description: 'The public registry reports ' . $latest[$name] . '; the inventory contains ' . $installed
+                    $findings[] = $this->createOutdatedFinding(
+                        $name, (string) $installed, $latest[$name],
+                        $this->getEcosystem() === PackageEcosystemDataType::COMPOSER ? 'packagist' : 'npm',
+                        $this->getEcosystem(),
+                        'The public registry reports ' . $latest[$name] . '; the inventory contains ' . $installed
                             . '. Upgrade compatibility, dependency constraints and fork differences were not evaluated.',
-                        remediation: 'Review upstream changes and project constraints before upgrading.',
-                        versionInstalled: (string) $installed, versionFixed: $latest[$name], ecosystem: $this->getEcosystem()
+                        'Review upstream changes and project constraints before upgrading.',
+                        $this->getMetadataUrl($name)
                     );
                 }
             }

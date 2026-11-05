@@ -311,7 +311,10 @@ identity with an unknown version. Entries with an omitted, null or empty version
 automatic bundle ownership: they can supplement existing packages without adding or replacing
 their `bundled_in`. To register a genuinely bundled package whose version is unknown, supply
 `bundled_in` explicitly. Installation-specific license configuration does not add automatic
-bundle ownership either. Both full and minimal JSON retain these links; CycloneDX does not export them.
+bundle ownership either. Both full and minimal JSON retain these links. For bundled
+components, CycloneDX exports the matching `axenox:packagemanager:urn` and
+`axenox:packagemanager:bundled_in` properties. The Audit action reads this explicit
+ownership evidence; they do not infer bundle ownership from component nesting.
 The field is singular: if several apps declare the exact same package URN, their metadata merges
 and the later `bundled_in` value replaces the earlier one.
 

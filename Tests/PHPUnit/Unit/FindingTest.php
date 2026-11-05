@@ -17,6 +17,29 @@ use PHPUnit\Framework\TestCase;
 class FindingTest extends TestCase
 {
     /**
+     * Every finding type accepts mutable bundle metadata and includes it in equality.
+     * 
+     * @return void
+     */
+    public function testBundleOwnershipIsPartOfEveryFindingType() : void
+    {
+        foreach (AdvisoryTypeDataType::getValuesStatic() as $type) {
+            $finding = new Finding('id', 'Advisory', $type, 'library', 'scanner', 'low');
+            self::assertSame('', $finding->getBundledInUrn());
+            $before = clone $finding;
+            $finding->setBundledInUrn('composer:example/bundle:v1.2.3');
+            self::assertSame('', $before->getBundledInUrn());
+            self::assertSame('composer:example/bundle:v1.2.3', $finding->getBundledInUrn());
+            self::assertFalse($finding->is($before));
+            self::assertFalse($before->is($finding));
+            self::assertTrue($finding->is(new Finding('id', 'Advisory', $type, 'library', 'scanner', 'low',
+                bundledInUrn: 'composer:example/bundle:v1.2.3')));
+            $finding->setBundledInUrn('');
+            self::assertTrue($finding->is($before));
+        }
+    }
+
+    /**
      * Same-named packages from different registries must remain distinct evidence.
      * 
      * @return void
@@ -39,7 +62,7 @@ class FindingTest extends TestCase
      */
     public function testAdvisoryTypesPreserveStoredValues() : void
     {
-        self::assertSame(['vulnerability', 'EOL', 'unscannable', 'license', 'outdated'], AdvisoryTypeDataType::getValuesStatic());
+        self::assertSame(['vulnerability', 'EOL', 'unscannable', 'license', 'outdated', 'upgradable'], AdvisoryTypeDataType::getValuesStatic());
         foreach (AdvisoryTypeDataType::getValuesStatic() as $type) {
             self::assertSame($type, AdvisoryTypeDataType::cast(' ' . strtoupper($type) . ' '));
             $finding = new Finding('', 'Advisory', $type, 'package', 'scanner', 'low');
