@@ -7,27 +7,75 @@ use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Common\LicenseBOM\LicenseBOM;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
+use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use axenox\PackageManager\Interfaces\BOMPackageInterface;
 use axenox\PackageManager\Interfaces\FindingInterface;
 use exface\Core\Exceptions\RuntimeException;
+use exface\Core\Exceptions\InvalidArgumentException;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 
 /**
  * Reports missing license declarations and texts in full or compact combined package inventories.
- *
+ * 
  * Supply JsonBOM output through sbom, or scan a folder containing vendor/licenses.json.
- * Missing licenses produce high advisories; missing text for the effective license produces
- * low advisories. Compact exports carry per-license provenance and text_available evidence.
+ * Missing licenses produce medium advisories by default; missing text for the effective license
+ * produces low advisories. Compact exports carry per-license provenance and text_available evidence.
  * Private packages are included. Embedded terms and local file references count as available
  * text; license URLs alone do not. Local references are not rechecked on the audit machine.
  * This scanner neither downloads terms nor generates inventories and needs no installation.
- *
+ * 
  * Select this prototype in a named AUDIT.SCANNERS or action scanners entry:
  * `{"class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\LicenseScanner"}`.
- * This scanner has no additional UXON options.
+ * Set level_of_no_license_finding (default 200) and level_of_no_license_text_finding
+ * (default 100) to control the two severities independently.
  */
 class LicenseScanner extends AbstractAuditScanner
 {
+    private int $levelOfNoLicenseFinding = VulnerabilityLevelDataType::MEDIUM;
+    private int $levelOfNoLicenseTextFinding = VulnerabilityLevelDataType::LOW;
+
+    /**
+     * Set the severity for packages with no effective license declaration.
+     * 
+     * Choose 50 (Optional), 100 (Low), 200 (Medium), 300 (High) or 400 (Critical).
+     * 
+     * @uxon-property level_of_no_license_finding
+     * @uxon-type [50,100,200,300,400]
+     * @uxon-default 200
+     * 
+     * @param int $level
+     * @return $this
+     */
+    public function setLevelOfNoLicenseFinding(int $level) : LicenseScanner
+    {
+        if (! in_array($level, VulnerabilityLevelDataType::getValuesStatic(), true)) {
+            throw new InvalidArgumentException('LicenseScanner level_of_no_license_finding must be 50, 100, 200, 300 or 400.');
+        }
+        $this->levelOfNoLicenseFinding = $level;
+        return $this;
+    }
+
+    /**
+     * Set the severity for packages with no resolved text for their effective license.
+     * 
+     * Choose 50 (Optional), 100 (Low), 200 (Medium), 300 (High) or 400 (Critical).
+     * 
+     * @uxon-property level_of_no_license_text_finding
+     * @uxon-type [50,100,200,300,400]
+     * @uxon-default 100
+     * 
+     * @param int $level
+     * @return $this
+     */
+    public function setLevelOfNoLicenseTextFinding(int $level) : LicenseScanner
+    {
+        if (! in_array($level, VulnerabilityLevelDataType::getValuesStatic(), true)) {
+            throw new InvalidArgumentException('LicenseScanner level_of_no_license_text_finding must be 50, 100, 200, 300 or 400.');
+        }
+        $this->levelOfNoLicenseTextFinding = $level;
+        return $this;
+    }
+
     /**
      * Loads license evidence without falling back from explicit artifacts to the local installation.
      * 
@@ -117,7 +165,8 @@ class LicenseScanner extends AbstractAuditScanner
             $license = $package->getLicenseUsed();
             if (in_array(strtoupper(trim($license ?? '')), ['', 'OTHER', 'NONE', 'NOASSERTION'], true)) {
                 $findings[] = new Finding(
-                    'missing-license', 'Package has no license', AdvisoryTypeDataType::LICENSE, $name, 'license', 'high',
+                    'missing-license', 'Package has no license', AdvisoryTypeDataType::LICENSE, $name, 'license',
+                    strtolower(VulnerabilityLevelDataType::findConstant($this->levelOfNoLicenseFinding)),
                     description: 'No license is recorded for this package in the supplied inventory.',
                     remediation: 'Declare the applicable license in includes.json or config/Licenses.config.json and regenerate the full BOM.',
                     versionInstalled: $package->getVersion() ?? '',
@@ -126,7 +175,8 @@ class LicenseScanner extends AbstractAuditScanner
             }
             if (! $package->hasLicenseText()) {
                 $findings[] = new Finding(
-                    'missing-license-text', 'Package has no license text', AdvisoryTypeDataType::LICENSE, $name, 'license', 'low',
+                    'missing-license-text', 'Package has no license text', AdvisoryTypeDataType::LICENSE, $name, 'license',
+                    strtolower(VulnerabilityLevelDataType::findConstant($this->levelOfNoLicenseTextFinding)),
                     description: 'The inventory records no resolved terms or local license file for every component of the effective license "' . $license . '". A URL or an attempted SPDX lookup alone does not provide the text.',
                     remediation: 'Supply the license text or a local license file for the effective license and regenerate the full BOM.',
                     versionInstalled: $package->getVersion() ?? '',

@@ -9,6 +9,7 @@ use axenox\PackageManager\Tests\PHPUnit\Support\AuditTestCase;
 use exface\Core\CommonLogic\Tasks\GenericTask;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\RuntimeException;
+use exface\Core\Exceptions\InvalidArgumentException;
 
 /**
  * Checks license completeness using local evidence without downloads or a persisted metamodel.
@@ -125,11 +126,84 @@ class LicenseScannerTest extends AuditTestCase
         self::assertCount(4, $findings);
         self::assertSame(['missing-license', 'missing-license-text', 'missing-license-text', 'missing-license-text'],
             array_map(static fn ($finding) => $finding->getSourceId(), $findings));
-        self::assertSame([300, 100, 100, 100], array_map(static fn ($finding) => $finding->getLevel(), $findings));
+        self::assertSame([200, 100, 100, 100], array_map(static fn ($finding) => $finding->getLevel(), $findings));
         self::assertSame('license', $findings[0]->getType());
         self::assertSame('license', $findings[0]->getSource());
         self::assertSame('1.0.0', $findings[0]->getVersionInstalled());
         self::assertSame([], $scanner->getHints());
+    }
+
+    /**
+     * Each UXON level changes only its own finding and preserves canonical source severity labels.
+     * 
+     * @return void
+     */
+    public function testFindingLevelsCanBeConfiguredIndependentlyThroughUxon() : void
+    {
+        $task = new GenericTask($this->workbench);
+        $task->importUxonObject(new UxonObject(['parameters' => ['sbom' => ['packages' => [
+            ['name' => 'example/missing']
+        ]]]]));
+        foreach ([
+            'level_of_no_license_finding' => 0,
+            'level_of_no_license_text_finding' => 1
+        ] as $property => $index) {
+            foreach ([50 => 'optional', 100 => 'low', 200 => 'medium', 300 => 'high', 400 => 'critical'] as $level => $label) {
+                $scanner = new LicenseScanner($this->workbench);
+                $scanner->importUxonObject(new UxonObject([$property => $level]));
+                $findings = $scanner->audit($task);
+                self::assertCount(2, $findings);
+                $expected = [200, 100];
+                $expected[$index] = $level;
+                self::assertSame($expected, array_map(static fn ($finding) => $finding->getLevel(), $findings));
+                self::assertSame($label, $findings[$index]->getSourceLevel());
+            }
+        }
+    }
+
+    /**
+     * Both severity overrides are applied together to a package missing both kinds of evidence.
+     * 
+     * @return void
+     */
+    public function testBothFindingLevelsCanBeConfiguredThroughUxon() : void
+    {
+        $scanner = new LicenseScanner($this->workbench);
+        $scanner->importUxonObject(new UxonObject([
+            'level_of_no_license_finding' => 100,
+            'level_of_no_license_text_finding' => 300
+        ]));
+        $task = new GenericTask($this->workbench);
+        $task->importUxonObject(new UxonObject(['parameters' => ['sbom' => ['packages' => [
+            ['name' => 'example/missing']
+        ]]]]));
+        self::assertSame([100, 300], array_map(static fn ($finding) => $finding->getLevel(), $scanner->audit($task)));
+    }
+
+    /**
+     * Unsupported missing-license levels must fail instead of silently becoming high severity.
+     * 
+     * @return void
+     */
+    public function testInvalidNoLicenseLevelIsRejected() : void
+    {
+        $scanner = new LicenseScanner($this->workbench);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('level_of_no_license_finding must be');
+        $scanner->importUxonObject(new UxonObject(['level_of_no_license_finding' => 250]));
+    }
+
+    /**
+     * Unsupported missing-text levels must fail instead of silently becoming high severity.
+     * 
+     * @return void
+     */
+    public function testInvalidNoLicenseTextLevelIsRejected() : void
+    {
+        $scanner = new LicenseScanner($this->workbench);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('level_of_no_license_text_finding must be');
+        $scanner->importUxonObject(new UxonObject(['level_of_no_license_text_finding' => 0]));
     }
 
     /**

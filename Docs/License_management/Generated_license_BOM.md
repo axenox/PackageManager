@@ -33,8 +33,9 @@ By default, generation writes three files:
 Generation replaces existing output files and reports missing license information or texts. Review both the messages and the generated files before publishing them.
 
 The [dependency audit's LicenseScanner](../Audit.md#licenses), when selected through
-`AUDIT.SCANNERS` or the action's `scanners` property, checks this full JSON inventory for missing license declarations (high severity)
-and missing text for the effective license (low severity), including private packages.
+`AUDIT.SCANNERS` or the action's `scanners` property, checks this full JSON inventory for missing license declarations (medium severity by default)
+and missing text for the effective license (low severity by default), including private packages.
+Both severities are configurable; see the linked audit guide for scanner UXON properties.
 A license URL alone does not satisfy the scanner's text check. Regenerate the inventory
 before auditing. Current minimal exports preserve these checks using declarations and
 resolution metadata without including license texts. File references and URLs alone do not

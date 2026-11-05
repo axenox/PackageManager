@@ -126,10 +126,22 @@ Composer-lock-only, CycloneDX and SPDX tasks are not applicable to this scanner.
 
 Findings have type and source `license`:
 
-| Missing Evidence | Severity |
-| --- | --- |
-| Effective license declaration | High |
-| Nonempty text for the effective license | Low |
+| Missing Evidence | Default Severity | Scanner UXON Property |
+| --- | --- | --- |
+| Effective license declaration | 200 (Medium) | `level_of_no_license_finding` |
+| Nonempty text for the effective license | 100 (Low) | `level_of_no_license_text_finding` |
+
+Set these properties independently in the scanner entry under `AUDIT.SCANNERS`
+or the action's `scanners` property. Allowed levels are `50` (Optional), `100` (Low),
+`200` (Medium), `300` (High) and `400` (Critical). For example:
+
+```json
+{
+  "class": "\\axenox\\PackageManager\\Common\\Audit\\Scanner\\LicenseScanner",
+  "level_of_no_license_finding": 200,
+  "level_of_no_license_text_finding": 100
+}
+```
 
 Both findings are returned if both are absent. `Other`, `NONE` and `NOASSERTION`
 are treated as missing declarations. The effective license is `license_used`, or
