@@ -37,8 +37,8 @@ class Finding implements FindingInterface
      * Creates one scanner detection.
      * 
      * Optional evidence defaults to an empty string. Severity is normalized,
-     * valid CVEs are uppercased, and public identifiers are resolved locally.
-     * An explicit public identifier takes precedence over automatic resolution.
+     * valid CVEs are uppercased, and public identifiers are kept exactly as supplied
+     * by the scanner. An unavailable public identifier stays empty.
     * Ecosystems default to Composer/asset inference for legacy callers; an
     * explicit empty string becomes the unknown ecosystem, such as for OS packages.
      * 
@@ -99,7 +99,7 @@ class Finding implements FindingInterface
         $this->versionsAffected = $versionsAffected;
         $this->versionInstalled = $versionInstalled;
         $this->versionFixed = $versionFixed;
-        $this->publicId = $publicId !== '' ? $publicId : $this->resolvePublicId();
+        $this->publicId = $publicId;
     }
 
     /**
@@ -255,37 +255,6 @@ class Finding implements FindingInterface
      * @return string
      */
     public function getVersionFixed() : string { return $this->versionFixed; }
-
-    /**
-     * Resolves the public identifier without fetching advisory pages.
-     * 
-     * CVEs take precedence over linked GHSA identifiers and native IDs.
-     * EOL and unscannable findings have no automatically resolved public identifier.
-     * 
-     * @return string
-     */
-    private function resolvePublicId() : string
-    {
-        if ($this->type === AdvisoryTypeDataType::EOL || $this->type === AdvisoryTypeDataType::UNSCANNABLE) {
-            return '';
-        }
-        if ($this->cve !== '') {
-            return $this->cve;
-        }
-        $identifiers = [];
-        foreach (explode('; ', $this->detailsUrl) as $url) {
-            $path = parse_url($url, PHP_URL_PATH);
-            if (! is_string($path)) {
-                continue;
-            }
-            foreach (explode('/', $path) as $identifier) {
-                if (VulnerabilityLevelDataType::isGHSA($identifier)) {
-                    $identifiers[] = 'GHSA-' . strtolower(substr($identifier, 5));
-                }
-            }
-        }
-        return $identifiers !== [] ? implode('; ', array_unique($identifiers)) : $this->sourceId;
-    }
 
     /**
      * {@inheritDoc}

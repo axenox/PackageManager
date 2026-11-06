@@ -261,6 +261,7 @@ class TrivySBOMScanner extends AbstractAuditScanner
             '',
             (string) ($vulnerability['InstalledVersion'] ?? ''),
             $fixedVersion,
+            publicId: (string) $vulnerability['VulnerabilityID'],
             ecosystem: $ecosystem
         );
     }

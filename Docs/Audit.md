@@ -503,14 +503,27 @@ generates package-specific output IDs; removing internal finding IDs does not
 change those output IDs.
 
 Every result finding has `LEVEL`, `ID`, `PUBLIC_ID`, `NAME`, `TYPE`, `PACKAGE`, `ECOSYSTEM`, `BOM_URN`, `BUNDLED_IN_URN`,
-`DETAILS_URL`, `SOURCE` and `SOURCE_LEVEL`. Scanner-provided CVEs are normalized
-to uppercase and used as public identifiers. Original CVEs remain accessible
+`DETAILS_URL`, `SOURCE` and `SOURCE_LEVEL`. Scanner-provided CVE evidence is normalized
+to uppercase by `getCve()`. Original CVEs remain accessible
 through each raw finding's `getCve()` getter.
 The npm bulk API does not supply CVEs; it supplies numeric IDs and advisory URLs.
-`PUBLIC_ID` stores the recognizable identifier: CVE when available, otherwise a GHSA
-extracted from the details URL, otherwise the scanner's ID. An explicitly supplied
-`PUBLIC_ID` is retained. EOL entries normally leave this value blank.
-CLI tables show this field in a `PUBLIC ID` column, not the generated output `ID`.
+Scanners decide which known published identifier to supply as `PUBLIC_ID`; when
+none is known, it stays blank. `Finding` does not infer a public ID from a source
+ID, CVE or URL. Composer supplies its CVE or native advisory ID, OSV supplies a
+CVE alias or its native ID, and Trivy supplies its `VulnerabilityID` unchanged.
+npm supplies a CVE when provided, otherwise a GHSA extracted from its advisory URL.
+`MergedFinding` alone ranks public IDs across findings: CVE, then GHSA, then other IDs.
+Grouping does not extract aliases from advisory URLs. For example, a Composer PKSA
+and an OSV GHSA for the same package and installed version remain separate when
+their titles differ, even if Composer links to that GHSA. Matching nonempty titles
+(compared without case) still merge them; `MergedFinding` then retains the GHSA.
+npm's generated
+`npm:` source IDs are not public IDs. License, outdated, upgradable, EOL and
+unscannable findings normally leave this value blank. Explicit scanner-supplied
+public IDs are retained for every finding type.
+CLI tables show columns in this order: `LEVEL`, `PACKAGE`, `VERSION INSTALLED`,
+`NAME`, `TYPE`, `SOURCE`, `PUBLIC ID`. The installed version comes from
+`VERSION_INSTALLED`; the public ID is shown instead of the generated output `ID`.
 GHSA extraction uses existing URLs and does not fetch linked pages or add API requests.
 Full URLs and source-native levels are omitted from the table. The modeled output uses
 `PUBLIC_ID` instead of a separate `CVE` column. `ID` is a generated, deterministic
@@ -641,11 +654,16 @@ inventory, not an unrelated installation. Composer execution and version checks 
 and are reused by its `ComposerOutdatedScanner` subclass rather than moved into the generic base. npm and Trivy scanners do not
 inherit these methods. Construct `Finding` with the native ID, name, type, package, source and
 source-native severity; optional string arguments hold URLs, CVE, description,
-remediation and version evidence, plus an explicit public identifier when needed.
+remediation and version evidence. Pass `publicId` explicitly when the scanner knows
+a published identifier; otherwise leave it empty. Internal category IDs such as
+`missing-license` remain source evidence, not public IDs.
 The optional `ecosystem` argument retains explicit registry metadata. Legacy
 callers default to Composer or infer npm/Bower from asset prefixes; pass `unknown`
 when the registry cannot be established. Do not infer a registry from a bare package name.
-Severity normalization and public-identity resolution belong to the finding.
+Severity normalization belongs to the finding. Each concrete scanner maps its own
+public-identity evidence; the abstract scanner has no public-ID resolution policy.
+`Finding` retains the supplied value unchanged. `MergedFinding` decides which
+scanner-supplied public ID to keep when combining findings.
 Each scanner owns a protected `createFinding()` method that maps its decoded native
 response directly to the `Finding` constructor. Composer uses `advisoryId`, `link`
 and `affectedVersions`; npm uses registry IDs, `overview`, `vulnerable_versions`

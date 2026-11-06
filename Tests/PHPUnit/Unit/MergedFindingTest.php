@@ -65,9 +65,9 @@ class MergedFindingTest extends TestCase
     public function testAggregatesEvidenceWithoutChangingOriginals() : void
     {
         $first = new Finding('npm:1', 'First title', 'vulnerability', 'package', 'npm', 'moderate',
-            'https://example.org/first', 'CVE-2026-0001', 'Description', 'Upgrade', '<2', '1', '2');
+            'https://example.org/first', 'CVE-2026-0001', 'Description', 'Upgrade', '<2', '1', '2', publicId: 'CVE-2026-0001');
         $second = new Finding('trivy:2', 'Second title', 'vulnerability', 'package', 'trivy', 'critical',
-            'https://example.org/second', 'CVE-2026-0001', '', 'Rebuild', '<3', '1', '3');
+            'https://example.org/second', 'CVE-2026-0001', '', 'Rebuild', '<3', '1', '3', publicId: 'CVE-2026-0001');
         $merged = new MergedFinding([$first, $second, clone $first]);
         self::assertInstanceOf(FindingInterface::class, $merged);
         self::assertSame([$first, $second], $merged->getMergedFindings());
@@ -148,16 +148,30 @@ class MergedFindingTest extends TestCase
      */
     public function testPublicIdPrefersCveThenGhsaThenNativeIdentity() : void
     {
-        $native = new Finding('OSV-1', 'Advisory', 'vulnerability', 'package', 'osv', 'high');
+        $native = new Finding('OSV-1', 'Advisory', 'vulnerability', 'package', 'osv', 'high', publicId: 'OSV-1');
         $ghsa = new Finding('npm:1', 'Advisory', 'vulnerability', 'package', 'npm', 'high',
-            'https://github.com/advisories/GHSA-abcd-1234-efgh');
-        $cve = new Finding('OSV-2', 'Advisory', 'vulnerability', 'package', 'osv', 'critical', '', 'CVE-2026-1234');
+            'https://github.com/advisories/GHSA-abcd-1234-efgh', publicId: 'GHSA-abcd-1234-efgh');
+        $cve = new Finding('OSV-2', 'Advisory', 'vulnerability', 'package', 'osv', 'critical', '', 'CVE-2026-1234', publicId: 'CVE-2026-1234');
         self::assertSame('CVE-2026-1234', (new MergedFinding([$native, $ghsa, $cve]))->getPublicId());
         self::assertSame('CVE-2026-1234', (new MergedFinding([$cve, $ghsa, $native]))->getPublicId());
         self::assertSame('GHSA-abcd-1234-efgh', (new MergedFinding([$native, $ghsa]))->getPublicId());
         self::assertSame('OSV-1', (new MergedFinding([$native]))->getPublicId());
         self::assertSame('osv, npm', (new MergedFinding([$native, $ghsa, $cve]))->getSource());
         self::assertSame('GHSA-abcd-1234-efgh', $ghsa->getPublicId());
+    }
+
+    /**
+     * Merging findings without public IDs must not publish their internal source identities.
+     *
+     * @return void
+     */
+    public function testMissingPublicIdentitiesStayEmptyAfterMerging() : void
+    {
+        $first = new Finding('missing-license', 'No license', 'license', 'package', 'license', 'low');
+        $second = new Finding('internal:2', 'No license', 'license', 'package', 'other', 'high');
+        $merged = new MergedFinding([$first, $second]);
+        self::assertSame('', $merged->getPublicId());
+        self::assertSame('missing-license; internal:2', $merged->getSourceId());
     }
 
     /**

@@ -660,12 +660,12 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
         }
         $output = new BufferedOutput();
         $table = new Table($output);
-        $table->setHeaders(['LEVEL', 'PUBLIC ID', 'NAME', 'TYPE', 'PACKAGE', 'SOURCE']);
-        $table->setColumnMaxWidth(2, 60);
-        $table->setColumnMaxWidth(4, 45);
+        $table->setHeaders(['LEVEL', 'PACKAGE', 'VERSION INSTALLED', 'NAME', 'TYPE', 'SOURCE', 'PUBLIC ID']);
+        $table->setColumnMaxWidth(1, 45);
+        $table->setColumnMaxWidth(3, 60);
         foreach ($sheet->getRows() as $findingRow) {
             $row = [];
-            foreach (['LEVEL', 'PUBLIC_ID', 'NAME', 'TYPE', 'PACKAGE', 'SOURCE'] as $column) {
+            foreach (['LEVEL', 'PACKAGE', 'VERSION_INSTALLED', 'NAME', 'TYPE', 'SOURCE', 'PUBLIC_ID'] as $column) {
                 $value = $findingRow[$column];
                 if ($column === 'LEVEL') {
                     $value = VulnerabilityLevelDataType::getLabelOfValueStatic($sheet->getWorkbench(), $value) ?? $value;

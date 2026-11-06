@@ -131,8 +131,8 @@ interface FindingInterface
     /**
      * Returns the public advisory identifier.
      * 
-     * Unless explicitly supplied, the identifier prefers CVE over a linked GHSA
-     * and then the native ID. EOL findings normally have no public identifier.
+     * Scanners supply known published identifiers and leave this empty otherwise.
+     * Internal source IDs are not automatically exposed as public identifiers.
      * 
      * @return string
      */

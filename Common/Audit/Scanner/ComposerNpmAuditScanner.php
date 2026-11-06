@@ -4,6 +4,7 @@ namespace axenox\PackageManager\Common\Audit\Scanner;
 use axenox\PackageManager\Actions\Audit;
 use axenox\PackageManager\DataTypes\AdvisoryTypeDataType;
 use axenox\PackageManager\DataTypes\PackageEcosystemDataType;
+use axenox\PackageManager\DataTypes\VulnerabilityLevelDataType;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Exceptions\RuntimeException;
 use GuzzleHttp\Client;
@@ -215,7 +216,8 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
      * Creates a finding directly from a native npm registry advisory.
      * 
      * A supplied CVE selects one identity from an advisory's CVE list without
-     * injecting fields into the response. Native IDs keep their npm prefix.
+     * injecting fields into the response. Native IDs keep their npm prefix
+     * internally; only a known CVE or linked GHSA is exposed as a public ID.
      * 
      * @param string $package The Composer npm-asset package name.
      * @param array{id?: int|string, title?: string, severity?: string, url?: string, overview?: string, recommendation?: string, vulnerable_versions?: string, patched_versions?: string, cves?: string[]} $advisory
@@ -225,6 +227,7 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
      */
     protected function createFinding(string $package, array $advisory, string $cve = '', string $versionInstalled = '') : FindingInterface
     {
+        $publicId = $cve !== '' ? strtoupper($cve) : $this->getGhsaFromAdvisoryUrl((string) ($advisory['url'] ?? ''));
         return new Finding(
             $cve !== '' ? $cve : (isset($advisory['id']) ? 'npm:' . $advisory['id'] : ''),
             (string) ($advisory['title'] ?? 'Known vulnerability'),
@@ -238,8 +241,32 @@ class ComposerNpmAuditScanner extends AbstractAuditScanner
             (string) ($advisory['recommendation'] ?? ''),
             (string) ($advisory['vulnerable_versions'] ?? ''),
             $versionInstalled,
-            (string) ($advisory['patched_versions'] ?? '')
+            (string) ($advisory['patched_versions'] ?? ''),
+            publicId: $publicId
         );
+    }
+
+    /**
+     * Extracts published GHSA identifiers from npm advisory URLs without fetching pages.
+     *
+     * @param string $detailsUrl Advisory URLs separated by a semicolon and space.
+     * @return string
+     */
+    private function getGhsaFromAdvisoryUrl(string $detailsUrl) : string
+    {
+        $identifiers = [];
+        foreach (explode('; ', $detailsUrl) as $url) {
+            $path = parse_url($url, PHP_URL_PATH);
+            if (! is_string($path)) {
+                continue;
+            }
+            foreach (explode('/', $path) as $identifier) {
+                if (VulnerabilityLevelDataType::isGHSA($identifier)) {
+                    $identifiers[] = 'GHSA-' . strtolower(substr($identifier, 5));
+                }
+            }
+        }
+        return implode('; ', array_unique($identifiers));
     }
 
     /**

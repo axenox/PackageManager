@@ -383,6 +383,7 @@ class OsvAuditScanner extends AbstractAuditScanner
                 $versionsAffected,
                 $dependency['version'],
                 implode('; ', array_unique($fixed)),
+                publicId: $cve !== '' ? strtoupper($cve) : $advisory['id'],
                 ecosystem: $dependency['ecosystem'] ?? null
             );
         }

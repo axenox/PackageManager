@@ -113,10 +113,10 @@ class FindingTest extends TestCase
      */
     public function testEvidenceDistinguishesPackagesAndScanners() : void
     {
-        $first = new Finding('npm:1', 'Advisory', 'vulnerability', 'npm-asset/first', 'npm', 'high', '', 'CVE-2026-0001');
-        $second = new Finding('scanner:2', 'Advisory', 'vulnerability', 'npm-asset/second', 'trivy', 'critical', '', 'CVE-2026-0001');
-        $otherScanner = new Finding('npm:1', 'Advisory', 'vulnerability', 'npm-asset/first', 'trivy', 'high', '', 'CVE-2026-0001');
-        $otherPackage = new Finding('npm:1', 'Advisory', 'vulnerability', 'npm-asset/other', 'npm', 'high', '', 'CVE-2026-0001');
+        $first = new Finding('npm:1', 'Advisory', 'vulnerability', 'npm-asset/first', 'npm', 'high', '', 'CVE-2026-0001', publicId: 'CVE-2026-0001');
+        $second = new Finding('scanner:2', 'Advisory', 'vulnerability', 'npm-asset/second', 'trivy', 'critical', '', 'CVE-2026-0001', publicId: 'CVE-2026-0001');
+        $otherScanner = new Finding('npm:1', 'Advisory', 'vulnerability', 'npm-asset/first', 'trivy', 'high', '', 'CVE-2026-0001', publicId: 'CVE-2026-0001');
+        $otherPackage = new Finding('npm:1', 'Advisory', 'vulnerability', 'npm-asset/other', 'npm', 'high', '', 'CVE-2026-0001', publicId: 'CVE-2026-0001');
         self::assertInstanceOf(FindingInterface::class, $first);
         self::assertSame($first->getPublicId(), $second->getPublicId());
         self::assertFalse($first->is($otherScanner));
@@ -194,5 +194,26 @@ class FindingTest extends TestCase
         $eol = new Finding('EOL:os', 'Unsupported OS', 'EOL', 'os', 'trivy', 'high', '', 'CVE-2026-0001');
         self::assertSame('', $eol->getPublicId());
         self::assertSame('EOL:os', $eol->getSourceId());
+    }
+
+    /**
+     * Only the scanner decides whether an identifier is public, for every finding type.
+     *
+     * @return void
+     */
+    public function testPublicIdentityIsNeverInferredFromOtherEvidence() : void
+    {
+        foreach (AdvisoryTypeDataType::getValuesStatic() as $type) {
+            foreach (['missing-license', 'CVE-2026-0001'] as $sourceId) {
+                $finding = new Finding($sourceId, 'Advisory', $type, 'package', 'scanner', 'low',
+                    'https://github.com/advisories/GHSA-abcd-1234-efgh', 'CVE-2026-0001');
+                self::assertSame('', $finding->getPublicId());
+                self::assertSame($sourceId, $finding->getSourceId());
+                self::assertSame('CVE-2026-0001', $finding->getCve());
+                $explicit = new Finding($sourceId, 'Advisory', $type, 'package', 'scanner', 'low',
+                    publicId: 'custom-published-id');
+                self::assertSame('custom-published-id', $explicit->getPublicId());
+            }
+        }
     }
 }

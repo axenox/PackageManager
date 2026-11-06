@@ -158,7 +158,7 @@ class ComposerAuditScanner extends AbstractAuditScanner
      * Creates a finding directly from a native Composer advisory.
      * 
      * Ignored advisories retain the policy reason without rewriting the response.
-     * The finding handles severity normalization and public identifier resolution.
+     * Public IDs come from Composer's CVE or advisoryId fields, not linked pages.
      * 
      * @param string $package
      * @param array{advisoryId?: string, cve?: string|null, title?: string, severity?: string, link?: string, description?: string, affectedVersions?: string, ignoreReason?: string} $advisory
@@ -184,7 +184,8 @@ class ComposerAuditScanner extends AbstractAuditScanner
             $description,
             '',
             (string) ($advisory['affectedVersions'] ?? ''),
-            $versionInstalled
+            $versionInstalled,
+            publicId: (string) (($advisory['cve'] ?? '') !== '' ? $advisory['cve'] : ($advisory['advisoryId'] ?? ''))
         );
     }
 

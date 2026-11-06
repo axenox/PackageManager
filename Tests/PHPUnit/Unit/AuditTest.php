@@ -216,6 +216,7 @@ class AuditTest extends AuditTestCase
         }
         $rows = $this->resultSheet($findings)->getRows();
         self::assertCount(3, $rows);
+        self::assertSame(['', '', ''], array_column($rows, 'PUBLIC_ID'));
         $byName = array_column($rows, null, 'NAME');
         self::assertSame('outdated', $byName['Update available for package library']['TYPE']);
         self::assertSame('upgradable', $byName['New version 2 available for package library']['TYPE']);
@@ -263,7 +264,8 @@ class AuditTest extends AuditTestCase
         $findings = [];
         foreach (['low', 'medium', 'high', 'critical'] as $level) {
             foreach (['B', 'A'] as $identifier) {
-                $findings[] = new Finding($level . $identifier, $level . $identifier . ' advisory', 'vulnerability', 'package', 'npm', $level);
+                $findings[] = new Finding($level . $identifier, $level . $identifier . ' advisory', 'vulnerability', 'package', 'npm', $level,
+                    publicId: $level . $identifier);
             }
         }
         $rows = $this->resultSheet($findings)->getRows();
@@ -289,7 +291,8 @@ class AuditTest extends AuditTestCase
         $rows = $sheet->getRows();
         self::assertSame([400, 300, 300, 100], array_column($rows, 'LEVEL'));
         self::assertSame(['z-critical', 'a-high', 'z-high', 'a-low'], array_column($rows, 'PACKAGE'));
-        self::assertSame(['critical', 'Z-high', 'A-high', 'low'], array_column($rows, 'PUBLIC_ID'));
+        self::assertSame(['', '', '', ''], array_column($rows, 'PUBLIC_ID'));
+        self::assertSame(['Critical advisory', 'Second advisory', 'First advisory', 'Low advisory'], array_column($rows, 'NAME'));
         self::assertSame($rows, $this->invokeProtected($this->action, 'createResultSheet', [array_reverse($findings)])->getRows());
         $table = $this->invokeProtected($this->action, 'table', [$sheet]);
         $previousPosition = -1;
@@ -430,7 +433,8 @@ class AuditTest extends AuditTestCase
     {
         $original = $this->npmRows[0];
         $anotherPackage = new Finding($original->getSourceId(), $original->getName(), $original->getType(),
-            'npm-asset/other', $original->getSource(), $original->getSourceLevel(), $original->getDetailsUrl(), $original->getCve());
+            'npm-asset/other', $original->getSource(), $original->getSourceLevel(), $original->getDetailsUrl(), $original->getCve(),
+            publicId: $original->getPublicId());
         $sheet = $this->resultSheet([$original, $anotherPackage]);
         $rows = $sheet->getRows();
         self::assertCount(2, $rows);
@@ -469,9 +473,9 @@ class AuditTest extends AuditTestCase
     public function testPackageAndTitleDeduplicateDifferentPublicIdsIgnoringCase() : void
     {
         $npm = new Finding('npm:123', 'Prototype pollution', 'vulnerability', 'npm-asset/library', 'npm', 'high',
-            'https://github.com/advisories/GHSA-abcd-1234-efgh');
+            'https://github.com/advisories/GHSA-abcd-1234-efgh', publicId: 'GHSA-abcd-1234-efgh');
         $osv = new Finding('OSV-123', 'PROTOTYPE POLLUTION', 'vulnerability', 'NPM-ASSET/LIBRARY', 'osv', 'critical',
-            'https://osv.dev/vulnerability/OSV-123', 'CVE-2026-1234');
+            'https://osv.dev/vulnerability/OSV-123', 'CVE-2026-1234', publicId: 'CVE-2026-1234');
         $groups = $this->invokeProtected($this->action, 'groupFindings', [[$npm, $osv]]);
         self::assertCount(1, $groups);
         self::assertSame([$npm, $osv], $groups[0]->getMergedFindings());
@@ -509,9 +513,9 @@ class AuditTest extends AuditTestCase
      */
     public function testTitleAndPublicIdentityMatchesJoinExistingGroups() : void
     {
-        $first = new Finding('GHSA-first', 'First title', 'vulnerability', 'package', 'npm', 'high');
-        $second = new Finding('CVE-2026-1234', 'Second title', 'vulnerability', 'package', 'osv', 'high');
-        $bridge = new Finding('CVE-2026-1234', 'FIRST TITLE', 'vulnerability', 'package', 'trivy', 'critical');
+        $first = new Finding('GHSA-first', 'First title', 'vulnerability', 'package', 'npm', 'high', publicId: 'GHSA-first');
+        $second = new Finding('CVE-2026-1234', 'Second title', 'vulnerability', 'package', 'osv', 'high', publicId: 'CVE-2026-1234');
+        $bridge = new Finding('CVE-2026-1234', 'FIRST TITLE', 'vulnerability', 'package', 'trivy', 'critical', publicId: 'CVE-2026-1234');
         $groups = $this->invokeProtected($this->action, 'groupFindings', [[$first, $second, $bridge]]);
         self::assertCount(1, $groups);
         self::assertCount(3, $groups[0]->getMergedFindings());
@@ -578,7 +582,8 @@ class AuditTest extends AuditTestCase
     public function testSharedPublicIdDeduplicatesNativeIds() : void
     {
         $anotherNpmId = new Finding('npm:456', $this->linkedNpm->getName(), $this->linkedNpm->getType(),
-            $this->linkedNpm->getPackage(), 'npm', $this->linkedNpm->getSourceLevel(), $this->linkedNpm->getDetailsUrl());
+            $this->linkedNpm->getPackage(), 'npm', $this->linkedNpm->getSourceLevel(), $this->linkedNpm->getDetailsUrl(),
+            publicId: $this->linkedNpm->getPublicId());
         $merged = $this->invokeProtected($this->action, 'toDataSheetRows', [[$this->linkedNpm, $anotherNpmId]]);
         $single = $this->invokeProtected($this->action, 'toDataSheetRows', [[$this->linkedNpm]]);
         self::assertCount(1, $merged);
@@ -597,8 +602,9 @@ class AuditTest extends AuditTestCase
     public function testResultRowFormattingUsesFindingGettersWithoutDetections() : void
     {
         $first = new Finding('npm:1', 'Advisory', 'vulnerability', 'npm-asset/first', 'npm', 'moderate',
-            'https://example.org/advisory', 'CVE-2026-0001', 'Description', 'Upgrade', '<2', '1', '2');
-        $second = new Finding('scanner:2', 'Advisory', 'vulnerability', 'npm-asset/first', 'trivy', 'critical', '', 'CVE-2026-0001', '', '', '', '1', '3');
+            'https://example.org/advisory', 'CVE-2026-0001', 'Description', 'Upgrade', '<2', '1', '2', publicId: 'CVE-2026-0001');
+        $second = new Finding('scanner:2', 'Advisory', 'vulnerability', 'npm-asset/first', 'trivy', 'critical', '', 'CVE-2026-0001', '', '', '', '1', '3',
+            publicId: 'CVE-2026-0001');
         $row = $this->invokeProtected($this->action, 'toDataSheetRows', [[$first, $second, $first]])[0];
         $single = $this->invokeProtected($this->action, 'toDataSheetRows', [[$first]])[0];
         self::assertSame(Audit::COLUMNS, array_keys($row));
@@ -657,14 +663,49 @@ class AuditTest extends AuditTestCase
         self::assertSame('', $this->linkedNpm->getCve());
     }
 
+    /**
+     * CLI columns and values keep the requested order, including empty public identities.
+     *
+     * @return void
+     */
+    public function testTableColumnOrderIncludesInstalledVersionAndBlankPublicId() : void
+    {
+        $findings = [
+            new Finding('internal:1', 'Known advisory', 'vulnerability', 'example/known', 'scanner', 'high',
+                versionInstalled: '1.2.3', publicId: 'CVE-2026-1234'),
+            new Finding('missing-license', 'Missing license', 'license', 'example/unknown', 'license', 'low',
+                versionInstalled: '4.5.6')
+        ];
+        $sheet = $this->resultSheet($findings);
+        $before = $sheet->getRows();
+        $table = $this->invokeProtected($this->action, 'table', [$sheet]);
+        $lines = array_values(array_filter(explode("\n", $table), static function ($line) {
+            return str_starts_with($line, '|');
+        }));
+        $cells = array_map(static function ($line) {
+            return array_map('trim', explode('|', trim(trim($line), '|')));
+        }, $lines);
+        self::assertSame(['LEVEL', 'PACKAGE', 'VERSION INSTALLED', 'NAME', 'TYPE', 'SOURCE', 'PUBLIC ID'], $cells[0]);
+        self::assertSame(['High', 'example/known', '1.2.3', 'Known advisory', 'Vulnerability', 'scanner', 'CVE-2026-1234'], $cells[1]);
+        self::assertSame(['Low', 'example/unknown', '4.5.6', 'Missing license', 'License', 'license', ''], $cells[2]);
+        self::assertStringNotContainsString('internal:1', $table);
+        self::assertStringNotContainsString('missing-license', $table);
+        self::assertSame($before, $sheet->getRows());
+        self::assertSame('', $before[1]['PUBLIC_ID']);
+    }
+
     /** CVEs take precedence over GHSA links, and repeated links must not duplicate the public label. */
     public function testPublicIdPrefersCveAndDeduplicatesLinks() : void
     {
-        $withCve = new Finding('npm:123', 'Advisory', 'vulnerability', 'package', 'npm', 'high',
-            $this->linkedNpm->getDetailsUrl(), 'CVE-2020-11023');
+        $scanner = new ComposerNpmAuditScanner($this->workbench);
+        $withCve = $this->invokeProtected($scanner, 'createFinding', ['package', [
+            'id' => 123, 'url' => $this->linkedNpm->getDetailsUrl()
+        ], 'CVE-2020-11023']);
         self::assertSame('CVE-2020-11023', $withCve->getPublicId());
         $url = $this->linkedNpm->getDetailsUrl();
-        $repeatedLinks = new Finding('npm:123', 'Advisory', 'vulnerability', 'package', 'npm', 'high', $url . '; ' . $url . '?source=fixture');
+        $repeatedLinks = $this->invokeProtected($scanner, 'createFinding', ['package', [
+            'id' => 123, 'url' => $url . '; ' . $url . '?source=fixture'
+        ]]);
         self::assertSame('GHSA-jpcq-cgw6-v4j6', $repeatedLinks->getPublicId());
     }
 
@@ -726,7 +767,7 @@ class AuditTest extends AuditTestCase
         self::assertSame(100, $output['findings'][2]['LEVEL']);
         self::assertSame('', $output['findings'][2]['PUBLIC_ID']);
         $table = $this->invokeProtected($this->action, 'table', [$sheet]);
-        self::assertMatchesRegularExpression('/\|\s*Low\s*\|\s*\|\s*Package cannot be scanned\s*\|\s*Unscannable\s*\|/', $table);
+        self::assertMatchesRegularExpression('/\|\s*Low\s*\|\s*unknown\/package\s*\|\s*\|\s*Package cannot be scanned\s*\|\s*Unscannable\s*\|\s*osv\s*\|\s*\|/', $table);
         self::assertSame($hints, $output['hints']);
         self::assertSame($scanners, $output['scanners']);
         $emptySheet = $this->resultSheet([]);
