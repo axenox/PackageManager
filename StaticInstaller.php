@@ -9,58 +9,54 @@ use exface\Core\Facades\ConsoleFacade\CliOutputPrinter;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Factories\ActionFactory;
+use exface\Core\Factories\AppFactory;
 use axenox\PackageManager\Actions\ListApps;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
  * The static installer allows Composer (or anything else outside of the Workbench) to launch app installers.
  * 
- * The following methods are run on composer events. Thy are registered as composer scripts.
+ * The `PackageManagerInstaller` registers the following Composer scripts in the root `composer.json` of the
+ * installation:
  *
- * - `StaticInstaller::composerFinishInstall()`
- * - `StaticInstaller::composerFinishUpdate()`
- * - `StaticInstaller::composerFinishPackageInstall()`
- * - `StaticInstaller::composerFinishPackageUpdate()`
- * - `StaticInstaller::composerPrepareUninstall()`
+ * ```
+ * "post-package-install": ["axenox\\PackageManager\\StaticInstaller::composerFinishPackageInstall"],
+ * "post-package-update": ["axenox\\PackageManager\\StaticInstaller::composerFinishPackageUpdate"],
+ * "post-install-cmd": ["Composer\\Config::disableProcessTimeout", "@php vendor/axenox/packagemanager/bin/composer-script.php composerFinishInstall"],
+ * "post-update-cmd": ["Composer\\Config::disableProcessTimeout", "@php vendor/axenox/packagemanager/bin/composer-script.php composerFinishUpdate"]
+ * ```
  * 
- * ## Why some entry points run in a separate PHP process
+ * ## Why the installers run in a separate PHP process
  * 
- * Composer scripts run inside the Composer process. Composer ships its own copies of several libraries and loads
- * them before calling any script. A PHP process can only hold one definition of a class or interface, so whenever
- * the workbench needs a different version of one of these libraries, it fails to load inside Composer. For example,
- * Composer bundles the psr/log 1 interfaces, while the workbench's logger (Monolog 3) implements psr/log 3. Other
- * bundled libraries (e.g. symfony/console, symfony/process, react/promise) could clash the same way in the future.
- * Starting the workbench in its own process isolates it from Composer's dependencies altogether.
+ * Composer scripts defined as PHP callbacks (`Class::method`) run inside the Composer process. Composer ships its 
+ * own copies of several libraries and loads them before calling any script. A PHP process can only hold one 
+ * definition of a class or interface, so whenever the workbench needs a different version of one of these libraries,
+ * it fails to load inside Composer. For example, Composer bundles the psr/log 1 interfaces, while the workbench's 
+ * logger (Monolog 3) implements psr/log 3. Other bundled libraries (e.g. symfony/console, symfony/process) could 
+ * clash the same way in the future. Starting the workbench in its own process isolates it from Composer's 
+ * dependencies altogether. See https://github.com/composer/composer/issues/11246 and 
+ * https://github.com/composer/composer/issues/11437.
  * 
- * The entry points that start a workbench (`composerFinishInstall()`, `composerFinishUpdate()` and
- * `composerBackupEverything()`) can therefore restart themselves in a new PHP process, if they are running inside
- * Composer. The `$composer_event` tells them: Composer always passes an event to its scripts, while all other
- * callers pass none - the new process itself, actions and manual calls like
- * `php -r "require 'vendor/autoload.php'; axenox\PackageManager\StaticInstaller::composerFinishInstall();"`.
- * Without an event, they always run the installers right away. See `shouldRunInChildProcess()`.
+ * The package events only record the affected apps in a temp file and never start a workbench, so they remain
+ * callbacks - they need the Composer event to find out, which package changed.
  * 
- * Whether Composer calls are moved to a child process is controlled by `COMPOSER.CHILD_PROCESS_MODE`:
+ * The post-install and post-update scripts start a workbench, so they use `@php` - Composer's way of running 
+ * scripts in a new PHP process (same PHP binary and `memory_limit`). `bin/composer-script.php` loads the autoloader
+ * of the installation and calls the requested method, so it runs the installers right away (see 
+ * `runComposerScript()`). `Composer\Config::disableProcessTimeout` prevents Composer from killing the installers 
+ * after its default `process-timeout` of 300 seconds - just like callbacks were never stopped.
  * 
- * - `migration` (default) - only if Composer bundles a package known to break the workbench in another major
- * version than the one in the `vendor` folder (currently psr/log: 1 in Composer vs. 3 for Monolog 3 in the 
- * workbench). In this case, the workbench would fail to load inside Composer. See 
- * `findComposerDependencyConflicts()`.
- * - `always` - every Composer call starts a child process.
- * - `false` - installers always run inside the Composer process (the behavior before child processes were
- * introduced). A warning is printed if a conflict is detected.
+ * The methods `composerFinishInstall()` and `composerFinishUpdate()` themselves always run the installers in the 
+ * current process. Do not register them as Composer callbacks (`StaticInstaller::composerFinishUpdate`) in a 
+ * `composer.json` - this would fail with Monolog 3. The `PackageManagerInstaller` replaces such legacy entries by the
+ * `@php` scripts. If an old installation still fails once, because Composer already read the legacy callbacks, run
+ * `php vendor/axenox/packagemanager/bin/composer-script.php composerFinishUpdate` manually - the apps to update are 
+ * kept in the temp file until then.
  * 
- * The child process does not receive any console input (STDIN), because installers never ask for any. Its output is
- * streamed to the console live. `COMPOSER.CHILD_PROCESS_TIMEOUT_SECONDS` allows to stop a child process that
- * runs longer than expected (default `0` - no timeout). Both are precautions: freezes of the child process were not
- * observed so far.
- * 
- * These options are read directly from the JSON config files (see `getConfigOption()`), because the workbench cannot
- * be started inside Composer - that is the reason for the child process in the first place.
- * 
- * Note: there is only one child process per Composer script call - it runs the installers of all apps one after
- * another just like the Composer process would. The child process only isolates the installers from Composer, but
+ * Note: there is only one `@php` process per Composer script - it runs the installers of all apps one after
+ * another just like the Composer process would. The process only isolates the installers from Composer, but
  * not the apps from each other. How the apps share workbenches inside that process is controlled separately by
- * `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` (see below) - both options are independent of each other.
+ * `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` (see below) - the two are independent of each other.
  * 
  * TODO Run the installer of every app in its own child process instead of chaining all installers in one process.
  * Every app would get a clean PHP process (no static state, loaded classes, memory or DB connections left over 
@@ -76,8 +72,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` to FALSE in `config/axenox.PackageManager.config.json` in your
  * installation folder. 
  * 
- * This applies to whatever process runs the installers - the Composer process or the child process (see above). In 
- * both cases, multiple workbenches still share a single PHP process.
+ * Multiple workbenches still share a single PHP process - see the note above.
  * 
  * The mode is determined before the first workbench is started. All code here accesses the workbench via
  * `getWorkbench()` and calls `releaseWorkbench()` when it is done. When a new workbench is used for every app 
@@ -105,19 +100,14 @@ class StaticInstaller
 
     const PACAKGE_MANAGER_GENERATE_LIC_BOM_ALIAS = 'axenox.PackageManager.GenerateLicenseBOM';
     
-    const CHILD_PROCESS_MIGRATION = 'migration';
+    /** Entry points, that `bin/composer-script.php` may call - see `runComposerScript()` */
+    const COMPOSER_SCRIPT_METHODS = ['composerFinishInstall', 'composerFinishUpdate', 'composerBackupEverything'];
     
-    const CHILD_PROCESS_ALWAYS = 'always';
-    
-    const CHILD_PROCESS_OFF = false;
-    
-    const CONFIG_FILE_NAME = 'axenox.PackageManager.config.json';
+    /** Path of the script for `@php` Composer scripts - relative to the folder of this app */
+    const COMPOSER_SCRIPT_PATH = 'bin/composer-script.php';
 
     private $workbench = null;
     private static $globalWorkbench = null;
-    
-    /** @var array<string, mixed>|null config options with upper-case keys, read by `getConfigOption()` */
-    private static $configCache = null;
 
     /**
      *
@@ -154,9 +144,6 @@ class StaticInstaller
      */
     public static function composerFinishInstall(Event $composer_event = null)
     {
-        if (static::shouldRunInChildProcess($composer_event)) {
-            return static::runInChildProcess(__FUNCTION__);
-        }
         static::init();
         try {
             $result = '';
@@ -193,9 +180,6 @@ class StaticInstaller
      */
     public static function composerFinishUpdate(Event $composer_event = null)
     {
-        if (static::shouldRunInChildProcess($composer_event)) {
-            return static::runInChildProcess(__FUNCTION__);
-        }
         static::init();
         
         self::printToStdout("Running installers for newly installed and updated apps...\n");
@@ -208,7 +192,6 @@ class StaticInstaller
             // If the package manager is being installed for the first time, run
             // install instead of update
             if (in_array('axenox.PackageManager', $temp['install'])) {
-                // The child process decision was already made above, so run the install right here
                 return self::composerFinishInstall();
             }
             $appAliases = array_merge($appAliases, $temp['install']);
@@ -292,357 +275,51 @@ class StaticInstaller
         ini_set('display_errors', 1);
     }
     
+    // Generated by GitHub Copilot - Nov-06-2026
     /**
-     * Returns an option of the PackageManager configuration without starting a workbench.
+     * Runs an entry point for `bin/composer-script.php` and returns the exit code for that script.
      * 
-     * Reads the default config of this app and the one in the `config` folder of the installation - in this order,
-     * so the installation can override the defaults. Keys are compared case-insensitively like in the workbench
-     * configuration. The files are read once per process.
+     * The entry point is called without a Composer event, so it runs the installers in the current process. Only the
+     * methods in `COMPOSER_SCRIPT_METHODS` are allowed, because the method name comes from the command line. Errors 
+     * not handled by the entry point itself are printed and lead to exit code `1`, so Composer reports the script as
+     * failed.
      * 
-     * This is needed because the options are used inside Composer, where the workbench cannot be started.
-     * 
-     * @param string $key
-     * @param mixed $default returned if no config file contains the option
-     * @return mixed
-     */
-    protected static function getConfigOption(string $key, $default = null)
-    {
-        if (static::$configCache === null) {
-            $options = [];
-            foreach (static::getConfigFilePaths() as $path) {
-                if (! is_file($path)) {
-                    continue;
-                }
-                $json = file_get_contents($path);
-                $fileOptions = ($json === false || trim($json) === '') ? [] : json_decode($json, true);
-                if (! is_array($fileOptions)) {
-                    self::printToStdout('WARNING: Cannot read configuration file "' . $path . '" - ignoring it!' . PHP_EOL);
-                    continue;
-                }
-                $options = array_merge($options, array_change_key_case($fileOptions, CASE_UPPER));
-            }
-            static::$configCache = $options;
-        }
-        $key = strtoupper($key);
-        return array_key_exists($key, static::$configCache) ? static::$configCache[$key] : $default;
-    }
-    
-    /**
-     * Config files read by `getConfigOption()` - later files override earlier ones.
-     * 
-     * @return string[]
-     */
-    protected static function getConfigFilePaths() : array
-    {
-        return [
-            __DIR__ . DIRECTORY_SEPARATOR . 'Config' . DIRECTORY_SEPARATOR . self::CONFIG_FILE_NAME,
-            static::getInstallationPath() . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . self::CONFIG_FILE_NAME
-        ];
-    }
-    
-    /**
-     * Returns the root folder of the installation (the one containing `vendor` and `config`).
-     * 
-     * @return string
-     */
-    protected static function getInstallationPath() : string
-    {
-        return dirname(__DIR__, 3);
-    }
-    
-    /**
-     * Returns the configured `COMPOSER.CHILD_PROCESS_MODE` - `migration` if it is missing or invalid.
-     * 
-     * @return string|false `false` if child processes are disabled
-     */
-    protected static function getChildProcessMode() : string|false
-    {
-        $value = static::getConfigOption('COMPOSER.CHILD_PROCESS_MODE', self::CHILD_PROCESS_MIGRATION);
-        $mode = is_string($value) ? strtolower(trim($value)) : $value;
-        $modes = [self::CHILD_PROCESS_MIGRATION, self::CHILD_PROCESS_ALWAYS, self::CHILD_PROCESS_OFF];
-        if (! in_array($mode, $modes, true)) {
-            self::printToStdout('WARNING: Invalid COMPOSER.CHILD_PROCESS_MODE ' . json_encode($value) . ' - expecting one of ' . implode(', ', array_map('json_encode', $modes)) . '. Using "' . self::CHILD_PROCESS_MIGRATION . '".' . PHP_EOL);
-            return self::CHILD_PROCESS_MIGRATION;
-        }
-        return $mode;
-    }
-    
-    /**
-     * Returns the configured `COMPOSER.CHILD_PROCESS_TIMEOUT_SECONDS` - `0` (no timeout) if missing or invalid.
-     * 
+     * @param string $method
      * @return int
      */
-    protected static function getChildProcessTimeout() : int
+    public static function runComposerScript(string $method) : int
     {
-        $value = static::getConfigOption('COMPOSER.CHILD_PROCESS_TIMEOUT_SECONDS', 0);
-        if (! is_numeric($value) || (int) $value != $value || (int) $value < 0) {
-            self::printToStdout('WARNING: Invalid COMPOSER.CHILD_PROCESS_TIMEOUT_SECONDS ' . json_encode($value) . ' - expecting 0 (no timeout) or a positive number of seconds. Using no timeout.' . PHP_EOL);
-            return 0;
-        }
-        return (int) $value;
-    }
-    
-    /**
-     * Decides, if an entry point should restart itself in a child process - see class description.
-     * 
-     * Calls without a Composer event always run in the current process. Composer calls depend on
-     * `COMPOSER.CHILD_PROCESS_MODE`.
-     * 
-     * @param Event|null $composer_event
-     * @return bool
-     */
-    protected static function shouldRunInChildProcess(Event $composer_event = null) : bool
-    {
-        if ($composer_event === null) {
-            return false;
-        }
-        $mode = static::getChildProcessMode();
-        if ($mode === self::CHILD_PROCESS_ALWAYS) {
-            return true;
-        }
-        
-        $conflicts = static::findComposerDependencyConflicts();
-        if ($mode === self::CHILD_PROCESS_OFF) {
-            if (! empty($conflicts)) {
-                self::printToStdout('WARNING: Running installers inside Composer although its bundled packages conflict with this installation: ' . implode('; ', $conflicts) . '. The workbench may fail to load - consider setting COMPOSER.CHILD_PROCESS_MODE to "' . self::CHILD_PROCESS_MIGRATION . '".' . PHP_EOL);
-            }
-            return false;
-        }
-        
-        if (empty($conflicts)) {
-            return false;
-        }
-        self::printToStdout('Composer\'s bundled packages conflict with this installation: ' . implode('; ', $conflicts) . '.' . PHP_EOL);
-        return true;
-    }
-    
-    /**
-     * Lists packages known to break the workbench, that are installed in another major version in Composer.
-     * 
-     * Only one version of a class can be loaded per PHP process. If Composer already loaded a class, the workbench
-     * gets Composer's version. This only breaks things if a workbench class extends or implements it with an
-     * incompatible signature - e.g. Monolog 3 implementing the untyped `LoggerInterface` of Composer's psr/log 1.
-     * Other version differences (e.g. symfony/console) never caused problems, so only the packages listed in
-     * `getConflictCheckPackages()` are checked. 
-     * 
-     * A different major version is treated as a conflict (for `0.x` versions the minor version counts as major, as
-     * in semantic versioning). If a version cannot be compared (e.g. `dev-master`), the package conflicts if the 
-     * versions are not equal.
-     * 
-     * If the package lists cannot be read, a conflict is assumed to be on the safe side.
-     * 
-     * @return string[] descriptions of the conflicts with package names as keys - empty if there are none
-     */
-    protected static function findComposerDependencyConflicts() : array
-    {
-        $composerPackages = static::readInstalledPackages(static::getComposerInstalledPhpPath());
-        $projectPackages = static::readInstalledPackages(static::getInstallationPath() . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.php');
-        if ($composerPackages === null || $projectPackages === null) {
-            return ['*' => 'cannot compare Composer\'s bundled packages with the vendor folder'];
-        }
-        
-        $conflicts = [];
-        $checkedPackages = array_flip(static::getConflictCheckPackages());
-        foreach (array_intersect_key($composerPackages, $projectPackages, $checkedPackages) as $name => $composerVersion) {
-            $projectVersion = $projectPackages[$name];
-            $composerMajor = static::getMajorVersion($composerVersion);
-            $projectMajor = static::getMajorVersion($projectVersion);
-            $isConflict = ($composerMajor === null || $projectMajor === null)
-                ? $composerVersion !== $projectVersion
-                : $composerMajor !== $projectMajor;
-            if ($isConflict) {
-                $conflicts[$name] = $name . ' ' . $composerVersion . ' in Composer vs. ' . $projectVersion . ' in vendor';
-            }
-        }
-        return $conflicts;
-    }
-    
-    /**
-     * Packages bundled with Composer, that break the workbench if loaded in another major version.
-     * 
-     * Add a package here if a new version of it makes the installers crash inside Composer (e.g. with "Declaration
-     * of ... must be compatible with ...").
-     * 
-     * @return string[] lower-case package names
-     */
-    protected static function getConflictCheckPackages() : array
-    {
-        return [
-            // Monolog 3 (used since the Monolog upgrade) needs psr/log 3, Composer bundles psr/log 1
-            'psr/log'
-        ];
-    }
-    
-    /**
-     * Returns the path to `installed.php` of the running Composer or NULL if not running inside Composer.
-     * 
-     * Works for the PHAR and for source installations of Composer: both have `src/Composer/Composer.php` and
-     * `vendor/composer/installed.php` in the same root folder.
-     * 
-     * @return string|null
-     */
-    protected static function getComposerInstalledPhpPath() : ?string
-    {
-        if (! class_exists(\Composer\Composer::class, false)) {
-            return null;
-        }
-        $file = (new \ReflectionClass(\Composer\Composer::class))->getFileName();
-        if ($file === false) {
-            return null;
-        }
-        // <root>/src/Composer/Composer.php -> <root>/vendor/composer/installed.php
-        return dirname($file, 3) . '/vendor/composer/installed.php';
-    }
-    
-    /**
-     * Reads the versions of all installed packages from a Composer `installed.php` file.
-     * 
-     * Packages without a version (e.g. virtual packages like `psr/log-implementation`) are skipped.
-     * 
-     * @param string|null $path
-     * @return array<string, string>|null package names as keys and pretty versions as values or NULL if not readable
-     */
-    protected static function readInstalledPackages(?string $path) : ?array
-    {
-        if ($path === null || ! file_exists($path)) {
-            return null;
+        if (! in_array($method, self::COMPOSER_SCRIPT_METHODS, true)) {
+            self::printToStdout('ERROR: Unknown StaticInstaller method ' . json_encode($method) . ' - expecting one of ' . implode(', ', self::COMPOSER_SCRIPT_METHODS) . '.' . PHP_EOL);
+            return 1;
         }
         try {
-            $data = include $path;
+            $result = static::$method();
         } catch (\Throwable $e) {
-            return null;
+            self::printException($e);
+            return 1;
         }
-        if (! is_array($data) || ! is_array($data['versions'] ?? null)) {
-            return null;
+        if (is_string($result) && $result !== '') {
+            self::printToStdout(rtrim($result) . PHP_EOL);
         }
-        $packages = [];
-        foreach ($data['versions'] as $name => $package) {
-            $version = $package['pretty_version'] ?? $package['version'] ?? null;
-            if (is_string($version) && $version !== '') {
-                $packages[strtolower($name)] = $version;
-            }
-        }
-        return $packages;
+        return 0;
     }
     
+    // Generated by GitHub Copilot - Nov-06-2026
     /**
-     * Returns the major version of a Composer version string or NULL for branches like `dev-master`.
+     * Returns the command to register the given entry point as `@php` script in the root `composer.json`.
      * 
-     * Examples: `v5.4.44` -> `5`, `3.0.0-RC1` -> `3`, `2.x-dev` -> `2`, `0.4.2` -> `0.4`.
+     * The path is relative to the installation folder (Composer runs scripts there) and uses forward slashes, which
+     * Composer converts on Windows.
      * 
-     * @param string $version
-     * @return string|null
+     * @param string $method one of `COMPOSER_SCRIPT_METHODS`
+     * @param string $vendorDir the `vendor-dir` of the root `composer.json`
+     * @return string e.g. `@php vendor/axenox/packagemanager/bin/composer-script.php composerFinishUpdate`
      */
-    protected static function getMajorVersion(string $version) : ?string
+    public static function getComposerScriptCommand(string $method, string $vendorDir = 'vendor') : string
     {
-        if (! preg_match('/^v?(\d+)(?:\.(\d+))?/i', trim($version), $matches)) {
-            return null;
-        }
-        $major = (string) (int) $matches[1];
-        if ($major === '0') {
-            return '0.' . (isset($matches[2]) ? (int) $matches[2] : 0);
-        }
-        return $major;
-    }
-    
-    /**
-     * Runs the given entry point in a new PHP process and streams its output to the console.
-     * 
-     * Used when Composer called the entry point (see class description): the new process does not contain
-     * Composer's bundled libraries, so the workbench loads only its own `vendor` versions (e.g. psr/log 3 for
-     * Monolog 3 instead of Composer's psr/log 1). The entry point is called there without an
-     * event, so it runs the installers instead of starting yet another process.
-     * 
-     * The child is started like Composer starts `@php` scripts: same PHP binary and `memory_limit` as the
-     * Composer process. The command is passed as an array, so no shell is involved and nothing is
-     * interpolated into a command line.
-     * 
-     * @param string $method public static method of this class, that runs in-process if called without event
-     * @throws \RuntimeException if the child process cannot be started, times out or does not exit successfully
-     * @return string
-     */
-    protected static function runInChildProcess(string $method) : string
-    {
-        if (PHP_BINARY === '') {
-            throw new \RuntimeException('Cannot run "' . $method . '" in a separate PHP process: PHP binary unknown!');
-        }
-        $autoloadPath = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'autoload.php';
-        $code = 'require ' . var_export($autoloadPath, true) . '; \\' . static::class . '::' . $method . '();';
-        $command = [PHP_BINARY, '-d', 'memory_limit=' . ini_get('memory_limit'), '-r', $code];
-        
-        self::printToStdout('Running ' . $method . ' in a separate PHP process...' . PHP_EOL);
-        $exitCode = static::runProcess($command, $method, static::getChildProcessTimeout());
-        if ($exitCode !== 0) {
-            // Composer stops with an error, just like it did when the installers crashed inside its own process
-            throw new \RuntimeException('"' . $method . '" failed in a separate PHP process with exit code ' . $exitCode . ' - see output above.');
-        }
-        return '';
-    }
-    
-    /**
-     * Runs a command, streams its output to the console live and returns its exit code.
-     * 
-     * The process gets no console input (STDIN is the null device), so it can never block waiting for it. Without
-     * a timeout, this waits for the process to finish. With a timeout, the process status is checked a few times
-     * per second and the process (incl. its child processes on Windows) is killed once the timeout is exceeded.
-     * 
-     * @param string[] $command executable and arguments - passed without a shell
-     * @param string $label used in error messages
-     * @param int $timeoutSeconds `0` for no timeout
-     * @throws \RuntimeException if the process cannot be started or times out
-     * @return int
-     */
-    protected static function runProcess(array $command, string $label, int $timeoutSeconds = 0) : int
-    {
-        $nullDevice = DIRECTORY_SEPARATOR === '\\' ? 'NUL' : '/dev/null';
-        // Hand the console output streams to the child, so its output appears live and is not buffered here
-        $descriptors = [
-            0 => ['file', $nullDevice, 'r'],
-            1 => defined('STDOUT') ? STDOUT : ['file', $nullDevice, 'w'],
-            2 => defined('STDERR') ? STDERR : ['file', $nullDevice, 'w']
-        ];
-        $process = proc_open($command, $descriptors, $pipes);
-        if (! is_resource($process)) {
-            throw new \RuntimeException('Cannot start a separate PHP process for "' . $label . '"!');
-        }
-        if ($timeoutSeconds <= 0) {
-            return proc_close($process);
-        }
-        
-        $deadline = microtime(true) + $timeoutSeconds;
-        while (true) {
-            $status = proc_get_status($process);
-            if ($status['running'] === false) {
-                // The exit code is only reported by the first status call after the process ended
-                proc_close($process);
-                return $status['exitcode'];
-            }
-            if (microtime(true) >= $deadline) {
-                static::killProcess($process, $status['pid']);
-                proc_close($process);
-                throw new \RuntimeException('"' . $label . '" was stopped after exceeding the timeout of ' . $timeoutSeconds . ' seconds (COMPOSER.CHILD_PROCESS_TIMEOUT_SECONDS)!');
-            }
-            usleep(200000);
-        }
-    }
-    
-    /**
-     * Kills a process started via `proc_open()` - on Windows including its child processes.
-     * 
-     * @param resource $process
-     * @param int $pid
-     * @return void
-     */
-    protected static function killProcess($process, int $pid) : void
-    {
-        if (DIRECTORY_SEPARATOR === '\\') {
-            // proc_terminate() would only stop the process itself, but not processes it started (e.g. git)
-            exec('taskkill /F /T /PID ' . $pid . ' 2>NUL', $output, $exitCode);
-            if ($exitCode === 0) {
-                return;
-            }
-        }
-        proc_terminate($process, 9);
+        $packageFolder = basename(dirname(__DIR__)) . '/' . basename(__DIR__);
+        return '@php ' . rtrim(str_replace('\\', '/', $vendorDir), '/') . '/' . $packageFolder . '/' . self::COMPOSER_SCRIPT_PATH . ' ' . $method;
     }
     
     /**
@@ -688,9 +365,6 @@ class StaticInstaller
      * @return Event $composer_event
      */
     public static function composerBackupEverything(Event $composer_event = null){
-        if (static::shouldRunInChildProcess($composer_event)) {
-            return static::runInChildProcess(__FUNCTION__);
-        }
         static::init();
         $installer = new self();
         try {
@@ -836,11 +510,10 @@ class StaticInstaller
         $this->importSources();
         if (is_null($this->workbench)) {
             static::init();
-            $shared = static::isSharedWorkbench();
             try {
                 $this::printToStdout('Starting new workbench instance');
                 $this->workbench = Workbench::startNewInstance();
-                if ($shared) {
+                if (static::isSharedWorkbench($this->workbench)) {
                     $this::printToStdout(' - using this workbench globally' . PHP_EOL);
                     static::$globalWorkbench = $this->workbench;
                 } else {
@@ -888,14 +561,24 @@ class StaticInstaller
     }
     
     /**
-     * Returns TRUE if all installers should share a single workbench (`COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP`
-     * set to `false`) and FALSE if every app gets its own workbench (default).
+     * Returns TRUE if all installers should share a single workbench and FALSE if every app gets its own (default).
      * 
+     * Reads `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` from the configuration of this app. If it cannot be read, 
+     * every app gets its own workbench.
+     * 
+     * @param WorkbenchInterface $workbench
      * @return bool
      */
-    protected static function isSharedWorkbench() : bool
+    protected static function isSharedWorkbench(WorkbenchInterface $workbench) : bool
     {
-        return static::getConfigOption('COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP', true) === false;
+        try {
+            $config = AppFactory::createFromAlias(self::PACKAGE_MANAGER_APP_ALIAS, $workbench)->getConfig();
+            return $config->getOption('COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP') === false;
+        } catch (\Throwable $e) {
+            static::printException($e);
+            static::printToStdout('Cannot read configuration "COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP" - using new workbench for every app by default.' . PHP_EOL);
+            return false;
+        }
     }
 
     public static function generateLicenseBOM()
