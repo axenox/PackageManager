@@ -44,6 +44,37 @@ class StaticInstallerTest extends TestCase
     }
     
     /**
+     * A file with legacy callbacks is migrated once - other content is kept, a migrated file stays untouched.
+     * 
+     * @return void
+     */
+    public function testRootComposerJsonIsMigrated() : void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'composer-json-');
+        try {
+            file_put_contents($path, json_encode([
+                'require' => ['acme/app' => '^1'],
+                'scripts' => ['post-update-cmd' => ['axenox\\PackageManager\\StaticInstaller::composerFinishUpdate']]
+            ]));
+            ob_start();
+            $changed = StaticInstaller::migrateRootComposerJson($path);
+            ob_end_clean();
+            
+            self::assertTrue($changed);
+            $json = json_decode(file_get_contents($path), true);
+            self::assertSame(['acme/app' => '^1'], $json['require']);
+            self::assertSame(
+                ['Composer\\Config::disableProcessTimeout', StaticInstaller::getComposerScriptCommand('composerFinishUpdate')], 
+                $json['scripts']['post-update-cmd']
+            );
+            self::assertFalse(StaticInstaller::migrateRootComposerJson($path));
+            self::assertFalse(StaticInstaller::migrateRootComposerJson($path . '.missing'));
+        } finally {
+            @unlink($path);
+        }
+    }
+    
+    /**
      * @return string
      */
     private function getScriptPath() : string

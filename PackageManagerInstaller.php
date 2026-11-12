@@ -39,6 +39,9 @@ class PackageManagerInstaller extends AbstractAppInstaller
             $changes ++;
         }
         
+        foreach (static::getComposerScriptMigrationNotices($root_composer_json) as $notice) {
+            yield $idt . $notice . PHP_EOL;
+        }
         $configured = static::configureComposerScripts($root_composer_json);
         if ($configured !== $root_composer_json) {
             $root_composer_json = $configured;
@@ -72,7 +75,7 @@ class PackageManagerInstaller extends AbstractAppInstaller
      * @param array<string, mixed> $json
      * @return array<string, mixed>
      */
-    protected static function configureComposerScripts(array $json) : array
+    public static function configureComposerScripts(array $json) : array
     {
         $callbacks = [
             'post-package-install' => StaticInstaller::class . '::composerFinishPackageInstall',
@@ -118,6 +121,27 @@ class PackageManagerInstaller extends AbstractAppInstaller
             }
         }
         return $json;
+    }
+    
+    /**
+     * Returns a migration notice for every legacy `StaticInstaller` callback, that `configureComposerScripts()` 
+     * would replace by an `@php` script - an empty array if the `composer.json` is up to date.
+     * 
+     * @param array<string, mixed> $json
+     * @return string[]
+     */
+    public static function getComposerScriptMigrationNotices(array $json) : array
+    {
+        $vendorDir = $json['config']['vendor-dir'] ?? 'vendor';
+        $notices = [];
+        foreach (['post-install-cmd' => 'composerFinishInstall', 'post-update-cmd' => 'composerFinishUpdate'] as $event => $method) {
+            $legacy = StaticInstaller::class . '::' . $method;
+            if (in_array($legacy, static::getComposerScripts($json, $event), true)) {
+                $notices[] = 'MIGRATION: replaced legacy Composer callback "' . $legacy . '" in "scripts.' . $event 
+                    . '" of the root composer.json by "' . StaticInstaller::getComposerScriptCommand($method, $vendorDir) . '"';
+            }
+        }
+        return $notices;
     }
     
     /**
