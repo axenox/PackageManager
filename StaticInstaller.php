@@ -6,37 +6,85 @@ use exface\Core\CommonLogic\Workbench;
 use Composer\Script\Event;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Facades\ConsoleFacade\CliOutputPrinter;
-use exface\Core\Factories\AppFactory;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\CommonLogic\Selectors\AppSelector;
 use exface\Core\Factories\ActionFactory;
+use exface\Core\Factories\AppFactory;
 use axenox\PackageManager\Actions\ListApps;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
  * The static installer allows Composer (or anything else outside of the Workbench) to launch app installers.
  * 
- * The following methods are run on composer events. Thy are registered as composer scripts.
+ * The `PackageManagerInstaller` registers the following Composer scripts in the root `composer.json` of the
+ * installation:
  *
- * - `StaticInstaller::composerFinishInstall()`
- * - `StaticInstaller::composerFinishUpdate()`
- * - `StaticInstaller::composerFinishPackageInstall()`
- * - `StaticInstaller::composerFinishPackageUpdate()`
- * - `StaticInstaller::composerPrepareUninstall()`
+ * ```
+ * "post-package-install": ["axenox\\PackageManager\\StaticInstaller::composerFinishPackageInstall"],
+ * "post-package-update": ["axenox\\PackageManager\\StaticInstaller::composerFinishPackageUpdate"],
+ * "post-install-cmd": ["Composer\\Config::disableProcessTimeout", "@php vendor/axenox/packagemanager/bin/composer-script.php composerFinishInstall"],
+ * "post-update-cmd": ["Composer\\Config::disableProcessTimeout", "@php vendor/axenox/packagemanager/bin/composer-script.php composerFinishUpdate"]
+ * ```
+ * 
+ * ## Why the installers run in a separate PHP process
+ * 
+ * Composer scripts defined as PHP callbacks (`Class::method`) run inside the Composer process. Composer ships its 
+ * own copies of several libraries and loads them before calling any script. A PHP process can only hold one 
+ * definition of a class or interface, so whenever the workbench needs a different version of one of these libraries,
+ * it fails to load inside Composer. For example, Composer bundles the psr/log 1 interfaces, while the workbench's 
+ * logger (Monolog 3) implements psr/log 3. Other bundled libraries (e.g. symfony/console, symfony/process) could 
+ * clash the same way in the future. Starting the workbench in its own process isolates it from Composer's 
+ * dependencies altogether. See https://github.com/composer/composer/issues/11246 and 
+ * https://github.com/composer/composer/issues/11437.
+ * 
+ * The package events only record the affected apps in a temp file and never start a workbench, so they remain
+ * callbacks - they need the Composer event to find out, which package changed.
+ * 
+ * The post-install and post-update scripts start a workbench, so they use `@php` - Composer's way of running 
+ * scripts in a new PHP process (same PHP binary and `memory_limit`). `bin/composer-script.php` loads the autoloader
+ * of the installation and calls the requested method, so it runs the installers right away (see 
+ * `runComposerScript()`). `Composer\Config::disableProcessTimeout` prevents Composer from killing the installers 
+ * after its default `process-timeout` of 300 seconds - just like callbacks were never stopped.
+ * 
+ * The methods `composerFinishInstall()` and `composerFinishUpdate()` themselves always run the installers in the 
+ * current process. Do not register them as Composer callbacks (`StaticInstaller::composerFinishUpdate`) in a 
+ * `composer.json` - this would fail with Monolog 3. The `PackageManagerInstaller` replaces such legacy entries by the
+ * `@php` scripts and prints a migration notice. `bin/composer-script.php` does the same before running any installer
+ * (see `migrateRootComposerJson()`), so this also works without a workbench. If an old installation still fails once,
+ * because Composer already read the legacy callbacks, run
+ * `php vendor/axenox/packagemanager/bin/composer-script.php composerFinishUpdate` manually - the apps to update are 
+ * kept in the temp file until then and the `composer.json` gets migrated for all following runs.
+ * 
+ * Note: there is only one `@php` process per Composer script - it runs the installers of all apps one after
+ * another just like the Composer process would. The process only isolates the installers from Composer, but
+ * not the apps from each other. How the apps share workbenches inside that process is controlled separately by
+ * `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` (see below) - the two are independent of each other.
+ * 
+ * TODO Run the installer of every app in its own child process instead of chaining all installers in one process.
+ * Every app would get a clean PHP process (no static state, loaded classes, memory or DB connections left over 
+ * from previous apps), which would make `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` and `releaseWorkbench()`
+ * obsolete. The parent process would only determine the apps to install (core first), start a child per app,
+ * collect the exit codes and maintain the temp file - without starting a workbench itself. Trade-off: PHP and the 
+ * workbench are started once per app, which makes the installation slower.
+ * 
+ * ## Single or multiple workbenches
  * 
  * By default, this installer will initialize a new Workbench before running installers for each app. However, this
- * might cause rare side effects, so you can opt for a global workbench instance for all apps by setting
+ * might cause rare side effects, so you can opt for a single shared workbench instance for all apps by setting
  * `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` to FALSE in `config/axenox.PackageManager.config.json` in your
  * installation folder. 
  * 
- * When a new workbench is used for every app (the default), the workbench of the previous app is stopped
- * explicitly after the app was installed (see `stopWorkbenchIfNotGlobal()`). This deterministically closes its
- * DB connections and releases any locks/open transactions before the next app starts - instead of relying on
- * PHP's garbage collector, which may defer the cleanup.
+ * Multiple workbenches still share a single PHP process - see the note above.
+ * 
+ * The mode is determined before the first workbench is started. All code here accesses the workbench via
+ * `getWorkbench()` and calls `releaseWorkbench()` when it is done. When a new workbench is used for every app 
+ * (the default), this stops the workbench explicitly. This deterministically closes its DB connections and releases
+ * any locks/open transactions before the next app starts - instead of relying on PHP's garbage collector, which may
+ * defer the cleanup. A shared workbench is kept running for all apps.
  * 
  * For example, when using a remote MS SQL database for the metamodel, the installer of the second app being 
  * installed might just hang because the MS SQL connector cannot establish a new connection to the DB. If this happens,
- * use a global workbench here to make every app use the same DB connection.
+ * use a shared workbench here to make every app use the same DB connection.
  *
  * @author Andrej Kabachnik
  *
@@ -53,6 +101,12 @@ class StaticInstaller
     const PACKAGE_MANAGER_UNINSTALL_ACTION_ALIAS = 'axenox.PackageManager.UninstallApp';
 
     const PACAKGE_MANAGER_GENERATE_LIC_BOM_ALIAS = 'axenox.PackageManager.GenerateLicenseBOM';
+    
+    /** Entry points, that `bin/composer-script.php` may call - see `runComposerScript()` */
+    const COMPOSER_SCRIPT_METHODS = ['composerFinishInstall', 'composerFinishUpdate', 'composerBackupEverything'];
+    
+    /** Path of the script for `@php` Composer scripts - relative to the folder of this app */
+    const COMPOSER_SCRIPT_PATH = 'bin/composer-script.php';
 
     private $workbench = null;
     private static $globalWorkbench = null;
@@ -140,7 +194,7 @@ class StaticInstaller
             // If the package manager is being installed for the first time, run
             // install instead of update
             if (in_array('axenox.PackageManager', $temp['install'])) {
-                return self::composerFinishInstall($composer_event);
+                return self::composerFinishInstall();
             }
             $appAliases = array_merge($appAliases, $temp['install']);
         }
@@ -178,17 +232,21 @@ class StaticInstaller
         if (array_key_exists('backupTime', $temp)) {
             self::printToStdout("Delete unused backup components:" . PHP_EOL);
             $installer = new self();
-            $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());
-            $backupTime = $temp['backupTime'];
-            $unlinkResult = array();
-
-            foreach($apps as $app){
-
-                if (! in_array($app, $updatedPackages)){
-                    $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
+            try {
+                $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());
+                $backupTime = $temp['backupTime'];
+                $unlinkResult = array();
+    
+                foreach($apps as $app){
+    
+                    if (! in_array($app, $updatedPackages)){
+                        $unlinkResult[] = $installer->unlinkBackup($app,$backupTime);
+                    }
                 }
+                $installer->copyTempFile($backupTime);
+            } finally {
+                $installer->releaseWorkbench();
             }
-            $installer->copyTempFile($backupTime);
             if (!in_array(false,$unlinkResult)){
                 self::printToStdout("Cleared backup from excess data." . PHP_EOL);
             } else {
@@ -217,6 +275,91 @@ class StaticInstaller
         // Make sure errors are displayed even if local php.ini hides them (not sure, if this will really
         // help because it will not affect fatal errors according to PHP documentation)
         ini_set('display_errors', 1);
+    }
+    
+    // Generated by GitHub Copilot - Nov-06-2026
+    /**
+     * Runs an entry point for `bin/composer-script.php` and returns the exit code for that script.
+     * 
+     * The entry point is called without a Composer event, so it runs the installers in the current process. Only the
+     * methods in `COMPOSER_SCRIPT_METHODS` are allowed, because the method name comes from the command line. Errors 
+     * not handled by the entry point itself are printed and lead to exit code `1`, so Composer reports the script as
+     * failed.
+     * 
+     * @param string $method
+     * @return int
+     */
+    public static function runComposerScript(string $method) : int
+    {
+        if (! in_array($method, self::COMPOSER_SCRIPT_METHODS, true)) {
+            self::printToStdout('ERROR: Unknown StaticInstaller method ' . json_encode($method) . ' - expecting one of ' . implode(', ', self::COMPOSER_SCRIPT_METHODS) . '.' . PHP_EOL);
+            return 1;
+        }
+        try {
+            self::migrateRootComposerJson();
+            $result = static::$method();
+        } catch (\Throwable $e) {
+            self::printException($e);
+            return 1;
+        }
+        if (is_string($result) && $result !== '') {
+            self::printToStdout(rtrim($result) . PHP_EOL);
+        }
+        return 0;
+    }
+    
+    /**
+     * Replaces legacy `StaticInstaller` callbacks in the root `composer.json` by the `@php` scripts and prints a
+     * migration notice for every replaced entry.
+     * 
+     * Works without a workbench, so it also runs when the installers are started manually after an old installation
+     * failed. Does nothing if the file is missing, unparsable or already up to date - the `PackageManagerInstaller`
+     * reports such problems when it runs. Composer already read the scripts of the current run, so the changes take
+     * effect with the next `composer install/update`.
+     * 
+     * @param string|null $composerJsonPath defaults to the `composer.json` of the installation (next to `vendor`)
+     * @return bool TRUE if the file was changed
+     */
+    public static function migrateRootComposerJson(?string $composerJsonPath = null) : bool
+    {
+        $composerJsonPath = $composerJsonPath ?? dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'composer.json';
+        if (! is_file($composerJsonPath)) {
+            return false;
+        }
+        $json = json_decode((string) file_get_contents($composerJsonPath), true);
+        if (! is_array($json)) {
+            return false;
+        }
+        $notices = PackageManagerInstaller::getComposerScriptMigrationNotices($json);
+        if (empty($notices)) {
+            return false;
+        }
+        $migrated = PackageManagerInstaller::configureComposerScripts($json);
+        if (file_put_contents($composerJsonPath, json_encode($migrated, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) === false) {
+            self::printToStdout('WARNING: cannot migrate legacy Composer scripts in "' . $composerJsonPath . '" - file not writable!' . PHP_EOL);
+            return false;
+        }
+        foreach ($notices as $notice) {
+            self::printToStdout($notice . PHP_EOL);
+        }
+        return true;
+    }
+    
+    // Generated by GitHub Copilot - Nov-06-2026
+    /**
+     * Returns the command to register the given entry point as `@php` script in the root `composer.json`.
+     * 
+     * The path is relative to the installation folder (Composer runs scripts there) and uses forward slashes, which
+     * Composer converts on Windows.
+     * 
+     * @param string $method one of `COMPOSER_SCRIPT_METHODS`
+     * @param string $vendorDir the `vendor-dir` of the root `composer.json`
+     * @return string e.g. `@php vendor/axenox/packagemanager/bin/composer-script.php composerFinishUpdate`
+     */
+    public static function getComposerScriptCommand(string $method, string $vendorDir = 'vendor') : string
+    {
+        $packageFolder = basename(dirname(__DIR__)) . '/' . basename(__DIR__);
+        return '@php ' . rtrim(str_replace('\\', '/', $vendorDir), '/') . '/' . $packageFolder . '/' . self::COMPOSER_SCRIPT_PATH . ' ' . $method;
     }
     
     /**
@@ -264,17 +407,20 @@ class StaticInstaller
     public static function composerBackupEverything(Event $composer_event = null){
         static::init();
         $installer = new self();
-        $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());
-        //write consistent backuptime to delete excess data after update run
-        $backupTime = date('Y_m_d_H_i');
-        $temp = self::getTempFile();
-        $temp['backupTime'] = $backupTime;
-        self::setTempFile($temp);
-        $backupPath = $installer->getWorkbench()->filemanager()->getPathToBackupFolder();
-        $backupPath = "autobackup".DIRECTORY_SEPARATOR.$backupTime;
-        self::printToStdout("Starting automatic backup to ".$backupPath);
-        foreach($apps as $app){
-            $installer->backup($app, $backupPath);
+        try {
+            $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());
+            //write consistent backuptime to delete excess data after update run
+            $backupTime = date('Y_m_d_H_i');
+            $temp = self::getTempFile();
+            $temp['backupTime'] = $backupTime;
+            self::setTempFile($temp);
+            $backupPath = "autobackup".DIRECTORY_SEPARATOR.$backupTime;
+            self::printToStdout("Starting automatic backup to ".$backupPath);
+            foreach($apps as $app){
+                $installer->backup($app, $backupPath);
+            }
+        } finally {
+            $installer->releaseWorkbench();
         }
         return $backupPath;
     }
@@ -331,35 +477,10 @@ class StaticInstaller
     public static function install($app_alias)
     {
         $installer = new self();
-        $result = $installer->installApp($app_alias);
-        // In per-app mode (i.e. NOT using a shared global workbench) explicitly stop the
-        // workbench created for this app. This deterministically releases its DB connections
-        // and any locks/open transactions right away instead of relying on PHP's garbage
-        // collector, which may defer cleanup due to circular references. Without this, the
-        // lingering connection can prevent the next app from opening a fresh connection
-        // (e.g. remote MS SQL / Azure SQL), causing the installer to hang.
-        $installer->stopWorkbenchIfNotGlobal();
-        return $result;
-    }
-
-    /**
-     * Stops the workbench created for a single app in per-app mode.
-     *
-     * Does nothing if a shared global workbench is being used (COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP = FALSE),
-     * because that instance must stay alive for all subsequent apps.
-     *
-     * @return void
-     */
-    protected function stopWorkbenchIfNotGlobal()
-    {
-        // Only clean up if this instance created its own workbench and no global one is in use
-        if (static::$globalWorkbench === null && $this->workbench !== null) {
-            try {
-                $this->workbench->stop();
-            } catch (\Throwable $e) {
-                static::printException($e);
-            }
-            $this->workbench = null;
+        try {
+            return $installer->installApp($app_alias);
+        } finally {
+            $installer->releaseWorkbench();
         }
     }
 
@@ -411,6 +532,13 @@ class StaticInstaller
     }
 
     /**
+     * Returns the workbench to run installers with - starting it if required.
+     * 
+     * Depending on `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` (see class description), this is either the single
+     * workbench shared by all installers or a new workbench for this installer instance. Call `releaseWorkbench()`
+     * once done with it.
+     * 
+     * If the workbench cannot be started, a workbench, that is not started, is returned to allow logging the error.
      *
      * @return Workbench
      */
@@ -425,18 +553,11 @@ class StaticInstaller
             try {
                 $this::printToStdout('Starting new workbench instance');
                 $this->workbench = Workbench::startNewInstance();
-                try {
-                    $thisApp = AppFactory::createFromAlias('axenox.PackageManager', $this->workbench);
-                    $config = $thisApp->getConfig();
-                    if ($config->getOption('COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP') === false) {
-                        $this::printToStdout(' - using this workbench globally' . PHP_EOL);
-                        static::$globalWorkbench = $this->workbench;
-                    } else {
-                        $this::printToStdout(' - it will be used for this app only' . PHP_EOL);
-                    }
-                } catch (\Throwable $e) {
-                    $this::printException($e);
-                    $this::printToStdout('Cannot read configuration "COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP" - using new workbench for every app by default.' . PHP_EOL);
+                if (static::isSharedWorkbench($this->workbench)) {
+                    $this::printToStdout(' - using this workbench globally' . PHP_EOL);
+                    static::$globalWorkbench = $this->workbench;
+                } else {
+                    $this::printToStdout(' - it will be used for this app only' . PHP_EOL);
                 }
             } catch (\Throwable $e) {
                 $this::printToStdout('FAILED to start workbench!' . PHP_EOL);
@@ -453,10 +574,57 @@ class StaticInstaller
         }
         return $this->workbench;
     }
+    
+    /**
+     * Releases the workbench of this installer instance once it is not needed anymore.
+     * 
+     * If every app gets its own workbench, it is stopped explicitly. This deterministically releases its DB 
+     * connections and any locks/open transactions right away instead of relying on PHP's garbage collector, which
+     * may defer cleanup due to circular references. Without this, the lingering connection can prevent the next 
+     * app from opening a fresh connection (e.g. remote MS SQL / Azure SQL), causing the installer to hang.
+     * 
+     * Does nothing if a shared workbench is used, because it must stay alive for all subsequent apps.
+     * 
+     * @return void
+     */
+    protected function releaseWorkbench() : void
+    {
+        if (static::$globalWorkbench !== null || $this->workbench === null) {
+            return;
+        }
+        try {
+            $this->workbench->stop();
+        } catch (\Throwable $e) {
+            static::printException($e);
+        }
+        $this->workbench = null;
+    }
+    
+    /**
+     * Returns TRUE if all installers should share a single workbench and FALSE if every app gets its own (default).
+     * 
+     * Reads `COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP` from the configuration of this app. If it cannot be read, 
+     * every app gets its own workbench.
+     * 
+     * @param WorkbenchInterface $workbench
+     * @return bool
+     */
+    protected static function isSharedWorkbench(WorkbenchInterface $workbench) : bool
+    {
+        try {
+            $config = AppFactory::createFromAlias(self::PACKAGE_MANAGER_APP_ALIAS, $workbench)->getConfig();
+            return $config->getOption('COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP') === false;
+        } catch (\Throwable $e) {
+            static::printException($e);
+            static::printToStdout('Cannot read configuration "COMPOSER.USE_NEW_WORKBENCH_FOR_EVERY_APP" - using new workbench for every app by default.' . PHP_EOL);
+            return false;
+        }
+    }
 
     public static function generateLicenseBOM()
     {
         $installer = new self();
+        $exface = null;
         try {
             $exface = $installer->getWorkbench();
             $action = ActionFactory::createFromString($exface, self::PACAKGE_MANAGER_GENERATE_LIC_BOM_ALIAS);
@@ -474,6 +642,8 @@ class StaticInstaller
             } else {
                 $installer::printToStdout('Cannot log error: workbench not available!');
             }
+        } finally {
+            $installer->releaseWorkbench();
         }
     }
 
