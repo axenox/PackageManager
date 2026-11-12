@@ -46,14 +46,31 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * `runComposerScript()`). `Composer\Config::disableProcessTimeout` prevents Composer from killing the installers 
  * after its default `process-timeout` of 300 seconds - just like callbacks were never stopped.
  * 
- * The methods `composerFinishInstall()` and `composerFinishUpdate()` themselves always run the installers in the 
- * current process. Do not register them as Composer callbacks (`StaticInstaller::composerFinishUpdate`) in a 
- * `composer.json` - this would fail with Monolog 3. The `PackageManagerInstaller` replaces such legacy entries by the
- * `@php` scripts and prints a migration notice. `bin/composer-script.php` does the same before running any installer
- * (see `migrateRootComposerJson()`), so this also works without a workbench. If an old installation still fails once,
- * because Composer already read the legacy callbacks, run
+ * ## Migrating legacy callbacks
+ * 
+ * Older installations registered `StaticInstaller::composerFinishInstall` and `StaticInstaller::composerFinishUpdate`
+ * as Composer callbacks. The first `composer install/update` after updating the package manager still calls them, 
+ * because Composer read the root `composer.json` before updating the packages. When called by Composer (= with a
+ * Composer event), these methods therefore do not start a workbench. Instead they
+ * 
+ * 1. replace the legacy callbacks in the root `composer.json` by the `@php` scripts (see `migrateRootComposerJson()`),
+ * so all following runs use the new structure, and
+ * 2. run `bin/composer-script.php` with the same method in a new PHP process (see `runComposerScriptInNewProcess()`).
+ * 
+ * Thus, the first run after the update works just like all following runs: `composer update` runs 
+ * `composerFinishUpdate` for the apps in the temp file and `composer install` runs `composerFinishInstall`. The code 
+ * running inside Composer only uses this class and plain PHP - no classes of the workbench or other libraries get
+ * loaded into the Composer process.
+ * 
+ * Note: never start a new PHP process from package events (`post-package-install`, etc.). At that time the autoloader 
+ * of the installation is not yet regenerated and may still reference files of removed packages. The 
+ * `post-install-cmd` and `post-update-cmd` events are fired after the autoloader is dumped.
+ * 
+ * Without a Composer event, `composerFinishInstall()` and `composerFinishUpdate()` run the installers in the current
+ * process - that is what `bin/composer-script.php` does. It also migrates the `composer.json` before running any
+ * installer. If an installation still fails once, run
  * `php vendor/axenox/packagemanager/bin/composer-script.php composerFinishUpdate` manually - the apps to update are 
- * kept in the temp file until then and the `composer.json` gets migrated for all following runs.
+ * kept in the temp file until then.
  * 
  * Note: there is only one `@php` process per Composer script - it runs the installers of all apps one after
  * another just like the Composer process would. The process only isolates the installers from Composer, but
@@ -107,6 +124,9 @@ class StaticInstaller
     
     /** Path of the script for `@php` Composer scripts - relative to the folder of this app */
     const COMPOSER_SCRIPT_PATH = 'bin/composer-script.php';
+    
+    /** Composer's helper to disable its `process-timeout` for the following scripts of an event */
+    const COMPOSER_DISABLE_TIMEOUT = 'Composer\\Config::disableProcessTimeout';
 
     private $workbench = null;
     private static $globalWorkbench = null;
@@ -140,13 +160,20 @@ class StaticInstaller
     }
 
     /**
+     * Runs the installers of the core and all apps found in the vendor folder.
+     * 
+     * If called by Composer (legacy callback), the installers run in a new PHP process - see class description.
      *
-     * @param Event $composer_event
+     * @param Event|null $composer_event
      * @return string
      */
-    public static function composerFinishInstall(Event $composer_event = null)
+    public static function composerFinishInstall(?Event $composer_event = null)
     {
         static::init();
+        if ($composer_event !== null) {
+            static::runLegacyComposerCallback(__FUNCTION__);
+            return '';
+        }
         try {
             $result = '';
             self::printToStdout('-> Installing "' . self::getCoreAppAlias() . '": ' . PHP_EOL . PHP_EOL);
@@ -176,13 +203,20 @@ class StaticInstaller
     }
 
     /**
+     * Runs the installers of the apps installed or updated by Composer - as listed in the temp file.
+     * 
+     * If called by Composer (legacy callback), the installers run in a new PHP process - see class description.
      *
-     * @param Event $composer_event
+     * @param Event|null $composer_event
      * @return string
      */
-    public static function composerFinishUpdate(Event $composer_event = null)
+    public static function composerFinishUpdate(?Event $composer_event = null)
     {
         static::init();
+        if ($composer_event !== null) {
+            static::runLegacyComposerCallback(__FUNCTION__);
+            return '';
+        }
         
         self::printToStdout("Running installers for newly installed and updated apps...\n");
 
@@ -322,7 +356,7 @@ class StaticInstaller
      */
     public static function migrateRootComposerJson(?string $composerJsonPath = null) : bool
     {
-        $composerJsonPath = $composerJsonPath ?? dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'composer.json';
+        $composerJsonPath = $composerJsonPath ?? static::getRootComposerJsonPath();
         if (! is_file($composerJsonPath)) {
             return false;
         }
@@ -330,11 +364,11 @@ class StaticInstaller
         if (! is_array($json)) {
             return false;
         }
-        $notices = PackageManagerInstaller::getComposerScriptMigrationNotices($json);
+        $notices = static::getComposerScriptMigrationNotices($json);
         if (empty($notices)) {
             return false;
         }
-        $migrated = PackageManagerInstaller::configureComposerScripts($json);
+        $migrated = static::configureComposerScripts($json);
         if (file_put_contents($composerJsonPath, json_encode($migrated, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) === false) {
             self::printToStdout('WARNING: cannot migrate legacy Composer scripts in "' . $composerJsonPath . '" - file not writable!' . PHP_EOL);
             return false;
@@ -343,6 +377,199 @@ class StaticInstaller
             self::printToStdout($notice . PHP_EOL);
         }
         return true;
+    }
+    
+    /**
+     * Handles a legacy Composer callback like `StaticInstaller::composerFinishUpdate` without starting a workbench
+     * in the Composer process.
+     * 
+     * Migrates the root `composer.json` for future runs and runs the same entry point in a new PHP process now. 
+     * Uses only plain PHP and this class, so nothing clashes with the libraries bundled with Composer. Throws an 
+     * exception if the new process fails, so Composer reports the failure just like for the `@php` scripts.
+     * 
+     * @param string $method one of `COMPOSER_SCRIPT_METHODS`
+     * @throws \RuntimeException
+     * @return void
+     */
+    protected static function runLegacyComposerCallback(string $method) : void
+    {
+        try {
+            static::migrateRootComposerJson();
+        } catch (\Throwable $e) {
+            self::printToStdout('WARNING: cannot migrate legacy Composer scripts in root composer.json: ' . $e->getMessage() . PHP_EOL);
+        }
+        self::printToStdout('Running "' . $method . '" in a separate PHP process to avoid conflicts with libraries bundled with Composer...' . PHP_EOL);
+        $exitCode = static::runComposerScriptInNewProcess($method);
+        if ($exitCode !== 0) {
+            throw new \RuntimeException(
+                'StaticInstaller::' . $method . ' failed with exit code ' . $exitCode . '! Fix the error and run '
+                . '"php' . substr(static::getComposerScriptCommand($method), strlen('@php')) . '" manually.'
+            );
+        }
+    }
+    
+    /**
+     * Runs `bin/composer-script.php` with the given method in a new PHP process and returns its exit code.
+     * 
+     * The process uses the same PHP binary and `memory_limit` as the current one (just like Composer's `@php`) and 
+     * shares its console, so the output appears right away. The command is passed to `proc_open()` as array, so 
+     * PHP takes care of quoting on Windows and Linux and no shell is involved. There is no timeout.
+     * 
+     * Only call this after the autoloader of the installation was regenerated - i.e. not from package events.
+     * 
+     * @param string $method one of `COMPOSER_SCRIPT_METHODS`
+     * @return int
+     */
+    public static function runComposerScriptInNewProcess(string $method) : int
+    {
+        $command = [PHP_BINARY !== '' ? PHP_BINARY : 'php'];
+        $memoryLimit = ini_get('memory_limit');
+        if (is_string($memoryLimit) && $memoryLimit !== '') {
+            $command[] = '-d';
+            $command[] = 'memory_limit=' . $memoryLimit;
+        }
+        $command[] = static::getComposerScriptPathAbsolute();
+        $command[] = $method;
+        
+        // Share the console of the current process if possible - otherwise forward the output manually
+        $useConsole = defined('STDIN') && defined('STDOUT') && defined('STDERR');
+        $descriptors = $useConsole ? [0 => STDIN, 1 => STDOUT, 2 => STDERR] : [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = proc_open($command, $descriptors, $pipes, dirname(static::getRootComposerJsonPath()));
+        if (! is_resource($process)) {
+            self::printToStdout('ERROR: cannot start a new PHP process using "' . $command[0] . '"!' . PHP_EOL);
+            return 1;
+        }
+        if (! $useConsole) {
+            self::printToStdout(stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]));
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+        }
+        return proc_close($process);
+    }
+    
+    /**
+     * Returns the path to the root `composer.json` of the installation (next to the `vendor` folder)
+     * 
+     * @return string
+     */
+    protected static function getRootComposerJsonPath() : string
+    {
+        return dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'composer.json';
+    }
+    
+    /**
+     * Returns the absolute path to `bin/composer-script.php`
+     * 
+     * @return string
+     */
+    protected static function getComposerScriptPathAbsolute() : string
+    {
+        return __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, self::COMPOSER_SCRIPT_PATH);
+    }
+    
+    /**
+     * Registers the scripts of the `StaticInstaller` in the given root `composer.json` and returns the result.
+     * 
+     * - Package events use callbacks, because they need the Composer event and never start a workbench.
+     * - `post-install-cmd` and `post-update-cmd` use `@php` scripts, so the workbench runs in its own PHP process
+     * and not inside Composer (see class description). Legacy callbacks are replaced by the `@php` script at the 
+     * same position, so the order of other scripts is kept. `Composer\Config::disableProcessTimeout` is added in 
+     * front of it unless already present - otherwise Composer would stop the installers after 300 seconds.
+     * 
+     * Running this repeatedly does not change the result. Uses plain PHP only, so it is safe to call inside Composer.
+     * 
+     * @param array<string, mixed> $json
+     * @return array<string, mixed>
+     */
+    public static function configureComposerScripts(array $json) : array
+    {
+        $callbacks = [
+            'post-package-install' => self::class . '::composerFinishPackageInstall',
+            'post-package-update' => self::class . '::composerFinishPackageUpdate'
+        ];
+        foreach ($callbacks as $event => $callback) {
+            $scripts = static::getComposerScripts($json, $event);
+            if (! in_array($callback, $scripts, true)) {
+                $scripts[] = $callback;
+                $json['scripts'][$event] = $scripts;
+            }
+        }
+        
+        $vendorDir = $json['config']['vendor-dir'] ?? 'vendor';
+        foreach (static::getComposerCmdEvents() as $event => $method) {
+            $scripts = static::getComposerScripts($json, $event);
+            $command = static::getComposerScriptCommand($method, $vendorDir);
+            $replaced = [self::class . '::' . $method, $command];
+            
+            $position = null;
+            $kept = [];
+            foreach ($scripts as $script) {
+                if (in_array($script, $replaced, true)) {
+                    $position = $position ?? count($kept);
+                    continue;
+                }
+                $kept[] = $script;
+            }
+            $position = $position ?? count($kept);
+            
+            $insert = [$command];
+            if (! in_array(self::COMPOSER_DISABLE_TIMEOUT, array_slice($kept, 0, $position), true)) {
+                array_unshift($insert, self::COMPOSER_DISABLE_TIMEOUT);
+            }
+            array_splice($kept, $position, 0, $insert);
+            
+            if ($kept !== $scripts) {
+                $json['scripts'][$event] = $kept;
+            }
+        }
+        return $json;
+    }
+    
+    /**
+     * Returns a migration notice for every legacy `StaticInstaller` callback, that `configureComposerScripts()` 
+     * would replace by an `@php` script - an empty array if the `composer.json` is up to date.
+     * 
+     * @param array<string, mixed> $json
+     * @return string[]
+     */
+    public static function getComposerScriptMigrationNotices(array $json) : array
+    {
+        $vendorDir = $json['config']['vendor-dir'] ?? 'vendor';
+        $notices = [];
+        foreach (static::getComposerCmdEvents() as $event => $method) {
+            $legacy = self::class . '::' . $method;
+            if (in_array($legacy, static::getComposerScripts($json, $event), true)) {
+                $notices[] = 'MIGRATION: replaced legacy Composer callback "' . $legacy . '" in "scripts.' . $event 
+                    . '" of the root composer.json by "' . static::getComposerScriptCommand($method, $vendorDir) . '"';
+            }
+        }
+        return $notices;
+    }
+    
+    /**
+     * Returns the Composer command events, that run `@php` scripts, with the method each of them calls.
+     * 
+     * @return array<string, string>
+     */
+    protected static function getComposerCmdEvents() : array
+    {
+        return [
+            'post-install-cmd' => 'composerFinishInstall',
+            'post-update-cmd' => 'composerFinishUpdate'
+        ];
+    }
+    
+    /**
+     * Returns the scripts registered for a Composer event as array - Composer also allows a single string.
+     * 
+     * @param array<string, mixed> $json
+     * @param string $event
+     * @return string[]
+     */
+    protected static function getComposerScripts(array $json, string $event) : array
+    {
+        $scripts = $json['scripts'][$event] ?? [];
+        return is_array($scripts) ? array_values($scripts) : [$scripts];
     }
     
     // Generated by GitHub Copilot - Nov-06-2026
@@ -400,12 +627,18 @@ class StaticInstaller
     /**
      * Backup all apps
      * since they have no own backup function to call to
+     * 
+     * If called by Composer (legacy callback), the backup runs in a new PHP process - see class description.
      *
-     * @param Event $composer_event
-     * @return Event $composer_event
+     * @param Event|null $composer_event
+     * @return string
      */
-    public static function composerBackupEverything(Event $composer_event = null){
+    public static function composerBackupEverything(?Event $composer_event = null){
         static::init();
+        if ($composer_event !== null) {
+            static::runLegacyComposerCallback(__FUNCTION__);
+            return '';
+        }
         $installer = new self();
         try {
             $apps = ListApps::findAppAliasesInModel($installer->getWorkbench());

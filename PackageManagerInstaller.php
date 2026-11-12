@@ -7,7 +7,7 @@ use exface\Core\Exceptions\UnexpectedValueException;
 class PackageManagerInstaller extends AbstractAppInstaller
 {
     /** Composer's helper to disable its `process-timeout` for the following scripts of an event */
-    const COMPOSER_DISABLE_TIMEOUT = 'Composer\\Config::disableProcessTimeout';
+    const COMPOSER_DISABLE_TIMEOUT = StaticInstaller::COMPOSER_DISABLE_TIMEOUT;
 
     /**
      * 
@@ -64,97 +64,27 @@ class PackageManagerInstaller extends AbstractAppInstaller
     /**
      * Registers the scripts of the `StaticInstaller` in the given root `composer.json` and returns the result.
      * 
-     * - Package events use callbacks, because they need the Composer event and never start a workbench.
-     * - `post-install-cmd` and `post-update-cmd` use `@php` scripts, so the workbench runs in its own PHP process
-     * and not inside Composer (see `StaticInstaller` class description). Legacy callbacks are replaced by the
-     * `@php` script at the same position, so the order of other scripts is kept. `Composer\Config::disableProcessTimeout`
-     * is added in front of it unless already present - otherwise Composer would stop the installers after 300 seconds.
-     * 
-     * Running this repeatedly does not change the result.
+     * @see StaticInstaller::configureComposerScripts()
      * 
      * @param array<string, mixed> $json
      * @return array<string, mixed>
      */
     public static function configureComposerScripts(array $json) : array
     {
-        $callbacks = [
-            'post-package-install' => StaticInstaller::class . '::composerFinishPackageInstall',
-            'post-package-update' => StaticInstaller::class . '::composerFinishPackageUpdate'
-        ];
-        foreach ($callbacks as $event => $callback) {
-            $scripts = static::getComposerScripts($json, $event);
-            if (! in_array($callback, $scripts, true)) {
-                $scripts[] = $callback;
-                $json['scripts'][$event] = $scripts;
-            }
-        }
-        
-        $vendorDir = $json['config']['vendor-dir'] ?? 'vendor';
-        $commands = [
-            'post-install-cmd' => 'composerFinishInstall',
-            'post-update-cmd' => 'composerFinishUpdate'
-        ];
-        foreach ($commands as $event => $method) {
-            $scripts = static::getComposerScripts($json, $event);
-            $command = StaticInstaller::getComposerScriptCommand($method, $vendorDir);
-            $replaced = [StaticInstaller::class . '::' . $method, $command];
-            
-            $position = null;
-            $kept = [];
-            foreach ($scripts as $script) {
-                if (in_array($script, $replaced, true)) {
-                    $position = $position ?? count($kept);
-                    continue;
-                }
-                $kept[] = $script;
-            }
-            $position = $position ?? count($kept);
-            
-            $insert = [$command];
-            if (! in_array(self::COMPOSER_DISABLE_TIMEOUT, array_slice($kept, 0, $position), true)) {
-                array_unshift($insert, self::COMPOSER_DISABLE_TIMEOUT);
-            }
-            array_splice($kept, $position, 0, $insert);
-            
-            if ($kept !== $scripts) {
-                $json['scripts'][$event] = $kept;
-            }
-        }
-        return $json;
+        return StaticInstaller::configureComposerScripts($json);
     }
     
     /**
-     * Returns a migration notice for every legacy `StaticInstaller` callback, that `configureComposerScripts()` 
-     * would replace by an `@php` script - an empty array if the `composer.json` is up to date.
+     * Returns a migration notice for every legacy `StaticInstaller` callback in the given root `composer.json`.
+     * 
+     * @see StaticInstaller::getComposerScriptMigrationNotices()
      * 
      * @param array<string, mixed> $json
      * @return string[]
      */
     public static function getComposerScriptMigrationNotices(array $json) : array
     {
-        $vendorDir = $json['config']['vendor-dir'] ?? 'vendor';
-        $notices = [];
-        foreach (['post-install-cmd' => 'composerFinishInstall', 'post-update-cmd' => 'composerFinishUpdate'] as $event => $method) {
-            $legacy = StaticInstaller::class . '::' . $method;
-            if (in_array($legacy, static::getComposerScripts($json, $event), true)) {
-                $notices[] = 'MIGRATION: replaced legacy Composer callback "' . $legacy . '" in "scripts.' . $event 
-                    . '" of the root composer.json by "' . StaticInstaller::getComposerScriptCommand($method, $vendorDir) . '"';
-            }
-        }
-        return $notices;
-    }
-    
-    /**
-     * Returns the scripts registered for a Composer event as array - Composer also allows a single string.
-     * 
-     * @param array<string, mixed> $json
-     * @param string $event
-     * @return string[]
-     */
-    protected static function getComposerScripts(array $json, string $event) : array
-    {
-        $scripts = $json['scripts'][$event] ?? [];
-        return is_array($scripts) ? array_values($scripts) : [$scripts];
+        return StaticInstaller::getComposerScriptMigrationNotices($json);
     }
 
     public function uninstall() : \Iterator
