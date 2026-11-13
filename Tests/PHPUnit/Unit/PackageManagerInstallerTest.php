@@ -1,7 +1,7 @@
 <?php
 namespace axenox\PackageManager\Tests\PHPUnit\Unit;
 
-use axenox\PackageManager\PackageManagerInstaller;
+use axenox\PackageManager\StaticInstaller;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -87,11 +87,11 @@ class PackageManagerInstallerTest extends TestCase
     }
     
     /**
-     * Every replaced legacy callback produces a migration notice - an up-to-date composer.json produces none.
+     * Configuration reports all additions and replacements, then stays silent on repeated runs.
      * 
      * @return void
      */
-    public function testMigrationNoticesListReplacedCallbacks() : void
+    public function testConfigurationReportsEveryChangeAndStaysSilentWhenUnchanged() : void
     {
         $legacy = [
             'scripts' => [
@@ -99,15 +99,56 @@ class PackageManagerInstallerTest extends TestCase
                 'post-update-cmd' => ['axenox\\PackageManager\\StaticInstaller::composerFinishUpdate']
             ]
         ];
-        $notices = PackageManagerInstaller::getComposerScriptMigrationNotices($legacy);
+        $notices = [];
+        $output = function (string $message) use (&$notices) : void {
+            $notices[] = $message;
+        };
+        $configured = StaticInstaller::configureComposerScripts($legacy, $output);
         
+        self::assertCount(6, $notices);
+        self::assertStringContainsString(self::CB_PACKAGE_INSTALL, $notices[0]);
+        self::assertStringContainsString(self::CB_PACKAGE_UPDATE, $notices[1]);
+        self::assertStringContainsString('replacing', $notices[2]);
+        self::assertStringContainsString(self::CMD_INSTALL, $notices[2]);
+        self::assertStringContainsString(self::TIMEOUT, $notices[3]);
+        self::assertStringContainsString('replacing', $notices[4]);
+        self::assertStringContainsString(self::CMD_UPDATE, $notices[4]);
+        self::assertStringContainsString(self::TIMEOUT, $notices[5]);
+        $notices = [];
+        self::assertSame($configured, StaticInstaller::configureComposerScripts($configured, $output));
+        self::assertSame([], $notices);
+    }
+
+    /**
+     * Repairs without legacy callbacks report both a missing timeout helper and duplicate commands.
+     *
+     * @return void
+     */
+    public function testConfigurationReportsNonLegacyRepairs() : void
+    {
+        $json = PackageManagerInstallerTestDouble::configure([]);
+        $json['scripts']['post-update-cmd'] = [self::CMD_UPDATE, self::CMD_UPDATE, '@php after.php'];
+        $notices = [];
+        $configured = StaticInstaller::configureComposerScripts($json, function (string $message) use (&$notices) : void {
+            $notices[] = $message;
+        });
+
+        self::assertSame([self::TIMEOUT, self::CMD_UPDATE, '@php after.php'], $configured['scripts']['post-update-cmd']);
         self::assertCount(2, $notices);
-        self::assertStringContainsString('"scripts.post-install-cmd"', $notices[0]);
-        self::assertStringContainsString(self::CMD_INSTALL, $notices[0]);
-        self::assertStringContainsString('"scripts.post-update-cmd"', $notices[1]);
-        self::assertStringContainsString(self::CMD_UPDATE, $notices[1]);
-        self::assertSame([], PackageManagerInstaller::getComposerScriptMigrationNotices(PackageManagerInstallerTestDouble::configure($legacy)));
-        self::assertSame([], PackageManagerInstaller::getComposerScriptMigrationNotices([]));
+        self::assertStringContainsString('removing duplicate', $notices[0]);
+        self::assertStringContainsString(self::TIMEOUT, $notices[1]);
+    }
+
+    /**
+     * A non-string script is rejected instead of being silently retained in the configuration.
+     *
+     * @return void
+     */
+    public function testInvalidScriptEntryIsRejected() : void
+    {
+        $this->expectException(\UnexpectedValueException::class);
+        $this->expectExceptionMessage('scripts.post-package-install');
+        PackageManagerInstallerTestDouble::configure(['scripts' => ['post-package-install' => [123]]]);
     }
     
     /**
@@ -127,9 +168,9 @@ class PackageManagerInstallerTest extends TestCase
 }
 
 /**
- * Exposes the protected static configuration method of the installer.
+ * Configures Composer scripts with CLI output suppressed for assertions.
  */
-class PackageManagerInstallerTestDouble extends PackageManagerInstaller
+class PackageManagerInstallerTestDouble
 {
     /**
      * @param array<string, mixed> $json
@@ -137,6 +178,7 @@ class PackageManagerInstallerTestDouble extends PackageManagerInstaller
      */
     public static function configure(array $json) : array
     {
-        return static::configureComposerScripts($json);
+        return StaticInstaller::configureComposerScripts($json, function (string $message) : void {
+        });
     }
 }

@@ -36,23 +36,25 @@ class PackageManagerInstaller extends AbstractAppInstaller
         
         if (! isset($root_composer_json['autoload']['psr-0']["axenox\\PackageManager"])) {
             $root_composer_json['autoload']['psr-0']["axenox\\PackageManager"] = "vendor/";
+            yield $idt . 'CHANGE: adding "autoload.psr-0.axenox\\PackageManager" to root composer.json' . PHP_EOL;
             $changes ++;
         }
         
-        foreach (static::getComposerScriptMigrationNotices($root_composer_json) as $notice) {
-            yield $idt . $notice . PHP_EOL;
+        $notices = [];
+        $configured = StaticInstaller::configureComposerScripts($root_composer_json, function (string $message) use (&$notices) : void {
+            $notices[] = $message;
+        });
+        foreach ($notices as $notice) {
+            yield $idt . $notice;
         }
-        $configured = static::configureComposerScripts($root_composer_json);
         if ($configured !== $root_composer_json) {
             $root_composer_json = $configured;
             $changes ++;
         }
         
         if ($changes > 0) {
-            $this->getWorkbench()->filemanager()->dumpFile($root_composer_json_path, json_encode($root_composer_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $this->getWorkbench()->filemanager()->dumpFile($root_composer_json_path, json_encode($root_composer_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
             yield $idt . "Configured root composer.json for automatic app installation" . PHP_EOL;
-        } else {
-            yield $idt . "Checked root composer.json" . PHP_EOL;
         }
     }
 
@@ -61,32 +63,6 @@ class PackageManagerInstaller extends AbstractAppInstaller
         return $this->install();
     }
     
-    /**
-     * Registers the scripts of the `StaticInstaller` in the given root `composer.json` and returns the result.
-     * 
-     * @see StaticInstaller::configureComposerScripts()
-     * 
-     * @param array<string, mixed> $json
-     * @return array<string, mixed>
-     */
-    public static function configureComposerScripts(array $json) : array
-    {
-        return StaticInstaller::configureComposerScripts($json);
-    }
-    
-    /**
-     * Returns a migration notice for every legacy `StaticInstaller` callback in the given root `composer.json`.
-     * 
-     * @see StaticInstaller::getComposerScriptMigrationNotices()
-     * 
-     * @param array<string, mixed> $json
-     * @return string[]
-     */
-    public static function getComposerScriptMigrationNotices(array $json) : array
-    {
-        return StaticInstaller::getComposerScriptMigrationNotices($json);
-    }
-
     public function uninstall() : \Iterator
     {
         return 'Uninstall not implemented for' . $this->getSelectorInstalling()->getAliasWithNamespace() . '!';
