@@ -83,9 +83,23 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * Without a Composer event, `composerFinishInstall()` and `composerFinishUpdate()` run the installers in the current
  * process - that is what `bin/composer-script.php` does. It also migrates the `composer.json` before running any
- * installer. If an installation still fails once, run
- * `php vendor/axenox/packagemanager/bin/composer-script.php composerFinishUpdate` manually - the apps to update are 
- * kept in the temp file until then.
+ * installer.
+ *
+ * ## Retrying failed Composer installers
+ *
+ * If an app installer fails during `composer install` or `composer update`, the script exits with
+ * a nonzero status. Failed apps stay in `vendor/axenox/packagemanager/LastInstall.temp.json`;
+ * successfully installed apps are removed from the pending lists immediately. Backup cleanup
+ * is skipped when any app fails.
+ *
+ * After fixing the reported errors, run this command from the installation root:
+ *
+ * ```console
+ * php composer.phar run-script post-update-cmd
+ * ```
+ *
+ * This retries only pending apps, including failures from `post-install-cmd`. Do not delete the
+ * temporary file before retrying. Running `post-install-cmd` instead reinstalls all discovered apps.
  * 
  * Note: there is only one `@php` process per Composer script - it runs the installers of all apps one after
  * another just like the Composer process would. The process only isolates the installers from Composer, but
@@ -182,6 +196,7 @@ class StaticInstaller
 
     /**
      * Runs the installers of the core and ALL apps found in the vendor folder.
+     * Failed apps stay queued for `composerFinishUpdate()`; successful apps are checkpointed immediately.
      * 
      * If called by Composer statically (legacy `post-install-cmd` variant), the installers run in a new PHP process 
      * - see class description.
@@ -196,36 +211,28 @@ class StaticInstaller
             static::runLegacyComposerCallback(__FUNCTION__);
             return '';
         }
-        try {
-            $result = '';
-            self::printToStdout('-> Installing "' . self::getCoreAppAlias() . '": ' . PHP_EOL . PHP_EOL);
-            $result = self::install(self::getCoreAppAlias());
-            self::printToStdout(($result ? $result : 'Nothing to do') . "." . PHP_EOL);
-        } catch (\Throwable $e) {
-            self::printToStdout('FAILED to install "' . self::getCoreAppAlias() . '": ' . $result . "." . PHP_EOL);
-            self::printException($e);
-        }
-
         self::printToStdout("Searching for apps in vendor-folder...");
         $vendorBase = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..';
         $installedAppAliases = ListApps::findAppAliasesInVendorFolders($vendorBase);
         self::printToStdout("found " . count($installedAppAliases) . " apps" . PHP_EOL);
 
-        foreach ($installedAppAliases as $app_alias) {
-            self::printToStdout('-> Installing app "' . $app_alias . '": ' . PHP_EOL . PHP_EOL);
-            $result = self::install($app_alias);
-            self::printToStdout(($result ? trim($result, ".") : 'Nothing to do') . PHP_EOL);
-        }
+        $appAliases = array_values(array_unique(array_merge([self::getCoreAppAlias()], $installedAppAliases)));
+        // Record all discovered apps before starting, including apps copied into vendor manually.
+        $temp = static::getTempFile();
+        $temp['install'] = array_values(array_unique(array_merge($temp['install'] ?? [], $appAliases)));
+        // A pending PackageManager on retry must not trigger full discovery again.
+        $temp['fullInstallPending'] = true;
+        static::setTempFile($temp);
+        $installedCount = static::installApps($appAliases, false, [static::class, 'installAppFinish']);
 
-        self::setTempFile([]);
+        static::generateLicenseBOM();
 
-        self::generateLicenseBOM();
-
-        return empty($installedAppAliases) === true ? "No apps to update.\n" : "Installed " . count($installedAppAliases) . " apps.\n";
+        return "Installed " . $installedCount . " apps.\n";
     }
 
     /**
      * Runs the installers ONLY for apps installed or updated by Composer - as listed in the temp file, Core first.
+     * Failed apps remain queued and cause a script failure after the remaining apps have been attempted.
      * 
      * If the `axenox.PackageManager` was actually just installed now (not updated), this falls back to 
      * `composerFinishInstall()`. This can happen if `composer update` is run on a fresh installation or when
@@ -248,47 +255,25 @@ class StaticInstaller
         
         self::printToStdout("Running installers for newly installed and updated apps...\n");
 
-        $processed_aliases = array();
-        $temp = self::getTempFile();
+        $temp = static::getTempFile();
 
         $appAliases = array_key_exists('update', $temp) ? $temp['update'] : [];
         if (array_key_exists('install', $temp) && is_array($temp['install']) === true) {
             // If the package manager is being installed for the first time, run
             // install instead of update
-            if (in_array('axenox.PackageManager', $temp['install'])) {
-                return self::composerFinishInstall();
+            if (in_array('axenox.PackageManager', $temp['install']) && empty($temp['fullInstallPending'])) {
+                return static::composerFinishInstall();
             }
             $appAliases = array_merge($appAliases, $temp['install']);
         }
 
-        // Run installers for updated apps
-        if (empty($appAliases) === false) {
-            // First of all check, if the core needs to be updated. If so, do that before updating other apps
-            if (in_array(self::getCoreAppAlias(), $appAliases)) {
-                if (! in_array(self::getCoreAppAlias(), $processed_aliases)) {
-                    $processed_aliases[] = self::getCoreAppAlias();
-                    self::printToStdout('-> Updating app "' . self::getCoreAppAlias() . '": ' . PHP_EOL . PHP_EOL);
-                    $result = self::install(self::getCoreAppAlias());
-                    self::printToStdout(($result ? $result : 'Nothing to do') . PHP_EOL);
-                }
-            }
-            // Now that the core is up to date, we can update the others
-            foreach ($appAliases as $app_alias) {
-                if (! in_array($app_alias, $processed_aliases)) {
-                    $processed_aliases[] = $app_alias;
-                } else {
-                    continue;
-                }
-                self::printToStdout('-> Updating app "' . $app_alias . '": ' . PHP_EOL . PHP_EOL);
-                $result = self::install($app_alias);
-                self::printToStdout(($result ? $result : 'Nothing to do') . "." . PHP_EOL);
-            }
+        if (isset($temp['backupTime'])) {
+            // Retries must also keep backups of apps that succeeded in an earlier attempt.
+            $temp['backupUpdatedApps'] = array_values(array_unique(array_merge($temp['backupUpdatedApps'] ?? [], $temp['update'] ?? [])));
+            static::setTempFile($temp);
         }
-        if (array_key_exists('update', $temp) && is_array($temp['update'])){
-            $updatedPackages = $temp['update'];
-        } else {
-            $updatedPackages = [];
-        }
+        $installedCount = static::installApps($appAliases, true, [static::class, 'installAppFinish']);
+        $updatedPackages = $temp['backupUpdatedApps'] ?? $temp['update'] ?? [];
 
         // Cleanup backup
         if (array_key_exists('backupTime', $temp)) {
@@ -311,18 +296,98 @@ class StaticInstaller
             }
             if (!in_array(false,$unlinkResult)){
                 self::printToStdout("Cleared backup from excess data." . PHP_EOL);
+                $pending = static::getTempFile();
+                unset($pending['backupTime'], $pending['backupUpdatedApps']);
+                static::setTempFile($pending);
             } else {
                 self::printToStdout("Could not clear backup." . PHP_EOL);
             }
         }
 
-        unset($temp['update']);
-        unset($temp['install']);
-        self::setTempFile($temp);
+        static::generateLicenseBOM();
 
-        self::generateLicenseBOM();
+        return $installedCount === 0 ? "No apps to update.\n" : "Updated/installed " . $installedCount . " apps.\n";
+    }
 
-        return empty($processed_aliases) === true ? "No apps to update.\n" : "Updated/installed " . count($processed_aliases) . " apps.\n";
+    /**
+     * Runs each app once, Core first, and notifies the caller after each successful installation.
+     *
+     * The caller owns persistence. Callback errors propagate immediately; installer failures are collected
+     * and reported after attempting the remaining apps.
+     *
+     * @param string[] $appAliases
+     * @param bool $update
+     * @param callable(string): void $onSuccess called immediately after each successful installation
+     * @return int number of successfully installed apps
+     * @throws \RuntimeException if any app failed
+     */
+    protected static function installApps(array $appAliases, bool $update, callable $onSuccess) : int
+    {
+        // An app can appear in both Composer operation lists, but its installer must run only once.
+        $appAliases = array_values(array_unique($appAliases));
+        // Other apps may depend on Core's model changes, so install Core first when it is pending.
+        if (in_array(self::getCoreAppAlias(), $appAliases, true)) {
+            $appAliases = array_merge([self::getCoreAppAlias()], array_diff($appAliases, [self::getCoreAppAlias()]));
+        }
+        // Track failures separately so attempted installations are not counted as successful.
+        $failed = [];
+        $installedCount = 0;
+        foreach ($appAliases as $appAlias) {
+            // Identify the app before starting it, including when startup itself fails.
+            self::printToStdout('-> ' . ($update ? 'Updating' : 'Installing') . ' app "' . $appAlias . '": ' . PHP_EOL . PHP_EOL);
+            try {
+                // Only a completed installer may trigger the caller's success callback.
+                $result = static::install($appAlias);
+            } catch (\Throwable $e) {
+                // Report the failure without notifying the success callback, then attempt the remaining apps.
+                $failed[] = $appAlias;
+                self::printToStdout('FAILED installing ' . $appAlias . '!' . PHP_EOL);
+                self::printException($e);
+                continue;
+            }
+            // Print successful installer output before handing completion to the caller.
+            self::printToStdout(($result ? $result : 'Nothing to do') . PHP_EOL);
+            // Notify immediately so the caller can checkpoint progress before the next app starts.
+            // Keep this outside the installer catch: a persistence failure must stop the batch.
+            $onSuccess($appAlias);
+            $installedCount++;
+        }
+        // Propagate an overall failure to Composer and prevent subsequent backup cleanup and success reporting.
+        if ($failed !== []) {
+            throw new \RuntimeException(
+                'Successfully installed ' . $installedCount . ' apps. Failed installing: ' . implode(', ', $failed)
+                . '. Fix the errors and retry the failed apps.'
+            );
+        }
+        // The caller may report success only after every requested app completed.
+        return $installedCount;
+    }
+
+    /**
+     * Checkpoints a successful app for the Composer install/update entry points.
+     *
+     * @param string $appAlias
+     * @return void
+     */
+    protected static function installAppFinish(string $appAlias) : void
+    {
+        // Reload the queue to preserve changes made during installation.
+        $temp = static::getTempFile();
+        foreach (['update', 'install'] as $operation) {
+            // One successful installation satisfies both pending operation lists.
+            if (isset($temp[$operation])) {
+                $temp[$operation] = array_values(array_diff($temp[$operation], [$appAlias]));
+                if ($temp[$operation] === []) {
+                    unset($temp[$operation]);
+                }
+            }
+        }
+        // Keep the full-install retry marker until all pending apps have completed.
+        if (empty($temp['update']) && empty($temp['install'])) {
+            unset($temp['fullInstallPending']);
+        }
+        // Save before the next app starts so a later failure cannot erase this progress.
+        static::setTempFile($temp);
     }
 
     /**
@@ -358,7 +423,7 @@ class StaticInstaller
             return 1;
         }
         try {
-            self::migrateRootComposerJson();
+            static::migrateRootComposerJson();
             $result = static::$method();
         } catch (\Throwable $e) {
             self::printException($e);
@@ -694,6 +759,7 @@ class StaticInstaller
             $backupTime = date('Y_m_d_H_i');
             $temp = self::getTempFile();
             $temp['backupTime'] = $backupTime;
+            unset($temp['backupUpdatedApps']);
             self::setTempFile($temp);
             $backupPath = "autobackup".DIRECTORY_SEPARATOR.$backupTime;
             self::printToStdout("Starting automatic backup to ".$backupPath);
@@ -771,9 +837,17 @@ class StaticInstaller
         // TODO
     }
 
+    /**
+     * Installs an app and propagates errors so callers can retain it for retry.
+     *
+     * @param string $app_alias
+     * @return string
+     * @throws \Throwable if startup or installation fails
+     */
     public function installApp($app_alias)
     {
         $result = '';
+        $exface = null;
         try {
             $exface = $this->getWorkbench();
             $app_selector = new AppSelector($exface, $app_alias);
@@ -783,12 +857,10 @@ class StaticInstaller
                 $result .= $msg;
             }
         } catch (\Throwable $e) {
-            $result = 'FAILED - ' . $e->getMessage() . '!';
-            $this::printToStdout('FAILED installing ' . $app_alias . '!');
-            $this::printException($e);
             if ($exface !== null) {
                 $exface->getLogger()->logException($e);
             }
+            throw $e;
         }
         return $result;
     }
@@ -944,7 +1016,7 @@ class StaticInstaller
     protected static function getTempFile()
     {
         $json_array = array();
-        $filename = self::getTempFilePathAbsolute();
+        $filename = static::getTempFilePathAbsolute();
         if (file_exists($filename)) {
             $json_array = json_decode(file_get_contents($filename), true);
         }
@@ -957,11 +1029,18 @@ class StaticInstaller
      */
     protected static function setTempFile(array $json_array)
     {
+        $filename = static::getTempFilePathAbsolute();
         if (count($json_array) > 0) {
-            return file_put_contents(self::getTempFilePathAbsolute(), json_encode($json_array, JSON_PRETTY_PRINT));
-        } elseif (file_exists(self::getTempFilePathAbsolute())) {
-            return unlink(self::getTempFilePathAbsolute());
+            $result = file_put_contents($filename, json_encode($json_array, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+        } elseif (file_exists($filename)) {
+            $result = unlink($filename);
+        } else {
+            return;
         }
+        if ($result === false) {
+            throw new \RuntimeException('Cannot save pending app installations to "' . $filename . '".');
+        }
+        return $result;
     }
 
     /**

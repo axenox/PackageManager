@@ -39,6 +39,10 @@ The app-root `phpunit.xml.dist` discovers only the PHPUnit suites below.
 - `bootstrap.php`: loads Composer from either a standalone checkout or the host
   installation, then loads test support explicitly. Tests are excluded from the production classmap.
 
+Installer checks cover both Composer queue persistence and storage-independent batch execution.
+The Composer entry points supply a success callback that checkpoints each completed app; batch
+execution itself does not read or write the pending file. Callback failures stop the batch immediately.
+
 ## Adding Tests
 
 Name files and classes `*Test` and give each scenario its own `test*` method. Use PHPUnit
