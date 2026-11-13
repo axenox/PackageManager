@@ -989,7 +989,10 @@ class StaticInstaller
     }
 
     /**
-     * Prints an exception, including when running inside Composer without the workbench autoloader.
+     * Prints the exception chain with only the root cause's stack trace, without requiring the workbench autoloader.
+     *
+     * Locations and trace paths inside this installation's vendor directory are shortened. External paths are
+     * preserved, and available Log-IDs are displayed with their exception messages.
      *
      * @param \Throwable $e
      * @param string $prefix
@@ -1007,14 +1010,34 @@ class StaticInstaller
             return;
         }
         // Otherwise use a dependency-free fallback, that produces similar output
+        $exceptions = [];
         do {
-            self::printToStdout(PHP_EOL . $prefix . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine() . PHP_EOL);
-            if ($e instanceof ExceptionInterface) {
-                self::printToStdout('-> See log ID ' . $e->getId() . PHP_EOL);
-            }
-            self::printToStdout('  ' . str_replace("\n", "\n  ", $e->getTraceAsString()) . PHP_EOL);
+            $exceptions[] = $e;
         } while ($e = $e->getPrevious());
-        self::printToStdout(PHP_EOL . '------------------------------------------------------------------------' . PHP_EOL);
+
+        $count = count($exceptions);
+        $vendorPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR;
+        $border = str_repeat('-', 80) . PHP_EOL;
+        self::printToStdout(PHP_EOL . $border . $prefix . PHP_EOL);
+        foreach ($exceptions as $index => $exception) {
+            $message = '[' . ($count - $index) . ' of ' . $count . '] ' . get_class($exception);
+            if ($exception->getMessage() !== '') {
+                $message .= ':' . PHP_EOL . ' ' . $exception->getMessage();
+            }
+            if ($exception instanceof ExceptionInterface) {
+                $message .= ' (see Log-ID ' . $exception->getId() . ')';
+            }
+            $file = $exception->getFile();
+            if (strpos($file, $vendorPath) === 0) {
+                $file = substr($file, strlen($vendorPath));
+            }
+            self::printToStdout($message . PHP_EOL . ' in ' . $file . ':' . $exception->getLine() . PHP_EOL);
+            if ($index === $count - 1) {
+                $trace = str_replace(' ' . $vendorPath, ' ', $exception->getTraceAsString());
+                self::printToStdout('  ' . str_replace("\n", "\n  ", $trace) . PHP_EOL);
+            }
+        }
+        self::printToStdout($border);
     }
 
     public static function getCoreAppAlias()
