@@ -1,6 +1,7 @@
 <?php
 namespace axenox\PackageManager\Actions;
 
+use axenox\PackageManager\Common\Audit\Finding;
 use axenox\PackageManager\Common\Audit\MergedFinding;
 use axenox\PackageManager\Common\LicenseBOM\BOMPackage;
 use axenox\PackageManager\Common\LicenseBOM\IncludesBOM;
@@ -180,15 +181,37 @@ class Audit extends AbstractAction implements iCanBeCalledFromCLI
                 }
                 $messages[] = $scannerName . ': scanning...';
                 $scannerFindings = $scanner->audit($scanTask);
+                $scannerHints = $scanner->getHints();
                 $findings = array_merge($findings, $scannerFindings);
             } catch (\Throwable $error) {
                 $message = 'Audit scanner ' . $name . ' failed: ' . $error->getMessage();
+                $remediation = '';
                 if ($error instanceof \GuzzleHttp\Exception\RequestException && ($error->getHandlerContext()['errno'] ?? null) === 60) {
-                    $message .= ' Configure PHP curl.cainfo / openssl.cafile with a trusted CA bundle.';
+                    $remediation = 'Configure PHP curl.cainfo / openssl.cafile with a trusted CA bundle.';
+                    $message .= ' ' . $remediation;
                 }
-                throw new ActionRuntimeError($this, $message, null, $error);
+                $findings[] = new Finding(
+                    'scanner-failure',
+                    'Scanner ' . $name . ' skipped due to failure',
+                    AdvisoryTypeDataType::UNSCANNABLE,
+                    '',
+                    $name,
+                    'medium',
+                    '',
+                    '',
+                    get_class($error) . ': ' . $error->getMessage(),
+                    $remediation,
+                    '',
+                    '',
+                    '',
+                    '',
+                    ''
+                );
+                $status[$name] = 'skipped';
+                $hints[] = $message;
+                $messages[] = $message;
+                continue;
             }
-            $scannerHints = $scanner->getHints();
             $hints = array_merge($hints, $scannerHints);
             $status[$name] = $scannerHints === [] ? 'completed' : 'skipped';
             $messages[] = $scannerName . ': ' . count($scannerFindings) . ' findings.';

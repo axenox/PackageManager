@@ -40,8 +40,14 @@ Each scanner summary prints its returned finding count, for example
 findings are not counted separately. Coverage hints follow on separate lines.
 
 No scanners are installed automatically during a normal audit. Missing prerequisites
-produce visible hints; malformed artifacts, command failures and network failures
-raise errors rather than reporting a clean scan. JSON exports have `findings`,
+produce visible hints. Scanner failures, including malformed artifacts, command
+failures and network/SSL failures, skip only the affected scanner; the audit continues.
+Each failure creates an `unscannable` advisory with `NAME` set to
+`Scanner <configured name> skipped due to failure`, `DESCRIPTION` containing the full
+exception class and message, and medium `LEVEL` (200). Failure hints remain visible,
+and the scanner status is `skipped`, never `completed`. Invalid action/scanner
+configuration, explicit prerequisite installation failures and output-write failures
+still raise action errors. JSON exports have `findings`,
 `hints`, and `scanners` properties. Scanner status is `completed`, `skipped`, or
 `not applicable`, keyed by the names in the configured scanner map. An empty findings
 array alone does not prove scan completeness.
@@ -308,7 +314,8 @@ configured limit. Composer otherwise defaults its own Git clone/fetch processes 
 300 seconds, independently of the scanner's outer process timeout. An internal Git
 timeout exits Composer with code 1; raising only the outer timeout does not prevent
 it. Failed Composer command messages include the retained diagnostic output, rather
-than just the command and exit code. Command failures remain audit errors.
+than just the command and exit code. Command failures produce a medium-level
+scanner-failure finding and do not stop other scanners.
 
 Web-server service accounts may use a different Composer home and cache from an
 interactive CLI user. A cache warmed from the terminal therefore may not help the
@@ -328,7 +335,8 @@ when a project needs a different limit, for example:
 This is one scanner entry, not a replacement for the entire scanner map. The limit
 also applies to each `prohibits` call, so total audit runtime may be longer. Raising
 it permits more repository work; it does not make discovery faster or guarantee
-completion. Timeouts remain errors rather than silently reporting a clean audit.
+completion. Timeouts produce scanner-failure findings rather than silently reporting
+a clean audit.
 Web-server and reverse-proxy request limits are separate and may still interrupt
 a web-console request; use CLI for long-running scans. Replacing direct Git sources
 with a suitable Composer metadata repository is a separate project configuration
@@ -463,7 +471,8 @@ Installation is local to the data folder and does not invoke sudo or change syst
 packages. Network access is required for advisories, releases and Trivy DB updates.
 PHP must have a trusted CA bundle configured for HTTPS (for example through
 `curl.cainfo` and `openssl.cafile` in php.ini). TLS certificate validation is never
-disabled; a missing issuer certificate fails the scan with a configuration hint.
+disabled; a missing issuer certificate skips the affected scanner with a medium-level
+failure finding and a CA-bundle configuration hint.
 
 ## Findings
 
